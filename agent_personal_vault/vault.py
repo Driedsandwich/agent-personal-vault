@@ -236,9 +236,7 @@ def derived_fields(fields: dict) -> dict[str, str]:
 def masked(value: str) -> str:
     if not value:
         return "(empty)"
-    if len(value) <= 4:
-        return "*" * len(value)
-    return f"{value[:2]}...{value[-2:]} ({len(value)} chars)"
+    return f"(filled, {len(value)} chars)"
 
 
 def check_summary(store: dict, path: Path) -> dict:

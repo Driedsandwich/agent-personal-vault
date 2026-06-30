@@ -51,7 +51,9 @@ Local-first personal data vault for AI agents with a bundled profile schema.
 - CLI `get` and `env` warn on stderr before printing raw values.
 - CLI `get`, `env`, `set`, and `unset` require raw-free `--purpose` text and write raw-free audit events.
 - CLI `audit summary` and `audit tail` expose audit metadata without raw values.
-- CLI `get` and `env` require a matching one-time consent token from an approved consent request or explicit direct grant.
+- CLI `list` reports filled status and length without raw fragments.
+- CLI `get` and `env` require a matching one-time consent token from a human-operated approval flow or explicit direct grant.
+- README and SECURITY explain that consent tokens and audit logs are workflow controls, not a hard boundary against same-OS-user shell access.
 - GUI can approve or deny pending consent requests without exposing raw values.
 - Optional encrypted store backend exists, is off by default, and does not claim complete security.
 - README and SECURITY explain that encryption requires optional dependency and user-managed passphrase.

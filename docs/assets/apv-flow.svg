@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
-  <title id="title">Agent Personal Vault safe access flow</title>
+  <title id="title">Agent Personal Vault access flow</title>
   <desc id="desc">AI agents use raw-free metadata first. Raw values require human consent. External actions stop for human review.</desc>
   <defs>
     <style>

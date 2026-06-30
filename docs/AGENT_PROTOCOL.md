@@ -59,7 +59,9 @@ agent-personal-vault check
 agent-personal-vault list
 ```
 
-`schema` does not read the vault file. `list` masks values but still reveals rough length. Use `context` as the safest default for agent planning when a vault exists, and `schema` when the agent only needs field definitions.
+`schema` does not read the vault file. `list` reports filled status and rough length without raw fragments. Use `context` as the safest default for agent planning when a vault exists, and `schema` when the agent only needs field definitions.
+
+Consent tokens and audit logs are workflow controls. They are not a hard security boundary against an agent or process that already has shell access as the same OS user.
 
 ## MCP Read-Only Tools
 

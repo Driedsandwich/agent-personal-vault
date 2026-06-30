@@ -38,6 +38,8 @@ Latest CI: GitHub Actions test workflow success
 | Docs | pass | publication gate、launch messaging、reputation risk、prior art、agent protocol、dry-run reportが揃っている |
 | CI | pass | Python 3.11、3.12、3.13で `python scripts/check_release.py` が成功 |
 | PII/forbidden-file check | pass | `vault.json`、`audit.jsonl`、`consents.json`、画像、DB、backup、private directoryの混入なし |
+| CLI masked output | pass | `list` はraw断片を出さず、入力済み状態と文字数のみを表示する |
+| GitHub repository settings | needs-action-before-public | description設定とWiki無効化をpublic化直前に推奨 |
 | Public messaging | pass-with-boundary | README中心なら可。SNS/blog同時告知は別判断 |
 
 ## 公開時の説明文
@@ -80,6 +82,12 @@ git status --short
 gh repo view Driedsandwich/agent-personal-vault --json visibility,isPrivate,defaultBranchRef
 gh run list --repo Driedsandwich/agent-personal-vault --limit 3
 ```
+
+Public化直前に推奨するGitHub設定:
+
+- repository descriptionを設定する
+- Wikiを無効化する
+- Issuesは有効のままにし、blank issue disabledを維持する
 
 Public化後に確認する。
 

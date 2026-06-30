@@ -178,6 +178,26 @@ class VaultTests(unittest.TestCase):
             self.assertFalse(payload["raw_values_included"])
             self.assertNotIn("山田", result.stdout)
 
+    def test_cli_list_does_not_return_raw_fragments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "list"],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertIn("EMAIL", result.stdout)
+            self.assertIn("(filled, 27 chars)", result.stdout)
+            self.assertNotIn("private", result.stdout)
+            self.assertNotIn("example", result.stdout)
+            self.assertNotIn("山田", result.stdout)
+
     def test_cli_env_warns_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"

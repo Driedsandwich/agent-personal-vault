@@ -31,6 +31,7 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 
 - At-rest encryption is optional and off by default. It requires the optional `cryptography` dependency and a user-managed passphrase.
 - Do not store the encryption passphrase in logs, public issues, shell history, or repository files.
+- Consent tokens and audit logs are workflow controls, not a hard security boundary against an agent or process that already has shell access as the same OS user.
 - Localhost GUI returns all fields to a browser tab with the valid token.
 - CLI `get` and `env` intentionally print raw values only after a matching one-time consent token is supplied and raw-free audit metadata is written. Recommended agent flow is request, human approve or deny, then raw retrieval with the approved token.
 - Audit logs record action, key, purpose, outcome, and whether raw data was returned. They do not intentionally record raw values, but user-provided purpose text must still be kept raw-free.
