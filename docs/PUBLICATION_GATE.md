@@ -48,6 +48,8 @@ Local-first personal data vault for AI agents with a bundled profile schema.
 - `docs/PUBLIC_RELEASE_REVIEW.md` exists and records the public visibility review.
 - `docs/AGENT_PROTOCOL.md` explains the safe AI-agent flow and raw access boundary.
 - GitHub Issue templates warn users not to post real personal data, screenshots, logs, or vault files.
+- Pull Request template exists and warns against personal data, screenshots, vault files, local paths, and raw logs.
+- `docs/OSS_GOVERNANCE.md` exists and defines Issue, PR, and branch-protection operation.
 - CLI `get` and `env` warn on stderr before printing raw values.
 - CLI `get`, `env`, `set`, and `unset` require raw-free `--purpose` text and write raw-free audit events.
 - CLI `audit summary` and `audit tail` expose audit metadata without raw values.
@@ -66,6 +68,7 @@ Local-first personal data vault for AI agents with a bundled profile schema.
 - LICENSE exists.
 - `.gitignore` excludes real vault data, images, local secrets, and build artifacts.
 - Public visibility change, release creation, package publish, and public announcement remain stopped until separately approved.
+- `main` branch protection requires PR-based changes and CI status checks before public visibility.
 
 ## Current Verification Commands
 
