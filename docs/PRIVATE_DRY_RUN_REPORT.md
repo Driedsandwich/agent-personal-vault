@@ -54,6 +54,6 @@ Latest pushed commit: see `git log --oneline -1`
 
 ## 次の判断
 
-次に進める場合の推奨は、public化ではなく、private repo内で最終表示確認と公開前チェックリストの人間レビューを行うこと。
+Public公開可否レビューは [PUBLIC_RELEASE_REVIEW.md](PUBLIC_RELEASE_REVIEW.md) に記録済み。
 
 public化、release、package publish、告知は、ここから先の別ゴールとして扱う。

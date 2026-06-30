@@ -12,7 +12,7 @@ Agent Personal Vault has a meaningful reputation risk because it combines:
 - AI agents
 - personal data
 - the word `vault`
-- no at-rest encryption in the MVP
+- optional at-rest encryption that is off by default
 - prior OSS projects in the same broad category
 
 The project can still be published, but it should be positioned as an early alpha, local-only, minimal, auditable utility. Avoid security overclaims.
@@ -21,7 +21,7 @@ The project can still be published, but it should be positioned as an early alph
 
 | Level | Risk | Why It Could Escalate | Mitigation |
 |---|---|---|---|
-| High | Security overclaim | `vault`, `safe`, or `secure` language can imply encryption or strong protection | Say "local boundary", "raw-free metadata", and "no at-rest encryption yet" prominently |
+| High | Security overclaim | `vault`, `safe`, or `secure` language can imply encryption or strong protection | Say "local boundary", "raw-free metadata", and "optional encryption is off by default" prominently |
 | High | AI agent personal-data anxiety | Users may assume the tool encourages agents to access sensitive data too freely | Lead with `context`/`schema` raw-free flow and final-action boundaries |
 | High | Real-data leak during launch | A screenshot, sample, or commit could accidentally include real values | Keep release checks mandatory; no screenshots with real data; run PII scan before push |
 | Medium | Prior-art criticism | Similar projects exist, especially `personal-vault` and Personal Context Protocol | Acknowledge prior art and avoid category-first novelty claims |
@@ -76,7 +76,7 @@ I built a small local-first Python utility that lets AI coding agents inspect wh
 
 Before public release:
 
-- README must mention no at-rest encryption.
+- README must mention optional at-rest encryption is off by default.
 - README must acknowledge prior art.
 - README must describe `context` and `schema` before raw `get`.
 - SECURITY must state what this project does not protect against.
@@ -95,4 +95,3 @@ The riskiest path is publicizing it as:
 ```text
 the safe way for AI agents to store and use your personal information
 ```
-

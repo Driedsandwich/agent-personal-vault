@@ -259,7 +259,8 @@ python3 scripts/check_release.py
 ```
 
 公開前の停止条件は [docs/PUBLICATION_GATE.md](docs/PUBLICATION_GATE.md) にまとめています。
-ローカルGit初期化へ進む場合は [docs/LOCAL_GIT_PREP.md](docs/LOCAL_GIT_PREP.md) を確認してください。
+private GitHub dry-runの確認結果は [docs/PRIVATE_DRY_RUN_REPORT.md](docs/PRIVATE_DRY_RUN_REPORT.md) にまとめています。
+public公開可否レビューは [docs/PUBLIC_RELEASE_REVIEW.md](docs/PUBLIC_RELEASE_REVIEW.md) にまとめています。
 公開時の表現リスクは [docs/REPUTATION_RISK_REVIEW.md](docs/REPUTATION_RISK_REVIEW.md) を確認してください。
 公開告知やREADME文言の安全な書き方は [docs/LAUNCH_MESSAGING.md](docs/LAUNCH_MESSAGING.md) を確認してください。
 

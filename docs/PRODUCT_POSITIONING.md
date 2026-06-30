@@ -7,7 +7,7 @@ classification: SAFE_CANDIDATE
 
 ## One Sentence
 
-Agent Personal Vault is a small Python-first local vault that lets AI agents inspect personal-data metadata safely and retrieve only specific fields when a local task truly needs them.
+Agent Personal Vault is a small Python-first local vault that lets AI agents inspect personal-data metadata without raw values by default and retrieve only specific fields when a local task truly needs them.
 
 ## What This Is
 
@@ -21,7 +21,7 @@ Agent Personal Vault is a small Python-first local vault that lets AI agents ins
 
 - Not a claim to invent the AI personal context vault category.
 - Not a replacement for encrypted personal context vaults such as Personal Vault.
-- Not an MCP protocol implementation yet.
+- Not a broad MCP protocol implementation; it exposes only read-only raw-free MCP tools.
 - Not a credential broker like Infisical Agent Vault.
 - Not a PII redaction middleware like Aegis Vault.
 - Not a full agent security monitor like ClawVault.
@@ -35,7 +35,7 @@ Agent Personal Vault is a small Python-first local vault that lets AI agents ins
 | Storage | encrypted context vaults, document stores | small structured field vault |
 | Agent planning | often protocol/API dependent | `context` returns raw-free JSON |
 | Schema discovery | product-specific APIs | `schema` does not read vault data |
-| Security depth | tokens, audit logs, encryption, policy engines | minimal local boundary and explicit limitations |
+| Security depth | tokens, audit logs, encryption, policy engines | audit, consent tokens, optional encryption, read-only raw-free MCP, and explicit limitations |
 | Initial use case | shopping, documents, credentials, redaction | Japanese profile/job-hunting schema as first template |
 | Audience | infra/security teams or agent platform builders | local AI/Codex users who want a simple auditable utility |
 
@@ -76,13 +76,13 @@ MVP does not include:
 - Keep `context` and `schema` raw-free.
 - Keep release checks passing.
 - Keep prior-art-aware README language.
-- Decide whether to initialize local Git and make first local commit.
+- Complete private GitHub dry-run.
+- Complete public release review.
 
-### P1: After Local Git, Before Public Push
+### P1: After Public Visibility, Before Announcement
 
 - Add more CLI docs and examples.
 - Add a small architecture diagram or data-flow section.
-- Consider renaming if `personal-vault` similarity feels too high.
 - Add a `CHANGELOG.md`.
 - Re-run prior-art review before public announcement.
 - Add GUI audit viewer before any MCP raw-value tool is exposed.
@@ -125,12 +125,13 @@ solves personal data for all agents
 
 ## Next Decision
 
-The next bounded local decision is whether to run:
+The next bounded decision is whether to change the private GitHub repository visibility to public.
 
-```sh
-git init
+```text
+Public visibility: approval required
+Release creation: separate approval required
+Package publish: separate approval required
+Announcement: separate approval required
 ```
-
-inside this directory and prepare the first local commit. That still does not publish anything externally. Remote creation and push remain separate final actions.
 
 See [SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md](SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md) for the security and agent-integration roadmap.

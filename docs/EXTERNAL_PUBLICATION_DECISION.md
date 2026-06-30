@@ -2,22 +2,23 @@
 
 日本語タイトル: 外部公開判断パケット
 
-status: review-ready
+status: superseded-by-public-release-review
 classification: SAFE_CANDIDATE
 last_updated: 2026-07-01
 
 ## 結論
 
-現時点の推奨は、`Agent Personal Vault` / `agent-personal-vault` の名称を維持し、最初は private GitHub repository でCIと表示確認を行い、その後にpublic化を判断すること。
+現時点の推奨は、`Agent Personal Vault` / `agent-personal-vault` の名称を維持すること。
 
-GitHub repository creation、`git push`、release creation、package publish、public announcement は、まだ実行しない。これらはそれぞれ別の明示承認が必要。
+Private GitHub dry-runは完了済み。public化、release creation、package publish、public announcement は、まだ実行しない。これらはそれぞれ別の明示承認が必要。
 
 ## 現在状態
 
 ```text
 Local publication gate: pass
 Latest local commit: see `git log --oneline -1`
-External publication: not executed
+Private GitHub dry-run: completed
+Public visibility: not executed
 ```
 
 ローカルでは、README、SECURITY、CONTRIBUTING、LICENSE、Issue templates、release check、PII scan、audit/consent、optional encryption、read-only MCP が揃っている。
@@ -108,7 +109,7 @@ private dry-runで確認する項目:
 推奨ゴール:
 
 ```text
-Agent Personal Vaultをprivate GitHub dry-runまで進め、CI、README表示、Issue template、公開前PII/forbidden-file checkを確認する。ただし、public化、release、package publish、告知は別途明示承認まで実行しない。
+Agent Personal Vaultのpublic公開可否をprivate repo上で最終判断する。README/SECURITY/Issue template/docs/CI結果を人間レビューし、公開時の説明文と禁止表現を確定する。ただし、public化、release、package publish、告知はそれぞれ別途明示承認まで実行しない。
 ```
 
 完了条件:
