@@ -1,0 +1,43 @@
+name: Security concern
+description: Coordinate security concerns without posting sensitive data.
+title: "[Security]: "
+labels: ["security", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not post real personal data, raw vault contents, tokens, screenshots, or exploit details that expose another person.
+        This project is alpha and is not encrypted by default. Reports should use dummy data and the minimum detail needed to explain impact.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the concern without raw personal data.
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Documentation or warning gap
+        - Raw data exposure risk
+        - Local file permission issue
+        - Token or GUI access concern
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Explain who could be affected and under what local conditions.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I did not include real personal data, credentials, screenshots, vault files, or raw exploit output.
+          required: true

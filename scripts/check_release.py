@@ -11,6 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 FORBIDDEN_NAMES = {
+    "audit.jsonl",
+    "consents.json",
     "vault.json",
 }
 

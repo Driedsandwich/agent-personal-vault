@@ -4,12 +4,15 @@
 /*.egg-info/
 /.pytest_cache/
 /__pycache__/
+**/__pycache__/
 *.pyc
 
 # Never commit real local vault data.
 /private/
 /data/
 /vault.json
+/audit.jsonl
+/consents.json
 *.local
 *.secret
 *.pem

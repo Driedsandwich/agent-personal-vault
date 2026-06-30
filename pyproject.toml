@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agent-personal-vault"
 version = "0.1.0"
-description = "Local-first personal data vault for AI agents."
+description = "Alpha local personal-data utility for AI agents."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -17,12 +17,16 @@ classifiers = [
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
-  "Topic :: Security",
+  "Topic :: Utilities",
 ]
+
+[project.optional-dependencies]
+encrypted = ["cryptography>=42"]
 
 [project.scripts]
 agent-personal-vault = "agent_personal_vault.cli:main"
 apv-gui = "agent_personal_vault.gui:main"
+apv-mcp = "agent_personal_vault.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_personal_vault*"]

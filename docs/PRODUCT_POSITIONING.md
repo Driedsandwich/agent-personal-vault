@@ -52,17 +52,21 @@ MVP includes:
 7. Explicit final-action boundary in docs.
 8. PII/secret pre-publication scanner.
 9. Release check script and CI workflow.
+10. Raw-free audit log for `get`, `env`, `set`, and `unset`.
+11. Required raw-free `--purpose` text for raw access and changes.
+12. One-time consent tokens for raw-returning `get` and `env`.
+13. Consent request queue with CLI and GUI approve/deny.
+14. Optional encrypted store backend using `cryptography` when installed.
+15. Read-only MCP stdio server exposing raw-free tools only.
 
 MVP does not include:
 
-1. At-rest encryption.
-2. MCP server.
-3. Multi-user permissions.
-4. Remote sync.
-5. Audit log.
-6. Browser extension.
-7. Enterprise policy engine.
-8. Automatic form submission.
+1. MCP raw-value tools.
+2. Multi-user permissions.
+3. Remote sync.
+4. Browser extension.
+5. Enterprise policy engine.
+6. Automatic form submission.
 
 ## Feature Priority
 
@@ -81,14 +85,18 @@ MVP does not include:
 - Consider renaming if `personal-vault` similarity feels too high.
 - Add a `CHANGELOG.md`.
 - Re-run prior-art review before public announcement.
+- Add GUI audit viewer before any MCP raw-value tool is exposed.
 
 ### P2: After Initial Public Release
 
-- Evaluate optional encryption backends.
-- Evaluate MCP integration.
-- Add audit log design.
 - Add additional schema templates.
 - Add import/export with redaction checks.
+
+### P3: After Audit, Consent, And Encryption Design
+
+- Add MCP raw-value tools with consent tokens.
+- Add GUI audit viewer.
+- Add stricter permission manifests for agent integrations.
 
 ## Messaging Rules
 
@@ -124,3 +132,5 @@ git init
 ```
 
 inside this directory and prepare the first local commit. That still does not publish anything externally. Remote creation and push remain separate final actions.
+
+See [SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md](SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md) for the security and agent-integration roadmap.

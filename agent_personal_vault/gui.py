@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .schemas import DERIVED_FIELDS
 from .vault import check_summary, derived_fields, get_schema, load_store, normalize_value, store_path, write_store
 
@@ -57,6 +58,9 @@ def page_html(token: str, schema_name: str) -> str:
     .hint, .example, .key {{ color: #667085; font-size: 12px; }}
     .bar {{ height: 8px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }}
     .bar > span {{ display: block; height: 100%; background: #13795b; }}
+    .request {{ border-top: 1px solid #e5e7eb; padding: 10px 0; }}
+    .request:first-child {{ border-top: 0; }}
+    .request-actions {{ display: flex; gap: 8px; margin-top: 8px; }}
     .danger {{ color: #b42318; }}
     .muted {{ color: #667085; }}
     @media (max-width: 900px) {{ .app {{ display: block; }} aside {{ position: static; }} .grid {{ grid-template-columns: 1fr; }} }}
@@ -66,7 +70,7 @@ def page_html(token: str, schema_name: str) -> str:
 <div class="app">
   <aside>
     <h1>Agent Personal Vault</h1>
-    <p class="muted">AIエージェントが必要時だけ参照するローカル個人情報vault。</p>
+    <p class="muted">AIエージェントが必要時だけ参照するローカル個人情報vault。alpha版。</p>
     <div class="nav" id="nav"></div>
   </aside>
   <main>
@@ -75,6 +79,7 @@ def page_html(token: str, schema_name: str) -> str:
       <button id="reload">再読込</button>
       <button id="mask">マスク切替</button>
       <span id="state">保存済み</span>
+      <p class="danger">alpha版です。既定では暗号化しません。共有端末、侵害済み端末、公開Issue、スクリーンショットでは使わないでください。</p>
       <p class="danger">外部送信はしません。応募、登録、メール送信、アップロードは別途人間確認してください。</p>
     </div>
     <form id="form"></form>
@@ -90,6 +95,10 @@ def page_html(token: str, schema_name: str) -> str:
     <section class="panel">
       <h2>派生項目</h2>
       <div id="derived"></div>
+    </section>
+    <section class="panel">
+      <h2>同意リクエスト</h2>
+      <div id="consentRequests">読み込み中</div>
     </section>
   </aside>
 </div>
@@ -164,8 +173,27 @@ function updateSide() {{
   const d = derived();
   document.getElementById("derived").innerHTML = Object.keys(derivedSchema).map(k => `<div>${{esc(derivedSchema[k])}}: <strong>${{esc(d[k] || "未生成")}}</strong></div>`).join("");
 }}
+async function loadConsentRequests() {{
+  const data = await api("/api/consent/requests");
+  const requests = data.requests || [];
+  const node = document.getElementById("consentRequests");
+  if (!requests.length) {{ node.innerHTML = "<p class='muted'>保留中のリクエストなし</p>"; return; }}
+  node.innerHTML = requests.map(req => `<div class="request">
+    <div><strong>${{esc(req.action)}} ${{esc(req.key)}}</strong></div>
+    <div class="hint">目的: ${{esc(req.purpose || "")}}</div>
+    <div class="hint">要求元: ${{esc(req.actor || "")}} / ${{esc(req.requested_at || "")}}</div>
+    <div class="request-actions">
+      <button onclick="decideConsent('${{esc(req.id)}}','approve')">承認</button>
+      <button onclick="decideConsent('${{esc(req.id)}}','deny')">拒否</button>
+    </div>
+  </div>`).join("");
+}}
+async function decideConsent(id, decision) {{
+  await api(`/api/consent/${{decision}}`, {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{id}})}});
+  await loadConsentRequests();
+}}
 function scheduleSave() {{ clearTimeout(timer); timer = setTimeout(() => save(false), 900); }}
-async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); dirty=false; setState("保存済み"); }}
+async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); await loadConsentRequests(); dirty=false; setState("保存済み"); }}
 async function save(show=true) {{
   clearTimeout(timer);
   fields = collect();
@@ -223,11 +251,37 @@ class Handler(BaseHTTPRequestHandler):
             store = load_store(create=True, path=self.server.store_path, schema_name=self.server.schema_name)
             self.send_json(HTTPStatus.OK, {"fields": store.get("fields", {}), "summary": check_summary(store, self.server.store_path)})
             return
+        if parsed.path == "/api/consent/requests":
+            if not self.token_ok():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+                return
+            self.send_json(HTTPStatus.OK, {"requests": list_consent_requests(self.server.store_path)})
+            return
         self.send_response(HTTPStatus.NOT_FOUND)
         self.end_headers()
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/profile":
+        parsed_path = urlparse(self.path).path
+        if parsed_path in {"/api/consent/approve", "/api/consent/deny"}:
+            if not self.token_ok():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            request_id = str(payload.get("id", ""))
+            try:
+                result = resolve_consent_request(
+                    vault_path=self.server.store_path,
+                    request_id=request_id,
+                    approve=parsed_path.endswith("/approve"),
+                    actor="gui",
+                )
+            except ConsentError as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self.send_json(HTTPStatus.OK, {"ok": True, "result": result})
+            return
+        if parsed_path != "/api/profile":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
         if not self.token_ok():
@@ -256,11 +310,11 @@ def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> N
     actual_port = server.server_address[1]
     url = f"http://127.0.0.1:{actual_port}/?token={token}"
     load_store(create=True, path=path, schema_name=schema_name)
-    print("Agent Personal Vault GUI")
-    print(f"url: {url}")
-    print("bind: 127.0.0.1")
-    print(f"store: {path}")
-    print("stop: Ctrl-C")
+    print("Agent Personal Vault GUI", flush=True)
+    print(f"url: {url}", flush=True)
+    print("bind: 127.0.0.1", flush=True)
+    print(f"store: {path}", flush=True)
+    print("stop: Ctrl-C", flush=True)
     if open_browser:
         threading.Timer(0.2, lambda: webbrowser.open(url)).start()
     try:

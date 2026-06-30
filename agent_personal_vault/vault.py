@@ -10,6 +10,7 @@ import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .crypto_store import decrypt_store_payload, encrypt_store_payload, is_encrypted_payload
 from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
 
 APP_NAME = "agent-personal-vault"
@@ -32,6 +33,10 @@ def default_data_dir() -> Path:
 
 def store_path(data_dir: Path | None = None) -> Path:
     return (data_dir or default_data_dir()) / "vault.json"
+
+
+def default_passphrase() -> str | None:
+    return os.environ.get("AGENT_PERSONAL_VAULT_PASSPHRASE")
 
 
 def blank_store(schema_name: str = DEFAULT_SCHEMA) -> dict:
@@ -65,7 +70,7 @@ def enforce_file_mode(path: Path) -> None:
         os.chmod(path, 0o600)
 
 
-def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA) -> dict:
+def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
     path = path or store_path()
     ensure_private_dir(path.parent)
     if not path.exists():
@@ -77,7 +82,15 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
 
     enforce_file_mode(path)
     with path.open("r", encoding="utf-8") as handle:
-        store = json.load(handle)
+        payload = json.load(handle)
+    encrypted_payload = is_encrypted_payload(payload)
+    effective_passphrase = passphrase or default_passphrase()
+    if encrypted_payload:
+        if not effective_passphrase:
+            raise ValueError("Encrypted vault requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
+        store = decrypt_store_payload(payload, effective_passphrase)
+    else:
+        store = payload
 
     schema = get_schema(str(store.get("schema") or schema_name))
     fields = store.setdefault("fields", {})
@@ -91,17 +104,31 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
             fields.pop(key, None)
             changed = True
     if changed:
-        write_store(store, path)
+        write_store(store, path, passphrase=effective_passphrase, encrypted=encrypted_payload)
     return store
 
 
-def write_store(store: dict, path: Path | None = None) -> None:
+def write_store(store: dict, path: Path | None = None, passphrase: str | None = None, encrypted: bool | None = None) -> None:
     path = path or store_path()
     ensure_private_dir(path.parent)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     store["updated_at"] = now_iso()
+    if encrypted is None:
+        encrypted = False
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as handle:
+                    encrypted = is_encrypted_payload(json.load(handle))
+            except json.JSONDecodeError:
+                encrypted = False
+    payload = store
+    if encrypted:
+        effective_passphrase = passphrase or default_passphrase()
+        if not effective_passphrase:
+            raise ValueError("Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
+        payload = encrypt_store_payload(store, effective_passphrase)
     with tmp_path.open("w", encoding="utf-8") as handle:
-        json.dump(store, handle, ensure_ascii=False, indent=2)
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     os.chmod(tmp_path, 0o600)
     tmp_path.replace(path)

@@ -25,17 +25,34 @@ Core product boundary:
 - No image, SQLite, database, backup, or private data file is present.
 - No source references to the originating private project path were found.
 - README, SECURITY, CONTRIBUTING, LICENSE, AGENT_PROTOCOL, and PUBLICATION_GATE exist.
+- README includes an Alpha Safety Notice.
 - CLI supports raw-free `context`.
 - CLI supports raw-free `schema`.
+- CLI `get` warns before printing a raw value.
 - CLI `env` warns before raw-value export.
+- CLI `get`, `env`, `set`, and `unset` require raw-free `--purpose` text and write raw-free audit events.
+- CLI supports `audit summary` and `audit tail`.
+- CLI `get` and `env` require a matching one-time consent token.
+- CLI supports `consent request`, `consent approve`, `consent deny`, `consent requests`, direct `consent grant`, and `consent list`.
+- GUI supports pending consent request approval and denial.
+- Optional encrypted store backend exists and uses `cryptography` when installed.
+- CLI supports `encryption status`, `encryption encrypt`, and `encryption decrypt`.
+- Read-only MCP stdio server exists.
+- MCP exposes only `apv.schema`, `apv.context`, `apv.check`, and `apv.list_masked`.
+- GUI warns that the project is alpha and not encrypted by default.
 - Unit tests include raw-free context checks.
+- Unit tests cover raw-output CLI warnings.
+- Unit tests cover raw-free audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, and MCP read-only raw-free behavior.
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.
 - GitHub Actions workflow exists for future repository use.
+- GitHub Issue templates exist and warn against posting real personal data.
 - Local Git preparation guide exists.
 - Prior art review exists and README positioning reflects it.
 - Product positioning and MVP boundary document exists.
+- Reputation risk review and launch messaging documents exist.
+- Final publication audit document exists.
 
 ## Latest Verification
 
@@ -53,7 +70,7 @@ Results:
 
 ```text
 py_compile: passed
-unittest: 10 tests passed
+unittest: 22 tests passed
 pii_scan: No obvious private data patterns found
 check_release: release checks passed
 make release-check: release checks passed
@@ -75,13 +92,12 @@ Additional local checks:
 
 ## Git Status
 
-This directory is still not a Git repository. Local Git initialization and the first local commit remain approval-gated. See [LOCAL_GIT_PREP.md](LOCAL_GIT_PREP.md).
+This directory is a local Git repository. Remote creation, push, release creation, package publish, public announcement, and external sharing remain approval-gated.
 
 ## Not Done Without Explicit Approval
 
 The following actions remain stopped:
 
-- `git init`
 - local commit
 - GitHub repository creation
 - `git push`
@@ -95,7 +111,7 @@ The following actions remain stopped:
 If the user wants to proceed, the next bounded local action is:
 
 ```text
-Initialize a local Git repository inside agent-personal-vault and create the first local commit after rerunning tests and PII scan.
+Review and optionally commit the current local safety and roadmap changes after rerunning tests and PII scan.
 ```
 
-This still does not publish anything externally. Remote creation and push remain separate approvals.
+This still does not publish anything externally. Remote creation, push, release creation, package publish, and public announcement remain separate approvals.

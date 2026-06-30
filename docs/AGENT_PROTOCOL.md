@@ -23,7 +23,9 @@ agent-personal-vault context
 3. Ask for or use only the minimum raw key needed for the current local task.
 
 ```sh
-agent-personal-vault get FULL_NAME
+agent-personal-vault consent request --action get --key FULL_NAME --purpose "prepare local draft for user review"
+agent-personal-vault consent approve "<printed-request-id>"
+agent-personal-vault get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<printed-consent-id>"
 ```
 
 4. Never include raw values in:
@@ -59,16 +61,57 @@ agent-personal-vault list
 
 `schema` does not read the vault file. `list` masks values but still reveals rough length. Use `context` as the safest default for agent planning when a vault exists, and `schema` when the agent only needs field definitions.
 
+## MCP Read-Only Tools
+
+The MCP stdio server exposes only raw-free read tools:
+
+```sh
+apv-mcp --store /path/to/vault.json
+```
+
+Tools:
+
+- `apv.schema`
+- `apv.context`
+- `apv.check`
+- `apv.list_masked`
+
+The MCP server does not expose raw-value tools, write tools, consent mutation tools, external upload, form submission, email sending, or repository operations. `apv.list_masked` does not return raw value fragments; it returns field status metadata only.
+
 ## Raw Commands
 
 These commands can print raw personal values:
 
 ```sh
-agent-personal-vault get <KEY>
-agent-personal-vault env
+agent-personal-vault consent request --action get --key <KEY> --purpose "<raw-free purpose>"
+agent-personal-vault consent approve "<printed-request-id>"
+agent-personal-vault get <KEY> --purpose "<raw-free purpose>" --consent-id "<printed-consent-id>"
+agent-personal-vault consent request --action env --key "*" --purpose "<raw-free purpose>"
+agent-personal-vault consent approve "<printed-request-id>"
+agent-personal-vault env --purpose "<raw-free purpose>" --consent-id "<printed-consent-id>"
 ```
 
-Use them only after the agent has a concrete local purpose and the key is necessary.
+Use them only after the agent has a concrete local purpose and the key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied in the GUI or CLI. Consent tokens are one-time tokens and must match action, key, and purpose.
+
+These commands change stored values and also write raw-free audit events:
+
+```sh
+agent-personal-vault set <KEY> --purpose "<raw-free purpose>"
+agent-personal-vault unset <KEY> --purpose "<raw-free purpose>"
+```
+
+## Audit Commands
+
+These commands inspect audit metadata and do not print raw personal values:
+
+```sh
+agent-personal-vault audit summary
+agent-personal-vault audit tail --limit 10
+agent-personal-vault consent requests
+agent-personal-vault consent list
+```
+
+Audit events include action, key, consent id, raw-returned flag, purpose, and outcome. Consent requests and grants include action, key, purpose, expiry or resolution state, and used status. They do not include raw stored values.
 
 ## Subagents
 
@@ -88,6 +131,7 @@ Good:
 
 ```text
 Used FULL_NAME and EMAIL locally to prepare a draft.
+Checked audit summary; raw access was limited to FULL_NAME and EMAIL.
 ```
 
 Bad:

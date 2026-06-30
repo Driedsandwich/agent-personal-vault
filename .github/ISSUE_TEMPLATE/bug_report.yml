@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a bug without sharing personal data.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include real names, addresses, phone numbers, emails, photos, IDs, local paths, vault files, logs with raw values, or screenshots containing personal data.
+        Use dummy values such as `Example Family`, `example.test`, or redacted placeholders.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use dummy data only.
+      placeholder: |
+        1. Run ...
+        2. Enter dummy value ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Do not paste raw personal values or full vault files.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed real personal data, screenshots, vault files, local absolute paths, and raw logs.
+          required: true
