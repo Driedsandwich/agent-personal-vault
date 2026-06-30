@@ -39,8 +39,8 @@ Latest CI: GitHub Actions test workflow success
 | CI | pass | Python 3.11、3.12、3.13で `python scripts/check_release.py` が成功 |
 | PII/forbidden-file check | pass | `vault.json`、`audit.jsonl`、`consents.json`、画像、DB、backup、private directoryの混入なし |
 | CLI masked output | pass | `list` はraw断片を出さず、入力済み状態と文字数のみを表示する |
-| GitHub repository settings | needs-action-before-public | description設定とWiki無効化をpublic化直前に推奨 |
-| Issue / PR governance | needs-action-before-public | Issue templates、PR template、main branch protection、CI必須化をpublic化前に確認する |
+| GitHub repository settings | pass | repository description設定済み、Wiki無効化済み、Issues有効をprivate repo上で確認 |
+| Issue / PR governance | pass | Issue templates、PR template、main branch protection、CI必須化をprivate repo上で確認 |
 | Public messaging | pass-with-boundary | README中心なら可。SNS/blog同時告知は別判断 |
 
 ## 公開時の説明文
@@ -84,11 +84,12 @@ gh repo view Driedsandwich/agent-personal-vault --json visibility,isPrivate,defa
 gh run list --repo Driedsandwich/agent-personal-vault --limit 3
 ```
 
-Public化直前に推奨するGitHub設定:
+Public化直前に再確認するGitHub設定:
 
-- repository descriptionを設定する
-- Wikiを無効化する
+- repository descriptionが設定済みである
+- Wikiが無効化済みである
 - Issuesは有効のままにし、blank issue disabledを維持する
+- `main` branch protectionがPR必須、CI必須、force push禁止、branch deletion禁止を維持している
 
 Public化後に確認する。
 
