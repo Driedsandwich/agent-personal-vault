@@ -24,7 +24,7 @@ Agent Personal Vault は private GitHub dry-run を通過した。
 Repository: Driedsandwich/agent-personal-vault
 Visibility: PRIVATE
 Default branch: main
-Latest pushed commit: 1758207 Update GitHub Actions runtime versions
+Latest pushed commit: see `git log --oneline -1`
 ```
 
 ## 確認結果
