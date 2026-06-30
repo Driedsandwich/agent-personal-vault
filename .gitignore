@@ -1,0 +1,23 @@
+/.venv/
+/dist/
+/build/
+/*.egg-info/
+/.pytest_cache/
+/__pycache__/
+*.pyc
+
+# Never commit real local vault data.
+/private/
+/data/
+/vault.json
+*.local
+*.secret
+*.pem
+*.key
+*.sqlite
+*.db
+*.png
+*.jpg
+*.jpeg
+*.heic
+.DS_Store
