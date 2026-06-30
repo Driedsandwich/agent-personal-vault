@@ -4,6 +4,7 @@
 
 status: local-ready
 classification: SAFE_CANDIDATE
+last_updated: 2026-07-01
 
 ## Current Summary
 
@@ -92,13 +93,20 @@ Additional local checks:
 
 ## Git Status
 
-This directory is a local Git repository. Remote creation, push, release creation, package publish, public announcement, and external sharing remain approval-gated.
+This directory is a local Git repository.
+
+Latest local commit at this checkpoint is available from:
+
+```text
+git log --oneline -1
+```
+
+Remote creation, push, release creation, package publish, public announcement, and external sharing remain approval-gated.
 
 ## Not Done Without Explicit Approval
 
 The following actions remain stopped:
 
-- local commit
 - GitHub repository creation
 - `git push`
 - release creation
@@ -111,7 +119,7 @@ The following actions remain stopped:
 If the user wants to proceed, the next bounded local action is:
 
 ```text
-Review and optionally commit the current local safety and roadmap changes after rerunning tests and PII scan.
+Review docs/EXTERNAL_PUBLICATION_DECISION.md and decide whether to create a private GitHub dry-run repository first.
 ```
 
 This still does not publish anything externally. Remote creation, push, release creation, package publish, and public announcement remain separate approvals.

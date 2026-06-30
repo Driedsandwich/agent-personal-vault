@@ -4,6 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
+last_updated: 2026-07-01
 
 ## Current Position
 
@@ -42,6 +43,7 @@ Local-first personal data vault for AI agents. Job hunting profile is the first 
 - `docs/LAUNCH_MESSAGING.md` exists and public announcement copy follows it.
 - `docs/SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md` exists and MCP/raw-access claims follow it.
 - `docs/FINAL_PUBLICATION_AUDIT.md` exists and summarizes local publication gate status.
+- `docs/EXTERNAL_PUBLICATION_DECISION.md` exists and summarizes publication name, publication method, launch copy, CI, and expression-risk decisions.
 - `docs/AGENT_PROTOCOL.md` explains the safe AI-agent flow and raw access boundary.
 - GitHub Issue templates warn users not to post real personal data, screenshots, logs, or vault files.
 - CLI `get` and `env` warn on stderr before printing raw values.
@@ -97,7 +99,7 @@ Recommended next step:
 
 1. Review this directory as a standalone OSS candidate.
 2. Rerun the verification commands.
-3. Review [FINAL_PUBLICATION_AUDIT.md](FINAL_PUBLICATION_AUDIT.md), [REPUTATION_RISK_REVIEW.md](REPUTATION_RISK_REVIEW.md), and [LAUNCH_MESSAGING.md](LAUNCH_MESSAGING.md).
+3. Review [FINAL_PUBLICATION_AUDIT.md](FINAL_PUBLICATION_AUDIT.md), [EXTERNAL_PUBLICATION_DECISION.md](EXTERNAL_PUBLICATION_DECISION.md), [REPUTATION_RISK_REVIEW.md](REPUTATION_RISK_REVIEW.md), and [LAUNCH_MESSAGING.md](LAUNCH_MESSAGING.md).
 4. Stop before remote creation, push, release, package publish, or public announcement and request explicit approval.
 
-See [LOCAL_GIT_PREP.md](LOCAL_GIT_PREP.md) before any Git initialization.
+Local Git initialization and the first local commit are complete. See [LOCAL_GIT_PREP.md](LOCAL_GIT_PREP.md) only if this directory is recreated or moved.

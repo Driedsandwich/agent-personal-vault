@@ -4,6 +4,7 @@
 
 status: local-pass-with-boundaries
 classification: SAFE_CANDIDATE
+last_updated: 2026-07-01
 
 ## 結論
 
@@ -119,8 +120,9 @@ Additional smoke checks completed in the current work:
 
 ```text
 Local publication gate: pass
+Local commit: completed
 External publication: approval required
-Recommended next action: local commit after final review
+Recommended next action: review the external publication decision packet, then approve or reject private GitHub dry-run repository creation
 ```
 
-外部公開はまだ行わない。まずローカルコミットを作り、commit後のclean treeで再度release checkを実行するのがよい。
+外部公開はまだ行わない。次は [EXTERNAL_PUBLICATION_DECISION.md](EXTERNAL_PUBLICATION_DECISION.md) を正本に、公開名、公開方式、告知文、CI確認、ライセンス/セキュリティ表現を人間が判断するのがよい。
