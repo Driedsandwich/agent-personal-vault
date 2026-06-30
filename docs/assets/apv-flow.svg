@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Personal Vault safe access flow</title>
+  <desc id="desc">AI agents use raw-free metadata first. Raw values require human consent. External actions stop for human review.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 10; }
+      .primary { fill: #0f172a; font: 700 18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .body { fill: #334155; font: 500 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .muted { fill: #64748b; font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .arrow { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .safe { fill: #ecfdf5; stroke: #10b981; }
+      .warn { fill: #fff7ed; stroke: #f97316; }
+      .stop { fill: #fef2f2; stroke: #ef4444; }
+      .chip { fill: #eef2ff; stroke: #6366f1; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect class="bg" width="960" height="360" rx="18" />
+  <text x="48" y="44" class="primary">Agent Personal Vault</text>
+  <text x="48" y="68" class="body">Local-first personal-data boundary for AI-agent workflows</text>
+
+  <rect x="48" y="106" width="190" height="112" class="panel" />
+  <text x="72" y="142" class="primary">AI Agent</text>
+  <text x="72" y="169" class="body">Plans with metadata</text>
+  <text x="72" y="191" class="muted">No raw values by default</text>
+
+  <rect x="302" y="96" width="220" height="132" class="panel safe" />
+  <text x="326" y="132" class="primary">Raw-Free First</text>
+  <text x="326" y="160" class="body">schema / check / context</text>
+  <text x="326" y="184" class="muted">MCP exposes read-only tools</text>
+  <text x="326" y="206" class="muted">No get, env, write, upload</text>
+
+  <rect x="586" y="96" width="150" height="132" class="panel chip" />
+  <text x="610" y="132" class="primary">Local Vault</text>
+  <text x="610" y="160" class="body">Structured fields</text>
+  <text x="610" y="184" class="muted">0600 file mode</text>
+  <text x="610" y="206" class="muted">Optional encryption</text>
+
+  <rect x="302" y="258" width="220" height="72" class="panel warn" />
+  <text x="326" y="288" class="primary">Raw Access</text>
+  <text x="326" y="313" class="body">One key, one consent token</text>
+
+  <rect x="586" y="258" width="150" height="72" class="panel stop" />
+  <text x="610" y="288" class="primary">Final Actions</text>
+  <text x="610" y="313" class="body">Human stop</text>
+
+  <rect x="790" y="106" width="122" height="112" class="panel stop" />
+  <text x="812" y="142" class="primary">External</text>
+  <text x="812" y="169" class="body">Submit</text>
+  <text x="812" y="191" class="body">Upload</text>
+  <text x="812" y="213" class="body">Publish</text>
+
+  <path d="M238 162 H298" class="arrow" />
+  <path d="M522 162 H582" class="arrow" />
+  <path d="M412 228 V252" class="arrow" />
+  <path d="M522 294 H582" class="arrow" />
+  <path d="M736 162 H786" class="arrow" />
+  <path d="M736 294 C770 294 790 250 802 222" class="arrow" />
+</svg>

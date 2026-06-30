@@ -17,7 +17,7 @@ Core product boundary:
 - minimum-key raw retrieval only when needed
 - explicit final-action boundary before external submission, upload, push, publish, or sharing
 
-`job_hunting_profile` is the first schema template. It is not the product boundary.
+`job_hunting_profile` is the first bundled schema.
 
 ## Completed
 

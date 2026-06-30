@@ -21,7 +21,7 @@ agent-personal-vault
 Core purpose:
 
 ```text
-Local-first personal data vault for AI agents. Job hunting profile is the first template, not the core product boundary.
+Local-first personal data vault for AI agents with a bundled profile schema.
 ```
 
 ## Must Pass Before Publication

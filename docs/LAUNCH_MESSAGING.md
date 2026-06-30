@@ -18,7 +18,7 @@ This file prevents reputation and safety issues when presenting Agent Personal V
 - raw値なしの `schema`、`check`、`context` を先に使う設計
 - raw値は必要なkeyだけ明示的に取り出す設計
 - 外部送信、応募、登録、アップロード、公開は人間確認で止める設計
-- 就活プロフィールは最初の実用スキーマであり、プロダクトの本質ではない
+- 現在はプロフィール情報のスキーマを同梱している
 
 避けるべき点:
 
@@ -34,7 +34,7 @@ Use this framing:
 - raw-free `schema`, `check`, and `context` first
 - one-key raw retrieval only when explicitly needed
 - final-action boundary before external sending, upload, application, registration, or publication
-- job hunting profile is only the first practical schema
+- bundled profile schema for initial local workflows
 
 ## Avoid
 

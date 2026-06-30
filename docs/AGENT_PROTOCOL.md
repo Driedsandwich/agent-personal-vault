@@ -8,7 +8,7 @@ classification: SAFE_CANDIDATE
 
 This document defines how an AI agent should use Agent Personal Vault without leaking raw personal data.
 
-The core product is not a job-hunting form helper. It is a local-first personal data boundary for AI agents. `job_hunting_profile` is the first schema template.
+The core product is a local-first personal data boundary for AI agents. `job_hunting_profile` is the first bundled schema.
 
 ## Default Flow
 
