@@ -272,6 +272,7 @@ python3 scripts/check_release.py
 | [Private Dry Run Report](docs/PRIVATE_DRY_RUN_REPORT.md) | private GitHub dry-runの確認結果 |
 | [Public Release Review](docs/PUBLIC_RELEASE_REVIEW.md) | public公開可否レビュー |
 | [Pre-Public Objective Review](docs/PRE_PUBLIC_OBJECTIVE_REVIEW.md) | public公開前の客観レビューと残リスク |
+| [OSS Governance](docs/OSS_GOVERNANCE.md) | Issue / PR / branch protection運用 |
 | [Reputation Risk Review](docs/REPUTATION_RISK_REVIEW.md) | 表現・炎上リスクの確認 |
 | [Launch Messaging](docs/LAUNCH_MESSAGING.md) | README、release notes、告知文の安全な書き方 |
 

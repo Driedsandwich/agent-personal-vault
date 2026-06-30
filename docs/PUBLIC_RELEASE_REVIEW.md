@@ -40,6 +40,7 @@ Latest CI: GitHub Actions test workflow success
 | PII/forbidden-file check | pass | `vault.json`、`audit.jsonl`、`consents.json`、画像、DB、backup、private directoryの混入なし |
 | CLI masked output | pass | `list` はraw断片を出さず、入力済み状態と文字数のみを表示する |
 | GitHub repository settings | needs-action-before-public | description設定とWiki無効化をpublic化直前に推奨 |
+| Issue / PR governance | needs-action-before-public | Issue templates、PR template、main branch protection、CI必須化をpublic化前に確認する |
 | Public messaging | pass-with-boundary | README中心なら可。SNS/blog同時告知は別判断 |
 
 ## 公開時の説明文
