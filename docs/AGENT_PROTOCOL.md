@@ -63,9 +63,9 @@ agent-personal-vault list
 
 Consent tokens and audit logs are workflow controls. They are not a hard security boundary against an agent or process that already has shell access as the same OS user.
 
-## MCP Read-Only Tools
+## MCP Raw-Free Tools
 
-The MCP stdio server exposes only raw-free read tools:
+The MCP stdio server exposes only raw-free tools:
 
 ```sh
 apv-mcp --store /path/to/vault.json
@@ -77,8 +77,9 @@ Tools:
 - `apv.context`
 - `apv.check`
 - `apv.list_masked`
+- `apv.request_consent`
 
-The MCP server does not expose raw-value tools, write tools, consent mutation tools, external upload, form submission, email sending, or repository operations. `apv.list_masked` does not return raw value fragments; it returns field status metadata only.
+The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.list_masked` does not return raw value fragments; it returns field status metadata only. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
 
 ## Raw Commands
 
