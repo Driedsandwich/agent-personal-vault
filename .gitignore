@@ -7,6 +7,9 @@
 **/__pycache__/
 *.pyc
 
+# Local agent/editor configuration.
+/.codex/
+
 # Never commit real local vault data.
 /private/
 /data/
