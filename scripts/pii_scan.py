@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 
 try:
-    from scripts.release_policy import SKIP_DIRS, iter_release_files
+    from scripts.release_policy import SKIP_DIRS, is_within_root, iter_release_files
 except ModuleNotFoundError:
-    from release_policy import SKIP_DIRS, iter_release_files
+    from release_policy import SKIP_DIRS, is_within_root, iter_release_files
 
 ALLOWLIST = {
     "090-1234-5678",
@@ -53,7 +53,9 @@ def should_scan(path: Path) -> bool:
     return path.suffix in TEXT_SUFFIXES or path.name in {".gitignore", "LICENSE"}
 
 
-def scan_file(path: Path) -> list[str]:
+def scan_file(path: Path, root: Path | None = None) -> list[str]:
+    if root is not None and not is_within_root(path, root):
+        raise ValueError(f"Refusing to scan path outside root: {path}")
     text = path.read_text(encoding="utf-8", errors="ignore")
     findings: list[str] = []
     for pattern in DENY_PATTERNS:
@@ -69,11 +71,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Scan for obvious accidental private data.")
     parser.add_argument("root", nargs="?", default=".")
     args = parser.parse_args()
-    root = Path(args.root)
+    root = Path(args.root).resolve()
     findings: list[str] = []
     for path in iter_release_files(root):
         if path.is_file() and should_scan(path):
-            findings.extend(scan_file(path))
+            findings.extend(scan_file(path, root=root))
     if findings:
         print("Potential private data found:", file=sys.stderr)
         for finding in findings:

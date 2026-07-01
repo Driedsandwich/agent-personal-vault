@@ -54,6 +54,14 @@ LOCAL_DEVELOPER_CONFIG_FILES = {
 SKIP_DIRS = GENERATED_DIRS | LOCAL_DEVELOPER_CONFIG_DIRS
 
 
+def is_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def is_skipped_path(path: Path) -> bool:
     return path.name in LOCAL_DEVELOPER_CONFIG_FILES or any(part in SKIP_DIRS for part in path.parts)
 
@@ -82,11 +90,11 @@ def iter_release_files(root: Path) -> list[Path]:
             for raw_path in result.stdout.decode("utf-8", errors="ignore").split("\0")
             if raw_path
             for path in [root / raw_path]
-            if path.is_file()
+            if not path.is_symlink() and path.is_file() and is_within_root(path, root)
         ]
 
     return [
         path
         for path in root.rglob("*")
-        if path.is_file() and not is_skipped_path(path)
+        if not path.is_symlink() and path.is_file() and is_within_root(path, root) and not is_skipped_path(path)
     ]

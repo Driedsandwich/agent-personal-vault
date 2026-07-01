@@ -17,6 +17,7 @@ from agent_personal_vault.vault import (
     agent_context,
     check_summary,
     derived_fields,
+    local_user_path,
     load_store,
     normalize_date_like,
     normalize_phone,
@@ -83,12 +84,17 @@ class VaultTests(unittest.TestCase):
             old = os.environ.get("AGENT_PERSONAL_VAULT_HOME")
             os.environ["AGENT_PERSONAL_VAULT_HOME"] = tmp
             try:
-                self.assertEqual(store_path(), Path(tmp) / "vault.json")
+                self.assertEqual(store_path(), Path(tmp).resolve() / "vault.json")
             finally:
                 if old is None:
                     os.environ.pop("AGENT_PERSONAL_VAULT_HOME", None)
                 else:
                     os.environ["AGENT_PERSONAL_VAULT_HOME"] = old
+
+    def test_local_user_path_resolves_explicit_store_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            expected = Path(tmp).resolve() / "vault.json"
+            self.assertEqual(local_user_path(Path(tmp) / "." / "vault.json"), expected)
 
     def test_store_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

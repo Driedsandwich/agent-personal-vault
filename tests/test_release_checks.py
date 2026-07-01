@@ -178,6 +178,27 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertTrue(findings)
 
+    def test_release_files_reject_symlink_outside_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root = Path(tmp).resolve()
+            outside_file = Path(outside).resolve() / "secret.md"
+            outside_file.write_text("contact: " + "real" + "@example.com\n", encoding="utf-8")
+            (root / "README.md").write_text("public docs only\n", encoding="utf-8")
+            (root / "linked.md").symlink_to(outside_file)
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+
+            self.assertEqual(files, {Path("README.md")})
+
+    def test_pii_scan_refuses_path_outside_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root = Path(tmp).resolve()
+            outside_file = Path(outside).resolve() / "secret.md"
+            outside_file.write_text("contact: " + "real" + "@example.com\n", encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                pii_scan.scan_file(outside_file, root=root)
+
 
 if __name__ == "__main__":
     unittest.main()
