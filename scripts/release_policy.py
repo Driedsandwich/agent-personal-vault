@@ -39,6 +39,7 @@ LOCAL_DEVELOPER_CONFIG_DIRS = LOCAL_AGENT_CONFIG_DIRS | LOCAL_EDITOR_CONFIG_DIRS
 LOCAL_DEVELOPER_CONFIG_FILES = {
     ".aider.conf.yml",
     ".aider.model.settings.yml",
+    "AGENTS.md",
     "AGENTS.local.md",
     "CLAUDE.local.md",
 }
