@@ -6,11 +6,17 @@ import subprocess
 from pathlib import Path
 
 LOCAL_AGENT_CONFIG_DIRS = {
+    ".aider",
     ".agents",
     ".codex",
     ".claude",
     ".continue",
     ".cursor",
+    ".gemini",
+    ".kiro",
+    ".opencode",
+    ".roo",
+    ".zed",
     ".windsurf",
 }
 
@@ -31,6 +37,8 @@ GENERATED_DIRS = {
 LOCAL_DEVELOPER_CONFIG_DIRS = LOCAL_AGENT_CONFIG_DIRS | LOCAL_EDITOR_CONFIG_DIRS
 
 LOCAL_DEVELOPER_CONFIG_FILES = {
+    ".aider.conf.yml",
+    ".aider.model.settings.yml",
     "AGENTS.local.md",
     "CLAUDE.local.md",
 }
@@ -45,9 +53,12 @@ def is_skipped_path(path: Path) -> bool:
 def iter_release_files(root: Path) -> list[Path]:
     """Return files that should be checked before release.
 
-    In a Git checkout, release checks should inspect tracked repository files,
-    not incidental local agent/editor artifacts in the working tree. For
-    non-Git temporary trees used by tests, fall back to a filesystem walk.
+    In a Git checkout, release checks inspect tracked repository files only.
+    Incidental local agent/editor artifacts such as .codex/hooks.json stay
+    outside the release surface while untracked. If they are force-added to Git,
+    they are intentionally checked like any other tracked file. For non-Git
+    temporary trees used by tests, fall back to a filesystem walk with local
+    developer artifacts skipped.
     """
 
     root = root.resolve()
