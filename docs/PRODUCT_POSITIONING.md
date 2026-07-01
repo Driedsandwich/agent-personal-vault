@@ -57,7 +57,7 @@ MVP includes:
 12. One-time consent tokens for raw-returning `get` and `env`.
 13. Consent request queue with CLI and GUI approve/deny.
 14. Optional encrypted store backend using `cryptography` when installed.
-15. Read-only MCP stdio server exposing raw-free tools only.
+15. Raw-free MCP stdio server exposing planning/status tools and raw-free consent request only.
 
 MVP does not include:
 

@@ -6,11 +6,15 @@ status: superseded-by-public-release-review
 classification: SAFE_CANDIDATE
 last_updated: 2026-07-01
 
+> 履歴メモ: この公開判断パケットは
+> [RELEASE_READINESS.md](RELEASE_READINESS.md) に置き換え済みです。
+> 現在のリリース状態ではなく、公開判断の履歴として残しています。
+
 ## 結論
 
 現時点の推奨は、`Agent Personal Vault` / `agent-personal-vault` の名称を維持すること。
 
-Private GitHub dry-runは完了済み。public化、release creation、package publish、public announcement は、まだ実行しない。これらはそれぞれ別の明示承認が必要。
+Private GitHub dry-runとpublic化は完了済み。release creation、package publish、public announcement は、まだ実行しない。これらはそれぞれ別の明示承認が必要。
 
 ## 現在状態
 
@@ -18,10 +22,10 @@ Private GitHub dry-runは完了済み。public化、release creation、package p
 Local publication gate: pass
 Latest local commit: see `git log --oneline -1`
 Private GitHub dry-run: completed
-Public visibility: not executed
+Public visibility: completed
 ```
 
-ローカルでは、README、SECURITY、CONTRIBUTING、LICENSE、Issue templates、release check、PII scan、audit/consent、optional encryption、read-only MCP が揃っている。
+ローカルでは、README、SECURITY、CONTRIBUTING、LICENSE、Issue templates、release check、PII scan、audit/consent、optional encryption、raw-free MCP が揃っている。
 
 ## 公開名
 

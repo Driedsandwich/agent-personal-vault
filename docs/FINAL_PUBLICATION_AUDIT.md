@@ -6,6 +6,10 @@ status: local-pass-with-boundaries
 classification: SAFE_CANDIDATE
 last_updated: 2026-07-01
 
+> 履歴メモ: このファイルは公開前監査のスナップショットです。
+> 現在のpublic alpha準備状況は
+> [RELEASE_READINESS.md](RELEASE_READINESS.md) で管理しています。
+
 ## 結論
 
 このリポジトリは、ローカルOSS候補としての公開判断に必要な主要ゲートを満たしている。
