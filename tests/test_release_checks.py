@@ -80,6 +80,24 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(files, {Path("README.md")})
 
+    def test_tracked_local_developer_config_is_still_scanned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.PIPE)
+            local_config = root / ".codex" / "settings.json"
+            local_config.parent.mkdir()
+            local_config.write_text(
+                '{"path": "/' + 'Users/example/private"}\n',
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "-f", ".codex/settings.json"], cwd=root, check=True)
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+            findings = pii_scan.scan_file(local_config)
+
+            self.assertEqual(files, {Path(".codex/settings.json")})
+            self.assertTrue(findings)
+
     def test_tracked_private_text_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()

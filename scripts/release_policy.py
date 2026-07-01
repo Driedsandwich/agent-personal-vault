@@ -63,7 +63,7 @@ def iter_release_files(root: Path) -> list[Path]:
             for raw_path in result.stdout.decode("utf-8", errors="ignore").split("\0")
             if raw_path
             for path in [root / raw_path]
-            if path.is_file() and not is_skipped_path(path)
+            if path.is_file()
         ]
 
     return [
