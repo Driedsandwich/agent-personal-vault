@@ -46,7 +46,7 @@ def page_html(token: str, schema_name: str) -> str:
     .app {{ display: grid; grid-template-columns: 240px minmax(420px, 1fr) 320px; min-height: 100vh; }}
     aside {{ background: #101828; color: #eef2f6; padding: 20px; }}
     main {{ padding: 22px; }}
-    .panel {{ background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 16px; margin-bottom: 16px; }}
+    .panel {{ background: #fff; border: 1px solid #d9dee7; border-radius: 8px; padding: 16px; margin-bottom: 16px; color: #17202a; }}
     .nav button {{ display: block; width: 100%; margin: 0 0 8px; text-align: left; }}
     button, input, textarea, select {{ font: inherit; }}
     button {{ min-height: 34px; border: 1px solid #c4cad6; border-radius: 7px; background: #fff; padding: 0 10px; cursor: pointer; }}
