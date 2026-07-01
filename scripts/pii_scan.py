@@ -44,9 +44,11 @@ TEXT_SUFFIXES = {
     ".gitignore",
 }
 
+SKIP_DIRS = {".git", ".venv", ".codex", "__pycache__", "dist", "build"}
+
 
 def should_scan(path: Path) -> bool:
-    if any(part in {".git", ".venv", "__pycache__", "dist", "build"} for part in path.parts):
+    if any(part in SKIP_DIRS for part in path.parts):
         return False
     return path.suffix in TEXT_SUFFIXES or path.name in {".gitignore", "LICENSE"}
 

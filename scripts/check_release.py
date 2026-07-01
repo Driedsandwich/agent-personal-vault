@@ -35,7 +35,7 @@ FORBIDDEN_TEXT = [
     "kishimoto" + "satoshi",
 ]
 
-SKIP_DIRS = {".git", ".venv", "__pycache__", "dist", "build", ".pytest_cache"}
+SKIP_DIRS = {".git", ".venv", ".codex", "__pycache__", "dist", "build", ".pytest_cache"}
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".json", ".txt", ".yml", ".yaml"}
 
 
