@@ -29,6 +29,7 @@ Core product boundary:
 - README includes an Alpha Safety Notice.
 - README includes a short public-alpha quickstart path for raw-free context, MCP context, consent request, GUI approval, and audit review.
 - MCP client setup guidance exists in `docs/MCP_CLIENT_SETUP.md`.
+- MCP client setup guidance documents Claude Code tool approval names for restrictive or noninteractive modes.
 - CLI supports raw-free `context`.
 - CLI supports raw-free `context --task` planning hints.
 - CLI supports raw-free `schema`.
@@ -39,6 +40,7 @@ Core product boundary:
 - CLI `get` and `env` require a matching one-time consent token.
 - CLI supports `consent request`, `consent approve`, `consent deny`, `consent requests`, direct `consent grant`, and `consent list`.
 - GUI supports pending consent request approval and denial.
+- GUI displays the issued consent id after approval so the user can pass it to CLI `get`.
 - GUI profile saves write raw-free audit events.
 - Optional encrypted store backend exists and uses `cryptography` when installed.
 - CLI supports `encryption status`, `encryption encrypt`, and `encryption decrypt`.
@@ -50,6 +52,7 @@ Core product boundary:
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
 - Unit tests cover raw-free audit logging, GUI profile-save audit logging, GUI audit viewer raw-free behavior, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
+- Unit tests cover the GUI consent-id handoff and the Claude Code MCP tool approval documentation guard.
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.
@@ -77,7 +80,7 @@ Results:
 
 ```text
 py_compile: passed
-unittest: 40 tests passed
+unittest: 45 tests passed
 pii_scan: No obvious private data patterns found
 check_release: release checks passed
 make release-check: release checks passed
@@ -98,6 +101,13 @@ Additional local checks:
 - Product positioning defines what the project is not, MVP exclusions, and messaging rules.
 - Public alpha quickstart smoke reached raw-free context, MCP context, consent request, GUI approval, CLI raw retrieval with consent, and raw-free audit review using dummy data.
 - GUI smoke checks verified save state, masked preview toggling, consent and audit panels, and panel contrast.
+- Clean-clone-like onboarding validation with dummy data reached CLI `context`, MCP `apv.context`, MCP `apv.request_consent`, GUI approval, CLI `get`, and `audit tail`.
+- Negative-flow validation covered consent denial, key mismatch, expired consent token, MCP unknown key, MCP invalid action, MCP unknown tool, and MCP invalid arguments.
+- Negative-flow outputs were checked for dummy raw values, temporary store path leakage, and secret-like markers.
+- MCP client interoperability validation covered generic stdio JSON-RPC, Codex `mcp add/list/get`, Claude Code `mcp add/list/get`, Claude Code project `.mcp.json`, and Claude Code noninteractive tool calls.
+- Claude Code restrictive/noninteractive mode requires explicit tool approval for `mcp__agent-personal-vault__apv_context` and `mcp__agent-personal-vault__apv_request_consent`; this is documented in `docs/MCP_CLIENT_SETUP.md`.
+- Current main GitHub Actions `test` and CodeQL runs passed after PR #44.
+- Current open CodeQL alerts: 0.
 
 ## Remaining P0/P1 Risks
 
@@ -110,6 +120,8 @@ Remaining P1 risks before any release or package publish:
 - GUI localhost access is an operator workflow convenience, not a hard multi-user security boundary.
 - Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated.
 - Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
+- MCP host/client behavior differs. Generic stdio, Codex configuration, and Claude Code configuration were validated, but broader host UI behavior still depends on each client.
+- Claude Desktop was validated by configuration shape and generic stdio behavior only; full GUI-app restart and live tool-call UX remain a future manual check.
 
 ## Git Status
 
