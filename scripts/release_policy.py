@@ -37,11 +37,14 @@ GENERATED_DIRS = {
 LOCAL_DEVELOPER_CONFIG_DIRS = LOCAL_AGENT_CONFIG_DIRS | LOCAL_EDITOR_CONFIG_DIRS
 
 LOCAL_DEVELOPER_CONFIG_FILES = {
+    ".codex.json",
+    ".mcp.json",
     ".aider.conf.yml",
     ".aider.model.settings.yml",
     "AGENTS.md",
     "AGENTS.local.md",
     "CLAUDE.local.md",
+    "CODEX.local.md",
 }
 
 SKIP_DIRS = GENERATED_DIRS | LOCAL_DEVELOPER_CONFIG_DIRS

@@ -66,6 +66,18 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(files, {Path("README.md")})
 
+    def test_root_local_codex_and_mcp_files_are_not_release_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            private_path = "/" + "Users" + "/example/private"
+            for filename in {".codex.json", ".mcp.json", "CODEX.local.md"}:
+                (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
+            (root / "README.md").write_text("public docs only\n", encoding="utf-8")
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+
+            self.assertEqual(files, {Path("README.md")})
+
     def test_forbidden_file_check_skips_local_developer_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
