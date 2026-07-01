@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 
 try:
-    from scripts.release_policy import SKIP_DIRS, is_skipped_path
+    from scripts.release_policy import SKIP_DIRS, is_skipped_path, iter_release_files
 except ModuleNotFoundError:
-    from release_policy import SKIP_DIRS, is_skipped_path
+    from release_policy import SKIP_DIRS, is_skipped_path, iter_release_files
 
 ALLOWLIST = {
     "090-1234-5678",
@@ -73,7 +73,7 @@ def main() -> int:
     args = parser.parse_args()
     root = Path(args.root)
     findings: list[str] = []
-    for path in root.rglob("*"):
+    for path in iter_release_files(root):
         if path.is_file() and should_scan(path):
             findings.extend(scan_file(path))
     if findings:
