@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 
 try:
-    from scripts.release_policy import SKIP_DIRS, is_skipped_path, iter_release_files
+    from scripts.release_policy import SKIP_DIRS, iter_release_files
 except ModuleNotFoundError:
-    from release_policy import SKIP_DIRS, is_skipped_path, iter_release_files
+    from release_policy import SKIP_DIRS, iter_release_files
 
 ALLOWLIST = {
     "090-1234-5678",
@@ -50,8 +50,6 @@ TEXT_SUFFIXES = {
 }
 
 def should_scan(path: Path) -> bool:
-    if is_skipped_path(path):
-        return False
     return path.suffix in TEXT_SUFFIXES or path.name in {".gitignore", "LICENSE"}
 
 

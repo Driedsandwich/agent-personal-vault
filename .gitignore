@@ -8,14 +8,22 @@
 *.pyc
 
 # Local agent/editor configuration.
+/.aider/
 /.agents/
 /.codex/
 /.claude/
 /.continue/
 /.cursor/
+/.gemini/
 /.idea/
+/.kiro/
+/.opencode/
+/.roo/
 /.vscode/
+/.zed/
 /.windsurf/
+/.aider.conf.yml
+/.aider.model.settings.yml
 /AGENTS.local.md
 /CLAUDE.local.md
 

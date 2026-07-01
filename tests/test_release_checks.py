@@ -38,10 +38,25 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertEqual(check_release.SKIP_DIRS, release_policy.SKIP_DIRS)
         for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
             self.assertIn(dirname, release_policy.SKIP_DIRS)
-            self.assertFalse(pii_scan.should_scan(Path(dirname) / "settings.json"))
         for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
-            self.assertFalse(pii_scan.should_scan(Path(filename)))
+            self.assertTrue(release_policy.is_skipped_path(Path(filename)))
         self.assertTrue(pii_scan.should_scan(Path("docs") / "example.md"))
+
+    def test_untracked_local_developer_config_is_not_release_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            private_path = "/" + "Users" + "/example/private"
+            for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
+                local_config = root / dirname / "settings.json"
+                local_config.parent.mkdir()
+                local_config.write_text(f'{{"path": "{private_path}"}}', encoding="utf-8")
+            for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
+                (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
+            (root / "README.md").write_text("public docs only\n", encoding="utf-8")
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+
+            self.assertEqual(files, {Path("README.md")})
 
     def test_forbidden_file_check_skips_local_developer_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -93,10 +108,17 @@ class ReleaseCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "-f", ".codex/settings.json"], cwd=root, check=True)
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-            findings = pii_scan.scan_file(local_config)
+            result = subprocess.run(
+                [sys.executable, "scripts/pii_scan.py", str(root)],
+                cwd=Path(__file__).resolve().parent.parent,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
             self.assertEqual(files, {Path(".codex/settings.json")})
-            self.assertTrue(findings)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Potential private data found:", result.stderr)
 
     def test_tracked_private_text_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
