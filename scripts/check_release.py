@@ -8,6 +8,11 @@ import sys
 import shutil
 from pathlib import Path
 
+try:
+    from scripts.release_policy import SKIP_DIRS, is_skipped_path
+except ModuleNotFoundError:
+    from release_policy import SKIP_DIRS, is_skipped_path
+
 ROOT = Path(__file__).resolve().parent.parent
 
 FORBIDDEN_NAMES = {
@@ -35,7 +40,6 @@ FORBIDDEN_TEXT = [
     "kishimoto" + "satoshi",
 ]
 
-SKIP_DIRS = {".git", ".venv", ".codex", "__pycache__", "dist", "build", ".pytest_cache"}
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".json", ".txt", ".yml", ".yaml"}
 
 
@@ -47,7 +51,7 @@ def run_step(name: str, command: list[str]) -> None:
 def iter_files() -> list[Path]:
     files: list[Path] = []
     for path in ROOT.rglob("*"):
-        if any(part in SKIP_DIRS for part in path.parts):
+        if is_skipped_path(path):
             continue
         if path.is_file():
             files.append(path)
@@ -96,7 +100,17 @@ def clean_generated() -> None:
 
 
 def main() -> int:
-    run_step("py_compile", [sys.executable, "-m", "py_compile", *map(str, (ROOT / "agent_personal_vault").glob("*.py")), str(ROOT / "scripts/pii_scan.py")])
+    run_step(
+        "py_compile",
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            *map(str, (ROOT / "agent_personal_vault").glob("*.py")),
+            str(ROOT / "scripts/pii_scan.py"),
+            str(ROOT / "scripts/release_policy.py"),
+        ],
+    )
     run_step("unit tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
     run_step("pii scan", [sys.executable, "scripts/pii_scan.py", "."])
     check_forbidden_files()

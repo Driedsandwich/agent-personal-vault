@@ -9,6 +9,8 @@
 
 # Local agent/editor configuration.
 /.codex/
+/.claude/
+/.cursor/
 
 # Never commit real local vault data.
 /private/
