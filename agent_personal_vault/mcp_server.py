@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .consent import create_consent_request
-from .vault import agent_context, check_summary, get_schema, load_store, schema_context, store_path
+from .vault import agent_context, check_summary, get_schema, load_store, schema_context, store_path, validate_key
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "agent-personal-vault"
@@ -126,10 +126,7 @@ class MCPServer:
                 raise ValueError("action must be get or env")
             key = "*" if action == "env" else str(arguments.get("key") or "")
             if action == "get":
-                schema = get_schema(store["schema"])
-                key = key.strip().upper()
-                if key not in schema:
-                    raise ValueError("key must be a known stored schema key")
+                key = validate_key(key, store["schema"])
             purpose = str(arguments.get("purpose") or "").strip()
             if not purpose:
                 raise ValueError("purpose is required")
