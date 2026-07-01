@@ -758,6 +758,53 @@ class VaultTests(unittest.TestCase):
             self.assertTrue(any(event["action"] == "consent_request" and event["actor"] == "mcp" for event in events))
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
 
+    def test_mcp_consent_request_accepts_derived_get_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["GIVEN_NAME"] = "太郎"
+            write_store(store, path)
+            messages = [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "apv.request_consent",
+                        "arguments": {
+                            "action": "get",
+                            "key": "FULL_NAME",
+                            "purpose": "prepare local draft for user review",
+                        },
+                    },
+                },
+            ]
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotIn("山田", result.stdout)
+            self.assertNotIn("太郎", result.stdout)
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            payload = json.loads(responses[1]["result"]["content"][0]["text"])
+            self.assertFalse(payload["raw_values_included"])
+            self.assertEqual(payload["request"]["action"], "get")
+            self.assertEqual(payload["request"]["key"], "FULL_NAME")
+            self.assertEqual(payload["request"]["actor"], "mcp")
+            requests = list_consent_requests(path)
+            self.assertEqual(len(requests), 1)
+            self.assertEqual(requests[0]["key"], "FULL_NAME")
+            events = read_audit_events(path, limit=10)
+            self.assertTrue(any(event["action"] == "consent_request" and event["key"] == "FULL_NAME" for event in events))
+            self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
+            self.assertNotIn("太郎", json.dumps(events, ensure_ascii=False))
+
     def test_mcp_consent_request_rejects_unknown_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -785,7 +832,8 @@ class VaultTests(unittest.TestCase):
             )
             response = json.loads(result.stdout)
             self.assertEqual(response["error"]["code"], -32602)
-            self.assertIn("known stored schema key", response["error"]["message"])
+            self.assertIn("Unknown key: UNKNOWN", response["error"]["message"])
+            self.assertIn("FULL_NAME", response["error"]["message"])
 
 
 if __name__ == "__main__":
