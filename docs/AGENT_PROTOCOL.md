@@ -20,7 +20,7 @@ Use this order for a first public-alpha integration test:
 3. In MCP, call `apv.context` with the same raw-free task.
 4. If a raw value is necessary, call `apv.request_consent` for one key, such as `FULL_NAME`.
 5. Wait for a human to approve or deny the request in the GUI or CLI.
-6. After approval, call CLI `get <KEY>` with the matching consent token.
+6. After approval, call CLI `get <KEY>` with the matching consent token shown by the GUI or CLI `consent approve`. The MCP request id is not the consent token.
 7. Check `audit summary` or `audit tail` and report only key names, never raw values.
 
 Do not use MCP for raw retrieval. MCP exposes planning and consent-request tools only; CLI `get` is the explicit raw-returning step after human approval.
