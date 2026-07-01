@@ -40,8 +40,14 @@ def tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "apv.context",
-            "description": "Return raw-free vault context for AI-agent planning.",
-            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+            "description": "Return raw-free vault context for AI-agent planning, optionally with minimum-key task hints.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "Optional raw-free task description for minimum-key planning hints."},
+                },
+                "additionalProperties": False,
+            },
         },
         {
             "name": "apv.check",
@@ -87,7 +93,7 @@ class MCPServer:
             return text_json(schema_context(self.schema_name))
         if name == "apv.context":
             store = load_store(path=self.path)
-            return text_json(agent_context(store, include_path=False, path=self.path))
+            return text_json(agent_context(store, include_path=False, path=self.path, task=str(arguments.get("task") or "")))
         if name == "apv.check":
             store = load_store(path=self.path)
             summary = check_summary(store, self.path)

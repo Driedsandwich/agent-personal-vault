@@ -75,7 +75,7 @@ def command_check(args: argparse.Namespace) -> None:
 def command_context(args: argparse.Namespace) -> None:
     path = resolve_path(args)
     store = load_store(path=path)
-    print(json.dumps(agent_context(store, include_path=args.include_path, path=path), ensure_ascii=False, indent=2))
+    print(json.dumps(agent_context(store, include_path=args.include_path, path=path, task=args.task), ensure_ascii=False, indent=2))
 
 
 def command_schema(args: argparse.Namespace) -> None:
@@ -290,6 +290,7 @@ def build_parser() -> argparse.ArgumentParser:
         cmd = sub.add_parser(name, help=help_text)
         if name == "context":
             cmd.add_argument("--include-path", action="store_true", help="Include the local store path in JSON output.")
+            cmd.add_argument("--task", help="Optional raw-free task description for minimum-key planning hints.")
         if name == "env":
             cmd.add_argument("--purpose", required=True, help="Raw access purpose. Stored in audit log without raw values.")
             cmd.add_argument("--consent-id", required=True, help="One-time consent token from consent grant.")

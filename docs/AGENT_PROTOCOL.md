@@ -61,6 +61,8 @@ agent-personal-vault list
 
 `schema` does not read the vault file. `list` reports filled status and rough length without raw fragments. Use `context` as the safest default for agent planning when a vault exists, and `schema` when the agent only needs field definitions.
 
+When a task is known, use `context --task "<raw-free task>"` to get conservative minimum-key planning hints. The hints list candidate keys and filled status only; they do not include stored raw values.
+
 Consent tokens and audit logs are workflow controls. They are not a hard security boundary against an agent or process that already has shell access as the same OS user.
 
 ## MCP Raw-Free Tools
@@ -79,7 +81,7 @@ Tools:
 - `apv.list_masked`
 - `apv.request_consent`
 
-The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.list_masked` does not return raw value fragments; it returns field status metadata only. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
+The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.context` accepts an optional raw-free `task` argument and may return conservative minimum-key planning hints. `apv.list_masked` does not return raw value fragments; it returns field status metadata only. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
 
 ## Raw Commands
 
