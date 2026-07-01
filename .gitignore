@@ -8,6 +8,7 @@
 *.pyc
 
 # Local agent/editor configuration.
+/.agents/
 /.codex/
 /.claude/
 /.continue/
@@ -15,6 +16,8 @@
 /.idea/
 /.vscode/
 /.windsurf/
+/AGENTS.local.md
+/CLAUDE.local.md
 
 # Never commit real local vault data.
 /private/

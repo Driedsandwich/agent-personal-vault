@@ -18,6 +18,8 @@ class ReleaseCheckTests(unittest.TestCase):
                 local_config = root / dirname / "settings.json"
                 local_config.parent.mkdir()
                 local_config.write_text(f'{{"path": "{private_path}"}}', encoding="utf-8")
+            for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
+                (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
             (root / "README.md").write_text("public docs only\n", encoding="utf-8")
 
             result = subprocess.run(
@@ -37,6 +39,8 @@ class ReleaseCheckTests(unittest.TestCase):
         for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
             self.assertIn(dirname, release_policy.SKIP_DIRS)
             self.assertFalse(pii_scan.should_scan(Path(dirname) / "settings.json"))
+        for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
+            self.assertFalse(pii_scan.should_scan(Path(filename)))
         self.assertTrue(pii_scan.should_scan(Path("docs") / "example.md"))
 
     def test_forbidden_file_check_skips_local_developer_config(self) -> None:
