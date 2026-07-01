@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 LOCAL_AGENT_CONFIG_DIRS = {
+    ".agents",
     ".codex",
     ".claude",
     ".continue",
@@ -29,11 +30,16 @@ GENERATED_DIRS = {
 
 LOCAL_DEVELOPER_CONFIG_DIRS = LOCAL_AGENT_CONFIG_DIRS | LOCAL_EDITOR_CONFIG_DIRS
 
+LOCAL_DEVELOPER_CONFIG_FILES = {
+    "AGENTS.local.md",
+    "CLAUDE.local.md",
+}
+
 SKIP_DIRS = GENERATED_DIRS | LOCAL_DEVELOPER_CONFIG_DIRS
 
 
 def is_skipped_path(path: Path) -> bool:
-    return any(part in SKIP_DIRS for part in path.parts)
+    return path.name in LOCAL_DEVELOPER_CONFIG_FILES or any(part in SKIP_DIRS for part in path.parts)
 
 
 def iter_release_files(root: Path) -> list[Path]:
