@@ -26,10 +26,14 @@
 /.mcp.json
 /.aider.conf.yml
 /.aider.model.settings.yml
+/.cursorrules
 /AGENTS.md
 /AGENTS.local.md
+/CLAUDE.md
 /CLAUDE.local.md
+/CODEX.md
 /CODEX.local.md
+/GEMINI.md
 
 # Never commit real local vault data.
 /private/

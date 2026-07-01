@@ -66,17 +66,43 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(files, {Path("README.md")})
 
-    def test_root_local_codex_and_mcp_files_are_not_release_surface(self) -> None:
+    def test_root_local_agent_config_files_are_not_release_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             private_path = "/" + "Users" + "/example/private"
-            for filename in {".codex.json", ".mcp.json", "CODEX.local.md"}:
+            for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
                 (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
             (root / "README.md").write_text("public docs only\n", encoding="utf-8")
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
 
             self.assertEqual(files, {Path("README.md")})
+
+    def test_untracked_codex_hooks_do_not_trigger_release_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.PIPE)
+            tracked = root / "README.md"
+            tracked.write_text("public docs only\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            local_hook = root / ".codex" / "hooks.json"
+            local_hook.parent.mkdir()
+            local_hook.write_text(
+                '{"path": "/' + 'Users/example/private", "token": "sk-' + 'localdeveloperartifact000000"}\n',
+                encoding="utf-8",
+            )
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+            result = subprocess.run(
+                [sys.executable, "scripts/pii_scan.py", str(root)],
+                cwd=Path(__file__).resolve().parent.parent,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(files, {Path("README.md")})
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_forbidden_file_check_skips_local_developer_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
