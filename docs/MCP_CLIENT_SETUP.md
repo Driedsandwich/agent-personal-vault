@@ -81,6 +81,15 @@ Claude Codeでproject-localに置く場合は、project rootの `.mcp.json` にs
 
 新しいClaude Code sessionを起動し、初回promptでproject-scoped serverを承認します。接続状態は `/mcp` で確認します。
 
+Claude Codeの権限モードによっては、server承認に加えてMCP toolの実行許可が必要です。特に非対話実行や `dontAsk` 相当の制限モードでは、次のtool名を許可してから試してください。
+
+```text
+mcp__agent-personal-vault__apv_context
+mcp__agent-personal-vault__apv_request_consent
+```
+
+この2つはraw値を返さないonboarding用toolです。raw値の取得はMCPではなく、人間承認後のCLI `get` で行います。
+
 ## Generic Stdio MCP Client
 
 stdio serverとして次を起動する設定にします。
