@@ -9,9 +9,9 @@ import shutil
 from pathlib import Path
 
 try:
-    from scripts.release_policy import SKIP_DIRS, is_skipped_path
+    from scripts.release_policy import SKIP_DIRS, iter_release_files
 except ModuleNotFoundError:
-    from release_policy import SKIP_DIRS, is_skipped_path
+    from release_policy import SKIP_DIRS, iter_release_files
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -49,13 +49,7 @@ def run_step(name: str, command: list[str]) -> None:
 
 
 def iter_files() -> list[Path]:
-    files: list[Path] = []
-    for path in ROOT.rglob("*"):
-        if is_skipped_path(path):
-            continue
-        if path.is_file():
-            files.append(path)
-    return files
+    return iter_release_files(ROOT)
 
 
 def check_forbidden_files() -> None:

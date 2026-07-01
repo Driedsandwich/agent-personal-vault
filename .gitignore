@@ -22,6 +22,9 @@
 /vault.json
 /audit.jsonl
 /consents.json
+/.env
+/.env.*
+!/.env.example
 *.local
 *.secret
 *.pem
