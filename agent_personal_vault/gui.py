@@ -10,13 +10,12 @@ import threading
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .audit import audit_summary, read_audit_events, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .schemas import DERIVED_FIELDS
-from .vault import check_summary, derived_fields, get_schema, load_store, normalize_value, store_path, write_store
+from .vault import check_summary, derived_fields, get_schema, load_store, local_user_path, normalize_value, store_path, write_store
 
 
 def schema_payload(schema_name: str) -> dict:
@@ -393,7 +392,7 @@ def main() -> None:
     parser.add_argument("--store", help="Override vault path.")
     parser.add_argument("--schema", default="job_hunting_profile")
     args = parser.parse_args()
-    run_server(args.port, args.open, Path(args.store).expanduser() if args.store else store_path(), args.schema)
+    run_server(args.port, args.open, local_user_path(args.store) if args.store else store_path(), args.schema)
 
 
 if __name__ == "__main__":

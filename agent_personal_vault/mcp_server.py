@@ -9,11 +9,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
 from .consent import create_consent_request
-from .vault import agent_context, check_summary, get_schema, load_store, schema_context, store_path, validate_key
+from .vault import agent_context, check_summary, get_schema, load_store, local_user_path, schema_context, store_path, validate_key
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "agent-personal-vault"
@@ -201,7 +200,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--store", help="Override vault path.")
     parser.add_argument("--schema", default="job_hunting_profile")
     args = parser.parse_args(argv)
-    MCPServer(Path(args.store).expanduser() if args.store else store_path(), args.schema).serve()
+    MCPServer(local_user_path(args.store) if args.store else store_path(), args.schema).serve()
 
 
 if __name__ == "__main__":

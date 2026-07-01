@@ -28,6 +28,7 @@ from .vault import (
     derived_fields,
     export_env_lines,
     get_schema,
+    local_user_path,
     load_store,
     masked,
     normalize_value,
@@ -39,7 +40,7 @@ from .vault import (
 
 
 def resolve_path(args: argparse.Namespace) -> Path:
-    return Path(args.store).expanduser() if args.store else store_path()
+    return local_user_path(args.store) if args.store else store_path()
 
 
 def read_passphrase(prompt: str = "Vault passphrase: ") -> str:

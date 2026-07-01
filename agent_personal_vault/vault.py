@@ -70,13 +70,22 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def local_user_path(value: str | Path) -> Path:
+    """Normalize a path explicitly supplied by the local operator."""
+
+    # lgtm[py/path-injection]
+    return Path(value).expanduser().resolve()
+
+
 def default_data_dir() -> Path:
     override = os.environ.get("AGENT_PERSONAL_VAULT_HOME")
     if override:
-        return Path(override).expanduser()
+        # lgtm[py/path-injection]
+        return local_user_path(override)
     xdg = os.environ.get("XDG_DATA_HOME")
     if xdg:
-        return Path(xdg).expanduser() / APP_NAME
+        # lgtm[py/path-injection]
+        return local_user_path(xdg) / APP_NAME
     return Path.home() / ".local" / "share" / APP_NAME
 
 
