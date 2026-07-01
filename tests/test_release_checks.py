@@ -42,6 +42,14 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertTrue(release_policy.is_skipped_path(Path(filename)))
         self.assertTrue(pii_scan.should_scan(Path("docs") / "example.md"))
 
+    def test_mcp_docs_include_claude_code_tool_approval_names(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        docs = (root / "docs" / "MCP_CLIENT_SETUP.md").read_text(encoding="utf-8")
+
+        self.assertIn("mcp__agent-personal-vault__apv_context", docs)
+        self.assertIn("mcp__agent-personal-vault__apv_request_consent", docs)
+        self.assertIn("dontAsk", docs)
+
     def test_gitignore_covers_local_developer_config(self) -> None:
         root = Path(__file__).resolve().parent.parent
         gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
