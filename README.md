@@ -92,9 +92,9 @@ agent-personal-vault --store /path/to/vault.json check
 
 保存ファイルは `0600`、保存ディレクトリは `0700` に設定されます。
 
-## MCP Read-Only Server
+## MCP Raw-Free Server
 
-AIエージェント連携用に、raw値を返さないread-only MCP stdio serverを提供します。
+AIエージェント連携用に、raw値を返さないMCP stdio serverを提供します。
 
 ```sh
 apv-mcp --store /path/to/vault.json
@@ -106,8 +106,9 @@ apv-mcp --store /path/to/vault.json
 - `apv.context`
 - `apv.check`
 - `apv.list_masked`
+- `apv.request_consent`
 
-MCPでは `get`、`env`、`set`、`unset`、`consent`、raw値取得、外部送信、フォーム送信は公開しません。raw値が必要な場合は、CLI/GUIのconsent flowで人間確認してください。
+MCPでは `get`、`env`、`set`、`unset`、raw値取得、外部送信、フォーム送信は公開しません。`apv.request_consent` はraw値を返さず、GUIまたはCLIで人間が承認/拒否するためのリクエストだけを作成します。
 
 ## CLI
 

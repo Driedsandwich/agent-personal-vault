@@ -1,7 +1,7 @@
-"""Minimal read-only MCP stdio server.
+"""Minimal raw-free MCP stdio server.
 
 This exposes only raw-free tools. It intentionally does not expose get, env,
-set, unset, consent, or any raw-returning operation.
+set, unset, or any raw-returning operation.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .consent import create_consent_request
 from .vault import agent_context, check_summary, get_schema, load_store, schema_context, store_path
 
 PROTOCOL_VERSION = "2025-06-18"
@@ -52,6 +53,20 @@ def tool_definitions() -> list[dict[str, Any]]:
             "description": "Return all schema keys with masked values only. No raw values are returned.",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         },
+        {
+            "name": "apv.request_consent",
+            "description": "Create a raw-free one-key consent request for later human approval. No raw values are returned.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["get", "env"]},
+                    "key": {"type": "string", "description": "Schema key for get, or * for env."},
+                    "purpose": {"type": "string", "description": "Raw-free reason shown to the human approver."},
+                },
+                "required": ["action", "purpose"],
+                "additionalProperties": False,
+            },
+        },
     ]
 
 
@@ -66,7 +81,8 @@ class MCPServer:
     def error(self, request_id: Any, code: int, message: str) -> dict[str, Any]:
         return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
 
-    def call_tool(self, name: str) -> dict[str, Any]:
+    def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+        arguments = arguments or {}
         if name == "apv.schema":
             return text_json(schema_context(self.schema_name))
         if name == "apv.context":
@@ -97,6 +113,33 @@ class MCPServer:
                 ],
             }
             return text_json(payload)
+        if name == "apv.request_consent":
+            store = load_store(path=self.path)
+            action = str(arguments.get("action") or "")
+            if action not in {"get", "env"}:
+                raise ValueError("action must be get or env")
+            key = "*" if action == "env" else str(arguments.get("key") or "")
+            if action == "get":
+                schema = get_schema(store["schema"])
+                key = key.strip().upper()
+                if key not in schema:
+                    raise ValueError("key must be a known stored schema key")
+            purpose = str(arguments.get("purpose") or "").strip()
+            if not purpose:
+                raise ValueError("purpose is required")
+            request = create_consent_request(
+                vault_path=self.path,
+                action=action,
+                key=key,
+                purpose=purpose,
+                actor="mcp",
+            )
+            payload = {
+                "raw_values_included": False,
+                "request": request,
+                "next_step": "Approve or deny this request in the GUI or with `agent-personal-vault consent approve|deny`.",
+            }
+            return text_json(payload)
         raise KeyError(name)
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
@@ -120,9 +163,16 @@ class MCPServer:
             if not isinstance(params, dict):
                 return self.error(request_id, -32602, "Invalid params")
             try:
-                return self.response(request_id, self.call_tool(str(params.get("name", ""))))
+                arguments = params.get("arguments", {})
+                if arguments is None:
+                    arguments = {}
+                if not isinstance(arguments, dict):
+                    return self.error(request_id, -32602, "Invalid arguments")
+                return self.response(request_id, self.call_tool(str(params.get("name", "")), arguments))
             except KeyError:
                 return self.error(request_id, -32601, "Unknown tool")
+            except ValueError as exc:
+                return self.error(request_id, -32602, str(exc))
             except Exception as exc:
                 return self.error(request_id, -32000, str(exc))
         return self.error(request_id, -32601, "Method not found")

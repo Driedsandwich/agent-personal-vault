@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from agent_personal_vault.audit import audit_path, read_audit_events
-from agent_personal_vault.consent import consent_path
+from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.vault import (
     agent_context,
@@ -626,11 +626,84 @@ class VaultTests(unittest.TestCase):
             )
             responses = [json.loads(line) for line in result.stdout.splitlines()]
             tool_names = {tool["name"] for tool in responses[1]["result"]["tools"]}
-            self.assertEqual(tool_names, {"apv.schema", "apv.context", "apv.check", "apv.list_masked"})
+            self.assertEqual(tool_names, {"apv.schema", "apv.context", "apv.check", "apv.list_masked", "apv.request_consent"})
             self.assertNotIn("山田", result.stdout)
             self.assertNotIn("taro@example.test", result.stdout)
             self.assertNotIn("ta...st", result.stdout)
             self.assertIn("raw_values_included", result.stdout)
+
+    def test_mcp_consent_request_is_raw_free_and_audited(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            messages = [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "apv.request_consent",
+                        "arguments": {
+                            "action": "get",
+                            "key": "FAMILY_NAME",
+                            "purpose": "prepare local draft for user review",
+                        },
+                    },
+                },
+            ]
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotIn("山田", result.stdout)
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            payload = json.loads(responses[1]["result"]["content"][0]["text"])
+            self.assertFalse(payload["raw_values_included"])
+            self.assertEqual(payload["request"]["action"], "get")
+            self.assertEqual(payload["request"]["key"], "FAMILY_NAME")
+            self.assertEqual(payload["request"]["actor"], "mcp")
+            requests = list_consent_requests(path)
+            self.assertEqual(len(requests), 1)
+            self.assertEqual(requests[0]["actor"], "mcp")
+            events = read_audit_events(path, limit=10)
+            self.assertTrue(any(event["action"] == "consent_request" and event["actor"] == "mcp" for event in events))
+            self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
+
+    def test_mcp_consent_request_rejects_unknown_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "apv.request_consent",
+                    "arguments": {
+                        "action": "get",
+                        "key": "UNKNOWN",
+                        "purpose": "prepare local draft for user review",
+                    },
+                },
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            response = json.loads(result.stdout)
+            self.assertEqual(response["error"]["code"], -32602)
+            self.assertIn("known stored schema key", response["error"]["message"])
 
 
 if __name__ == "__main__":
