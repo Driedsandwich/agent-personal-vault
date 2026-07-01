@@ -60,6 +60,8 @@ agent-personal-vault --store "$APV_STORE" audit tail --limit 10
 
 ここまでの安全な既定は、`context` / `apv.context` がraw値を返さず、`apv.request_consent` もraw値を返さず、raw取得は人間が承認した1 keyに限ることです。外部送信、フォーム送信、応募、メール送信はこのツールでは実行せず、人間確認で止めてください。
 
+Codex、Claude Desktop、Claude Codeなどの設定例は [docs/MCP_CLIENT_SETUP.md](docs/MCP_CLIENT_SETUP.md) を参照してください。
+
 ## 位置づけ
 
 この領域には、暗号化された個人コンテキストVault、MCPサーバー、資格情報Vault、PII redaction middleware などの先行OSSがあります。
