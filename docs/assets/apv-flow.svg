@@ -30,8 +30,8 @@
   <rect x="302" y="96" width="220" height="132" class="panel safe" />
   <text x="326" y="132" class="primary">Raw-Free First</text>
   <text x="326" y="160" class="body">schema / check / context</text>
-  <text x="326" y="184" class="muted">MCP exposes read-only tools</text>
-  <text x="326" y="206" class="muted">No get, env, write, upload</text>
+  <text x="326" y="184" class="muted">MCP exposes raw-free tools</text>
+  <text x="326" y="206" class="muted">No raw get, env, write, upload</text>
 
   <rect x="586" y="96" width="150" height="132" class="panel chip" />
   <text x="610" y="132" class="primary">Local Vault</text>

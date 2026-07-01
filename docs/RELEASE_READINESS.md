@@ -2,9 +2,9 @@
 
 日本語タイトル: リリース準備状況
 
-status: local-ready
+status: public-alpha-ready
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 
 ## Current Summary
 
@@ -40,8 +40,8 @@ Core product boundary:
 - GUI profile saves write raw-free audit events.
 - Optional encrypted store backend exists and uses `cryptography` when installed.
 - CLI supports `encryption status`, `encryption encrypt`, and `encryption decrypt`.
-- Read-only MCP stdio server exists.
-- MCP exposes only `apv.schema`, `apv.context`, `apv.check`, and `apv.list_masked`.
+- Raw-free MCP stdio server exists.
+- MCP exposes `apv.schema`, `apv.context`, `apv.check`, `apv.list_masked`, and `apv.request_consent`.
 - GUI warns that the project is alpha and not encrypted by default.
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
@@ -49,7 +49,7 @@ Core product boundary:
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.
-- GitHub Actions workflow exists for future repository use.
+- GitHub Actions workflow exists and runs release checks for pull requests and pushes to `main`.
 - GitHub Issue templates exist and warn against posting real personal data.
 - Local Git preparation guide exists.
 - Prior art review exists and README positioning reflects it.
@@ -73,7 +73,7 @@ Results:
 
 ```text
 py_compile: passed
-unittest: 22 tests passed
+unittest: 38 tests passed
 pii_scan: No obvious private data patterns found
 check_release: release checks passed
 make release-check: release checks passed
@@ -103,14 +103,12 @@ Latest local commit at this checkpoint is available from:
 git log --oneline -1
 ```
 
-Remote creation, push, release creation, package publish, public announcement, and external sharing remain approval-gated.
+Release creation, package publish, public announcement, and external sharing remain approval-gated.
 
 ## Not Done Without Explicit Approval
 
 The following actions remain stopped:
 
-- GitHub repository creation
-- `git push`
 - release creation
 - package publish
 - public announcement
@@ -118,10 +116,10 @@ The following actions remain stopped:
 
 ## Recommended Next Approval
 
-If the user wants to proceed, the next bounded local action is:
+If the user wants to proceed, the next bounded action is:
 
 ```text
-Review docs/EXTERNAL_PUBLICATION_DECISION.md and decide whether to create a private GitHub dry-run repository first.
+Review the public alpha UX and safety flow with dummy data, then open Issues for any remaining rough edges.
 ```
 
-This still does not publish anything externally. Remote creation, push, release creation, package publish, and public announcement remain separate approvals.
+This still does not create a release, publish a package, or announce the project publicly. Release creation, package publish, and public announcement remain separate approvals.

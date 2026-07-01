@@ -276,16 +276,17 @@ Status: consent request queue and approve/deny are implemented. Dedicated audit 
 
 Status: initial optional encrypted backend and migration commands are implemented. OS key store integration and recovery UX remain pending.
 
-### Phase 4: MCP Read-Only Server
+### Phase 4: MCP Raw-Free Server
 
 - `apv.schema`
 - `apv.context`
 - `apv.check`
 - `apv.list_masked`
+- `apv.request_consent`
 
 ここではraw-returning toolをまだ出さない。
 
-Status: read-only MCP stdio server is implemented. It exposes only raw-free tools and does not expose raw retrieval, write, consent mutation, or external action tools.
+Status: raw-free MCP stdio server is implemented. It exposes raw-free planning/status tools and a raw-free consent request tool. It does not expose raw retrieval, stored-value write, or external action tools.
 
 ### Phase 5: MCP Raw Access With Consent
 
@@ -305,7 +306,7 @@ Status: read-only MCP stdio server is implemented. It exposes only raw-free tool
 4. OS key store integrationを検討する。
 5. MCP raw-value toolsを追加する場合のconsent token設計をレビューする。
 
-監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、optional encryption backend、read-only MCP serverは実装済み。次はGUI audit viewerかOS key store integrationへ進む価値が高い。
+監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、optional encryption backend、raw-free MCP serverは実装済み。次はGUI audit viewerかOS key store integrationへ進む価値が高い。
 
 ## References
 
