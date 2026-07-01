@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .audit import write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .schemas import DERIVED_FIELDS
 from .vault import check_summary, derived_fields, get_schema, load_store, normalize_value, store_path, write_store
@@ -213,6 +214,23 @@ load().catch(err => setState(err.message));
 </html>"""
 
 
+def save_profile_fields(path: Path, schema_name: str, incoming: dict) -> dict:
+    store = load_store(create=True, path=path, schema_name=schema_name)
+    schema = get_schema(store["schema"])
+    for key in schema:
+        store["fields"][key] = normalize_value(key, str(incoming.get(key, "")))
+    write_store(store, path)
+    write_audit_event(
+        vault_path=path,
+        actor="gui",
+        action="profile_save",
+        key="*",
+        raw_returned=False,
+        purpose="gui profile save",
+    )
+    return store
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AgentPersonalVault/0.1"
 
@@ -293,11 +311,7 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(incoming, dict):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": "fields must be an object"})
             return
-        store = load_store(create=True, path=self.server.store_path, schema_name=self.server.schema_name)
-        schema = get_schema(store["schema"])
-        for key in schema:
-            store["fields"][key] = normalize_value(key, str(incoming.get(key, "")))
-        write_store(store, self.server.store_path)
+        store = save_profile_fields(self.server.store_path, self.server.schema_name, incoming)
         self.send_json(HTTPStatus.OK, {"ok": True, "summary": check_summary(store, self.server.store_path)})
 
 

@@ -36,6 +36,7 @@ Core product boundary:
 - CLI `get` and `env` require a matching one-time consent token.
 - CLI supports `consent request`, `consent approve`, `consent deny`, `consent requests`, direct `consent grant`, and `consent list`.
 - GUI supports pending consent request approval and denial.
+- GUI profile saves write raw-free audit events.
 - Optional encrypted store backend exists and uses `cryptography` when installed.
 - CLI supports `encryption status`, `encryption encrypt`, and `encryption decrypt`.
 - Read-only MCP stdio server exists.
@@ -43,7 +44,7 @@ Core product boundary:
 - GUI warns that the project is alpha and not encrypted by default.
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
-- Unit tests cover raw-free audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, and MCP read-only raw-free behavior.
+- Unit tests cover raw-free audit logging, GUI profile-save audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, and MCP raw-free behavior.
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.

@@ -12,6 +12,7 @@ from pathlib import Path
 from agent_personal_vault.audit import audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
+from agent_personal_vault.gui import save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
     check_summary,
@@ -376,6 +377,31 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"action": "set"', encoded)
             self.assertIn('"action": "unset"', encoded)
             self.assertNotIn("山田", encoded)
+
+    def test_gui_profile_save_writes_raw_free_audit_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            save_profile_fields(
+                path,
+                "job_hunting_profile",
+                {
+                    "FAMILY_NAME": "山田",
+                    "EMAIL": "private.person@example.test",
+                },
+            )
+            store = load_store(path=path)
+            self.assertEqual(store["fields"]["FAMILY_NAME"], "山田")
+            self.assertEqual(store["fields"]["EMAIL"], "private.person@example.test")
+            log_path = audit_path(path)
+            self.assertTrue(log_path.exists())
+            self.assertEqual(stat.S_IMODE(log_path.stat().st_mode), 0o600)
+            events = read_audit_events(path, limit=10)
+            encoded = json.dumps(events, ensure_ascii=False)
+            self.assertIn('"actor": "gui"', encoded)
+            self.assertIn('"action": "profile_save"', encoded)
+            self.assertIn('"key": "*"', encoded)
+            self.assertNotIn("山田", encoded)
+            self.assertNotIn("private.person@example.test", encoded)
 
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
