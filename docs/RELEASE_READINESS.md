@@ -27,6 +27,8 @@ Core product boundary:
 - No source references to the originating private project path were found.
 - README, SECURITY, CONTRIBUTING, LICENSE, AGENT_PROTOCOL, and PUBLICATION_GATE exist.
 - README includes an Alpha Safety Notice.
+- README includes a short public-alpha quickstart path for raw-free context, MCP context, consent request, GUI approval, and audit review.
+- MCP client setup guidance exists in `docs/MCP_CLIENT_SETUP.md`.
 - CLI supports raw-free `context`.
 - CLI supports raw-free `context --task` planning hints.
 - CLI supports raw-free `schema`.
@@ -43,9 +45,11 @@ Core product boundary:
 - Raw-free MCP stdio server exists.
 - MCP exposes `apv.schema`, `apv.context`, `apv.check`, `apv.list_masked`, and `apv.request_consent`.
 - GUI warns that the project is alpha and not encrypted by default.
+- GUI supports raw-free audit summary and recent event review.
+- GUI usability smoke checks cover dummy data entry, save status, masked preview toggling, consent approval, and audit visibility.
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
-- Unit tests cover raw-free audit logging, GUI profile-save audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
+- Unit tests cover raw-free audit logging, GUI profile-save audit logging, GUI audit viewer raw-free behavior, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.
@@ -73,7 +77,7 @@ Results:
 
 ```text
 py_compile: passed
-unittest: 38 tests passed
+unittest: 40 tests passed
 pii_scan: No obvious private data patterns found
 check_release: release checks passed
 make release-check: release checks passed
@@ -92,6 +96,20 @@ Additional local checks:
 - Release check cleans generated `__pycache__` and `.pytest_cache` directories.
 - README avoids category-first novelty claims and points to `docs/PRIOR_ART_REVIEW.md`.
 - Product positioning defines what the project is not, MVP exclusions, and messaging rules.
+- Public alpha quickstart smoke reached raw-free context, MCP context, consent request, GUI approval, CLI raw retrieval with consent, and raw-free audit review using dummy data.
+- GUI smoke checks verified save state, masked preview toggling, consent and audit panels, and panel contrast.
+
+## Remaining P0/P1 Risks
+
+No known P0 issue currently blocks continued public-alpha repository availability.
+
+Remaining P1 risks before any release or package publish:
+
+- Encryption is optional and passphrase-managed. OS key store integration and recovery UX remain pending.
+- MCP remains intentionally raw-free except for consent request creation. Raw-value MCP tools should not be added without a separate consent, audit, and client-behavior review.
+- GUI localhost access is an operator workflow convenience, not a hard multi-user security boundary.
+- Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated.
+- Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
 
 ## Git Status
 
@@ -119,7 +137,7 @@ The following actions remain stopped:
 If the user wants to proceed, the next bounded action is:
 
 ```text
-Review the public alpha UX and safety flow with dummy data, then open Issues for any remaining rough edges.
+Move from high-frequency launch checks to lightweight public-alpha observation. Check open Issues/PRs, Actions, Security alerts, README display, release/tag absence, and external feedback weekly or when prompted, then open Issues for concrete defects.
 ```
 
-This still does not create a release, publish a package, or announce the project publicly. Release creation, package publish, and public announcement remain separate approvals.
+This still does not create a GitHub release, publish a package, change repository settings, delete branches, or announce the project publicly. Release creation, package publish, repository setting changes, branch deletion, and public announcement remain separate approvals.
