@@ -12,7 +12,7 @@ from pathlib import Path
 from agent_personal_vault.audit import audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
-from agent_personal_vault.gui import audit_view_payload, save_profile_fields
+from agent_personal_vault.gui import audit_view_payload, page_html, save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
     check_summary,
@@ -495,6 +495,14 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("raw-looking purpose", encoded)
             self.assertNotIn("purpose", encoded)
             self.assertNotIn("consent_id", encoded)
+
+    def test_gui_page_shows_approved_consent_id_handoff(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn('id="consentResult"', html)
+        self.assertIn("data.result.grant.id", html)
+        self.assertIn("--consent-id", html)
+        self.assertIn("CLI get", html)
 
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

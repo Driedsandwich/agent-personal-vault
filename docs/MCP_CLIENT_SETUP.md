@@ -102,7 +102,7 @@ args:
 2. `planning_hints.matched_hints[].candidate_keys` で必要候補keyを見る。
 3. raw値が必要な場合だけ、`apv.request_consent` で1 keyを要求する。
 4. 人間が `apv-gui --store /absolute/path/to/vault.json --open` またはCLIで承認/拒否する。
-5. 承認後、CLIで `agent-personal-vault --store /absolute/path/to/vault.json get <KEY> --purpose "<raw-free purpose>" --consent-id "<token>"` を実行する。
+5. 承認後、GUIまたはCLI `consent approve` が表示したconsent idを使い、CLIで `agent-personal-vault --store /absolute/path/to/vault.json get <KEY> --purpose "<raw-free purpose>" --consent-id "<token>"` を実行する。GUIを閉じた場合は `agent-personal-vault --store /absolute/path/to/vault.json consent list` で未使用tokenを確認する。
 6. `agent-personal-vault --store /absolute/path/to/vault.json audit summary` または `audit tail` でrawなしの利用履歴を確認する。
 
 MCPには `get`、`env`、`set`、`unset`、外部送信、フォーム送信、メール送信、repository操作のtoolはありません。`apv.request_consent` もraw値を返しません。

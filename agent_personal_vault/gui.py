@@ -98,6 +98,7 @@ def page_html(token: str, schema_name: str) -> str:
     </section>
     <section class="panel">
       <h2>同意リクエスト</h2>
+      <div id="consentResult" class="hint"></div>
       <div id="consentRequests">読み込み中</div>
     </section>
     <section class="panel">
@@ -194,7 +195,16 @@ async function loadConsentRequests() {{
   </div>`).join("");
 }}
 async function decideConsent(id, decision) {{
-  await api(`/api/consent/${{decision}}`, {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{id}})}});
+  const data = await api(`/api/consent/${{decision}}`, {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{id}})}});
+  const resultNode = document.getElementById("consentResult");
+  if (decision === "approve" && data.result && data.result.grant && data.result.grant.id) {{
+    const grant = data.result.grant;
+    resultNode.innerHTML = `承認しました。CLI get の --consent-id に <code>${{esc(grant.id)}}</code> を渡してください。action=${{esc(grant.action || "")}} / key=${{esc(grant.key || "")}}`;
+  }} else if (decision === "deny") {{
+    resultNode.textContent = "拒否しました。consent tokenは発行されていません。";
+  }} else {{
+    resultNode.textContent = "";
+  }}
   await loadConsentRequests();
   await loadAudit();
 }}
