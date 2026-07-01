@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .audit import write_audit_event
+from .audit import audit_summary, read_audit_events, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .schemas import DERIVED_FIELDS
 from .vault import check_summary, derived_fields, get_schema, load_store, normalize_value, store_path, write_store
@@ -100,6 +100,11 @@ def page_html(token: str, schema_name: str) -> str:
     <section class="panel">
       <h2>同意リクエスト</h2>
       <div id="consentRequests">読み込み中</div>
+    </section>
+    <section class="panel">
+      <h2>監査ログ</h2>
+      <div id="auditSummary">読み込み中</div>
+      <div id="auditEvents"></div>
     </section>
   </aside>
 </div>
@@ -192,9 +197,27 @@ async function loadConsentRequests() {{
 async function decideConsent(id, decision) {{
   await api(`/api/consent/${{decision}}`, {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{id}})}});
   await loadConsentRequests();
+  await loadAudit();
+}}
+async function loadAudit() {{
+  const data = await api("/api/audit");
+  const summary = data.summary || {{}};
+  const events = data.events || [];
+  const byAction = summary.by_action || {{}};
+  const rawByKey = summary.raw_access_by_key || {{}};
+  document.getElementById("auditSummary").innerHTML = `
+    <div>events: <strong>${{esc(summary.events || 0)}}</strong></div>
+    <div>raw values included: <strong>${{esc(summary.raw_values_included)}}</strong></div>
+    <div class="hint">actions: ${{esc(JSON.stringify(byAction))}}</div>
+    <div class="hint">raw access by key: ${{esc(JSON.stringify(rawByKey))}}</div>
+  `;
+  document.getElementById("auditEvents").innerHTML = events.length ? events.map(ev => `<div class="request">
+    <div><strong>${{esc(ev.action || "")}}</strong> <span class="key">${{esc(ev.key || "")}}</span></div>
+    <div class="hint">${{esc(ev.timestamp || "")}} / ${{esc(ev.actor || "")}} / outcome: ${{esc(ev.outcome || "")}} / raw_returned: ${{esc(ev.raw_returned)}}</div>
+  </div>`).join("") : "<p class='muted'>監査イベントなし</p>";
 }}
 function scheduleSave() {{ clearTimeout(timer); timer = setTimeout(() => save(false), 900); }}
-async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); await loadConsentRequests(); dirty=false; setState("保存済み"); }}
+async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); await loadConsentRequests(); await loadAudit(); dirty=false; setState("保存済み"); }}
 async function save(show=true) {{
   clearTimeout(timer);
   fields = collect();
@@ -229,6 +252,26 @@ def save_profile_fields(path: Path, schema_name: str, incoming: dict) -> dict:
         purpose="gui profile save",
     )
     return store
+
+
+def audit_view_payload(path: Path, limit: int = 10) -> dict:
+    events = []
+    for event in read_audit_events(path, limit=limit):
+        events.append(
+            {
+                "timestamp": event.get("timestamp", ""),
+                "actor": event.get("actor", ""),
+                "action": event.get("action", ""),
+                "key": event.get("key", ""),
+                "raw_returned": bool(event.get("raw_returned")),
+                "outcome": event.get("outcome", ""),
+            }
+        )
+    return {
+        "summary": audit_summary(path),
+        "events": events,
+        "raw_values_included": False,
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -274,6 +317,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             self.send_json(HTTPStatus.OK, {"requests": list_consent_requests(self.server.store_path)})
+            return
+        if parsed.path == "/api/audit":
+            if not self.token_ok():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+                return
+            self.send_json(HTTPStatus.OK, audit_view_payload(self.server.store_path))
             return
         self.send_response(HTTPStatus.NOT_FOUND)
         self.end_headers()

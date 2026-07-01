@@ -12,7 +12,7 @@ from pathlib import Path
 from agent_personal_vault.audit import audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
-from agent_personal_vault.gui import save_profile_fields
+from agent_personal_vault.gui import audit_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
     check_summary,
@@ -450,6 +450,45 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"key": "*"', encoded)
             self.assertNotIn("山田", encoded)
             self.assertNotIn("private.person@example.test", encoded)
+
+    def test_gui_audit_view_payload_omits_raw_values_and_purpose(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "set",
+                    "GIVEN_NAME",
+                    "--stdin",
+                    "--purpose",
+                    "raw-looking purpose 山田 private.person@example.test",
+                ],
+                check=True,
+                input="太郎\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            payload = audit_view_payload(path)
+            encoded = json.dumps(payload, ensure_ascii=False)
+            self.assertFalse(payload["raw_values_included"])
+            self.assertFalse(payload["summary"]["raw_values_included"])
+            self.assertIn('"action": "set"', encoded)
+            self.assertIn('"key": "GIVEN_NAME"', encoded)
+            self.assertNotIn("山田", encoded)
+            self.assertNotIn("太郎", encoded)
+            self.assertNotIn("private.person@example.test", encoded)
+            self.assertNotIn("raw-looking purpose", encoded)
+            self.assertNotIn("purpose", encoded)
+            self.assertNotIn("consent_id", encoded)
 
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
