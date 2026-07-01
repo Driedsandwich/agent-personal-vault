@@ -22,6 +22,44 @@
 
 安全な使い方は「raw値を保存する前に、まず `schema` / `context` / `check` でrawなしの流れを確認する」ことです。
 
+## 5分で試す
+
+まずはdummy値かローカルで扱ってよい値だけで試してください。`get` の結果はraw値なので、ログ、Issue、外部AIへ貼らないでください。
+
+```sh
+python3 -m pip install -e .
+export APV_STORE="$(mktemp -d)/vault.json"
+
+agent-personal-vault --store "$APV_STORE" init
+printf 'Example\n' | agent-personal-vault --store "$APV_STORE" set FAMILY_NAME --stdin --purpose "dummy local quickstart"
+printf 'Taro\n' | agent-personal-vault --store "$APV_STORE" set GIVEN_NAME --stdin --purpose "dummy local quickstart"
+printf 'taro@example.test\n' | agent-personal-vault --store "$APV_STORE" set EMAIL --stdin --purpose "dummy local quickstart"
+
+agent-personal-vault --store "$APV_STORE" context --task "応募フォームの氏名とメール連絡先を下書きする"
+```
+
+MCPクライアントには、stdio serverとして次のコマンドを設定します。このコマンドはserverとして待機するため、通常のシェルで順番に実行するコマンドではありません。
+
+```sh
+apv-mcp --store "$APV_STORE"
+```
+
+MCPクライアントでは、まず `apv.context` を呼び、raw値なしの候補keyを確認します。raw値が必要になったら `apv.request_consent` で `FULL_NAME` など1 keyだけを要求します。その後、GUIを起動して人間が承認します。
+
+```sh
+apv-gui --store "$APV_STORE" --open
+```
+
+承認後、CLIでその1 keyだけを取得します。
+
+```sh
+agent-personal-vault --store "$APV_STORE" get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<printed-consent-id>"
+agent-personal-vault --store "$APV_STORE" audit summary
+agent-personal-vault --store "$APV_STORE" audit tail --limit 10
+```
+
+ここまでの安全な既定は、`context` / `apv.context` がraw値を返さず、`apv.request_consent` もraw値を返さず、raw取得は人間が承認した1 keyに限ることです。外部送信、フォーム送信、応募、メール送信はこのツールでは実行せず、人間確認で止めてください。
+
 ## 位置づけ
 
 この領域には、暗号化された個人コンテキストVault、MCPサーバー、資格情報Vault、PII redaction middleware などの先行OSSがあります。
