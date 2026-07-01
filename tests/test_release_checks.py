@@ -42,6 +42,14 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertTrue(release_policy.is_skipped_path(Path(filename)))
         self.assertTrue(pii_scan.should_scan(Path("docs") / "example.md"))
 
+    def test_gitignore_covers_local_developer_config(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+        for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
+            self.assertIn(f"/{dirname}/", gitignore)
+        for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
+            self.assertIn(f"/{filename}", gitignore)
+
     def test_untracked_local_developer_config_is_not_release_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
