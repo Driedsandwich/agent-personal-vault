@@ -10,7 +10,11 @@
 # Local agent/editor configuration.
 /.codex/
 /.claude/
+/.continue/
 /.cursor/
+/.idea/
+/.vscode/
+/.windsurf/
 
 # Never commit real local vault data.
 /private/
