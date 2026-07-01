@@ -28,6 +28,7 @@ Core product boundary:
 - README, SECURITY, CONTRIBUTING, LICENSE, AGENT_PROTOCOL, and PUBLICATION_GATE exist.
 - README includes an Alpha Safety Notice.
 - CLI supports raw-free `context`.
+- CLI supports raw-free `context --task` planning hints.
 - CLI supports raw-free `schema`.
 - CLI `get` warns before printing a raw value.
 - CLI `env` warns before raw-value export.
@@ -44,7 +45,7 @@ Core product boundary:
 - GUI warns that the project is alpha and not encrypted by default.
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
-- Unit tests cover raw-free audit logging, GUI profile-save audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, and MCP raw-free behavior.
+- Unit tests cover raw-free audit logging, GUI profile-save audit logging, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
 - PII scan script exists.
 - Release check script exists.
 - Makefile exists with `test`, `pii`, `release-check`, and `clean` targets.

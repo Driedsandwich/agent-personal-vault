@@ -22,6 +22,7 @@ from agent_personal_vault.vault import (
     normalize_phone,
     normalize_postal_code,
     normalize_value,
+    planning_hints,
     schema_context,
     store_path,
     write_store,
@@ -140,6 +141,22 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("taro@example.test", encoded)
             self.assertIn("filled_keys", context)
 
+    def test_planning_hints_are_raw_free_and_conservative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+            hints = planning_hints(load_store(path=path), "応募フォームの氏名とメール連絡先を下書きする")
+            encoded = json.dumps(hints, ensure_ascii=False)
+            self.assertFalse(hints["raw_values_included"])
+            self.assertTrue(hints["conservative"])
+            self.assertIn("FULL_NAME", encoded)
+            self.assertIn("EMAIL", encoded)
+            self.assertNotIn("山田", encoded)
+            self.assertNotIn("private.person@example.test", encoded)
+
     def test_schema_context_has_no_raw_values(self) -> None:
         context = schema_context("job_hunting_profile")
         encoded = json.dumps(context, ensure_ascii=False)
@@ -178,6 +195,37 @@ class VaultTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertFalse(payload["raw_values_included"])
             self.assertNotIn("山田", result.stdout)
+
+    def test_cli_context_task_outputs_raw_free_planning_hints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "context",
+                    "--task",
+                    "応募フォームの氏名とメール連絡先を下書きする",
+                ],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["raw_values_included"])
+            self.assertIn("planning_hints", payload)
+            self.assertIn("FULL_NAME", result.stdout)
+            self.assertIn("EMAIL", result.stdout)
+            self.assertNotIn("山田", result.stdout)
+            self.assertNotIn("private.person@example.test", result.stdout)
 
     def test_cli_list_does_not_return_raw_fragments(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -639,7 +687,12 @@ class VaultTests(unittest.TestCase):
             messages = [
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
                 {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-                {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "apv.context", "arguments": {}}},
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {"name": "apv.context", "arguments": {"task": "応募フォームの氏名とメール連絡先を下書きする"}},
+                },
                 {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "apv.list_masked", "arguments": {}}},
             ]
             result = subprocess.run(
@@ -657,6 +710,9 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("taro@example.test", result.stdout)
             self.assertNotIn("ta...st", result.stdout)
             self.assertIn("raw_values_included", result.stdout)
+            self.assertIn("planning_hints", result.stdout)
+            self.assertIn("FULL_NAME", result.stdout)
+            self.assertIn("EMAIL", result.stdout)
 
     def test_mcp_consent_request_is_raw_free_and_audited(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

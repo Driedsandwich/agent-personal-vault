@@ -16,6 +16,55 @@ from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
 APP_NAME = "agent-personal-vault"
 DEFAULT_SCHEMA = "job_hunting_profile"
 
+TASK_HINTS = [
+    {
+        "name": "identity",
+        "keywords": ("identity", "name", "氏名", "名前", "本人", "プロフィール", "profile"),
+        "keys": ("FULL_NAME", "FULL_NAME_KANA", "FAMILY_NAME", "GIVEN_NAME", "FAMILY_NAME_KANA", "GIVEN_NAME_KANA", "BIRTH_DATE"),
+        "reason": "identity fields are commonly needed for profile or application forms",
+    },
+    {
+        "name": "contact",
+        "keywords": ("contact", "address", "住所", "連絡先", "郵便", "電話", "メール", "email", "phone"),
+        "keys": ("POSTAL_CODE", "PREFECTURE", "CITY_ADDRESS", "STREET_ADDRESS", "BUILDING_NAME", "ADDRESS", "PHONE", "EMAIL"),
+        "reason": "contact fields are commonly needed for reachable applicant information",
+    },
+    {
+        "name": "education",
+        "keywords": ("education", "school", "university", "学歴", "学校", "大学", "大学院", "卒業", "修了", "専攻"),
+        "keys": (
+            "GRADUATION_PERIOD",
+            "SCHOOL_TYPE",
+            "ACADEMIC_FIELD_TYPE",
+            "UNIVERSITY_NAME",
+            "FACULTY_NAME",
+            "DEPARTMENT_NAME",
+            "GRADUATE_SCHOOL_NAME",
+            "GRADUATE_MAJOR_NAME",
+            "DEGREE",
+            "ENROLLMENT_DATE",
+            "COMPLETION_DATE",
+            "GRADUATE_ENROLLMENT_DATE",
+            "GRADUATE_COMPLETION_DATE",
+            "HIGH_SCHOOL_NAME",
+            "HIGH_SCHOOL_GRADUATION_DATE",
+        ),
+        "reason": "education fields are commonly needed for academic history sections",
+    },
+    {
+        "name": "qualifications",
+        "keywords": ("qualification", "license", "資格", "免許", "certification"),
+        "keys": ("QUALIFICATIONS",),
+        "reason": "qualification fields are commonly needed for credential sections",
+    },
+    {
+        "name": "photo",
+        "keywords": ("photo", "picture", "image", "顔写真", "写真", "画像"),
+        "keys": ("FACE_PHOTO_PATH",),
+        "reason": "photo path is commonly needed when a form requests a profile image",
+    },
+]
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -233,6 +282,61 @@ def derived_fields(fields: dict) -> dict[str, str]:
     }
 
 
+def planning_hints(store: dict, task: str) -> dict:
+    """Return conservative raw-free candidate keys for a task description."""
+    query = " ".join(str(task).lower().split())[:240]
+    schema = get_schema(str(store["schema"]))
+    fields = store.get("fields", {})
+    matched = []
+    seen: set[str] = set()
+    for hint in TASK_HINTS:
+        if not any(keyword.lower() in query for keyword in hint["keywords"]):
+            continue
+        keys = []
+        for key in hint["keys"]:
+            if key in seen:
+                continue
+            seen.add(key)
+            if key in DERIVED_FIELDS:
+                keys.append(
+                    {
+                        "key": key,
+                        "label": DERIVED_FIELDS[key],
+                        "group": "derived",
+                        "derived": True,
+                        "filled": bool(derived_fields(fields).get(key, "").strip()),
+                    }
+                )
+                continue
+            spec = schema.get(key)
+            if spec is None:
+                continue
+            keys.append(
+                {
+                    "key": key,
+                    "label": spec.label,
+                    "group": spec.group,
+                    "derived": False,
+                    "filled": bool(str(fields.get(key, "")).strip()),
+                }
+            )
+        if keys:
+            matched.append(
+                {
+                    "hint": hint["name"],
+                    "reason": hint["reason"],
+                    "candidate_keys": keys,
+                }
+            )
+    return {
+        "task": query,
+        "raw_values_included": False,
+        "conservative": True,
+        "matched_hints": matched,
+        "raw_access_next_step": "Request one key at a time with consent only after the user confirms it is needed.",
+    }
+
+
 def masked(value: str) -> str:
     if not value:
         return "(empty)"
@@ -253,7 +357,7 @@ def check_summary(store: dict, path: Path) -> dict:
     }
 
 
-def agent_context(store: dict, include_path: bool = False, path: Path | None = None) -> dict:
+def agent_context(store: dict, include_path: bool = False, path: Path | None = None, task: str | None = None) -> dict:
     """Return metadata for an AI agent without raw personal values."""
     schema = get_schema(str(store["schema"]))
     fields = store.get("fields", {})
@@ -290,6 +394,8 @@ def agent_context(store: dict, include_path: bool = False, path: Path | None = N
     }
     if include_path and path is not None:
         context["store_path"] = str(path)
+    if task:
+        context["planning_hints"] = planning_hints(store, task)
     return context
 
 
