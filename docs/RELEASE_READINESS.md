@@ -112,6 +112,7 @@ Additional local checks:
 - Issue #53 local release/package dry-run built sdist and wheel from a clean-checkout-equivalent worktree, checked artifact hashes, confirmed package contents contained no forbidden vault, consent, audit, private config, image, database, or local secret files, and updated package license metadata to avoid setuptools deprecation warnings before any release or package publish.
 - Current main GitHub Actions `test`, CodeQL, and dependency graph update passed after PR #58.
 - Current open CodeQL alerts: 0.
+- Fable 5 review found one P1 raw-boundary mismatch in MCP `apv.request_consent`; PR #60 fixed the public-alpha MCP path to accept one-key `get` consent requests only and reject bulk `env` requests.
 
 ## Current Release Decision
 
@@ -129,6 +130,18 @@ Next release-candidate gate:
 - At least one additional lightweight public-alpha observation cycle shows no security, consent, raw leakage, onboarding, or support-load issue that requires a fix.
 - Release candidate checklist is prepared through Issue/PR and includes version bump policy, changelog draft, artifact hashes, rollback plan, Security alert snapshot, and support expectation.
 - The user separately approves release candidate preparation. This approval would still not authorize GitHub release creation, tag creation, package publish, or announcement.
+
+## RC Entry Exit Criteria
+
+Before proposing a release-candidate preparation cycle, the project must satisfy all criteria below through Issue/PR workflow:
+
+- Observation cycle: at least one post-PR #60 lightweight public-alpha observation cycle is complete, and the record covers open Issues/PRs, Actions, CodeQL, Dependabot/security alerts, release/tag absence, README display, and external feedback. Any security, consent, raw leakage, onboarding, or repeated support-load issue found in that cycle must be fixed or explicitly documented as an accepted alpha risk before RC preparation.
+- Security snapshot: the RC proposal must record the target `main` commit SHA, latest successful `test` and CodeQL runs, open CodeQL alert count, Dependabot/vulnerability/secret-scanning status, and local `python3 scripts/check_release.py` result.
+- Changelog draft: a `CHANGELOG.md` draft or equivalent release-note draft must summarize merged changes since public alpha, separating user-visible changes, security/privacy changes, docs-only changes, and known limitations. It must not include raw personal data, local private paths, screenshots, vault files, or private support details.
+- Versioning: the proposal must state the intended `pyproject.toml` version, whether the change is alpha/patch/breaking, and whether a version bump PR is required. No version bump, tag, or release is implied by meeting this criterion.
+- Artifact hashes: a clean-checkout-equivalent local build must record sdist and wheel filenames plus SHA-256 hashes, and must confirm the artifacts exclude vault, consent, audit, private config, image, database, backup, and local secret files.
+- Support-load signal: repeated confusion about consent, raw retrieval, MCP setup, or safety boundaries is release-blocking when it appears in two or more independent Issues, PRs, or external feedback items in the observation window.
+- MCP host differences: generic stdio, Codex, and Claude Code behavior must remain documented as validated. Full Claude Desktop app restart and in-app live tool-call UX may remain unvalidated only if the RC proposal explicitly keeps that limitation visible and does not claim Claude Desktop live UX support.
 
 ## Remaining P0/P1 Risks
 
