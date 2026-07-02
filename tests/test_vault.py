@@ -34,22 +34,25 @@ from agent_personal_vault.vault import (
 
 class VaultTests(unittest.TestCase):
     def grant_consent(self, path: Path, action: str, key: str, purpose: str) -> str:
+        command = [
+            sys.executable,
+            "-m",
+            "agent_personal_vault.cli",
+            "--store",
+            str(path),
+            "consent",
+            "grant",
+            "--action",
+            action,
+            "--key",
+            key,
+            "--purpose",
+            purpose,
+        ]
+        if action == "env":
+            command.append("--i-understand-bulk-raw-export")
         result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "agent_personal_vault.cli",
-                "--store",
-                str(path),
-                "consent",
-                "grant",
-                "--action",
-                action,
-                "--key",
-                key,
-                "--purpose",
-                purpose,
-            ],
+            command,
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -58,22 +61,25 @@ class VaultTests(unittest.TestCase):
         return str(json.loads(result.stdout)["id"])
 
     def request_consent(self, path: Path, action: str, key: str, purpose: str) -> str:
+        command = [
+            sys.executable,
+            "-m",
+            "agent_personal_vault.cli",
+            "--store",
+            str(path),
+            "consent",
+            "request",
+            "--action",
+            action,
+            "--key",
+            key,
+            "--purpose",
+            purpose,
+        ]
+        if action == "env":
+            command.append("--i-understand-bulk-raw-export")
         result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "agent_personal_vault.cli",
-                "--store",
-                str(path),
-                "consent",
-                "request",
-                "--action",
-                action,
-                "--key",
-                key,
-                "--purpose",
-                purpose,
-            ],
+            command,
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -289,6 +295,7 @@ class VaultTests(unittest.TestCase):
                     purpose,
                     "--consent-id",
                     consent_id,
+                    "--i-understand-bulk-raw-export",
                 ],
                 check=True,
                 text=True,
@@ -296,7 +303,41 @@ class VaultTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
             self.assertIn("WARNING", result.stderr)
+            self.assertIn("human-only bulk raw export", result.stderr)
             self.assertIn("APV_FAMILY_NAME", result.stdout)
+
+    def test_cli_env_requires_human_bulk_acknowledgement(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            purpose = "test raw export acknowledgement"
+            consent_id = self.grant_consent(path, "env", "*", purpose)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "env",
+                    "--purpose",
+                    purpose,
+                    "--consent-id",
+                    consent_id,
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("--i-understand-bulk-raw-export", result.stderr)
+            encoded = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+            self.assertIn('"action": "env_bulk_export"', encoded)
+            self.assertIn('"outcome": "denied"', encoded)
+            self.assertNotIn("山田", encoded)
 
     def test_cli_get_warns_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -386,6 +427,7 @@ class VaultTests(unittest.TestCase):
                     purpose,
                     "--consent-id",
                     consent_id,
+                    "--i-understand-bulk-raw-export",
                 ],
                 check=True,
                 text=True,
@@ -402,8 +444,37 @@ class VaultTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertFalse(payload["raw_values_included"])
             self.assertGreaterEqual(payload["events"], 1)
-            self.assertEqual(payload["by_action"]["env"], 1)
+            self.assertEqual(payload["by_action"]["env_bulk_export"], 1)
             self.assertNotIn("taro@example.test", result.stdout)
+
+    def test_cli_consent_env_requires_human_bulk_acknowledgement(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            for subcommand in ["grant", "request"]:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "agent_personal_vault.cli",
+                        "--store",
+                        str(path),
+                        "consent",
+                        subcommand,
+                        "--action",
+                        "env",
+                        "--key",
+                        "*",
+                        "--purpose",
+                        "bulk export should be human-only",
+                    ],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("--i-understand-bulk-raw-export", result.stderr)
 
     def test_cli_set_and_unset_write_raw_free_audit_events(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

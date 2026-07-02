@@ -155,6 +155,9 @@ def command_unset(args: argparse.Namespace) -> None:
 
 def command_env(args: argparse.Namespace) -> None:
     path = resolve_path(args)
+    if not args.i_understand_bulk_raw_export:
+        write_audit_event(vault_path=path, actor="cli", action="env_bulk_export", key="*", purpose=args.purpose, outcome="denied")
+        raise SystemExit("env bulk raw export requires --i-understand-bulk-raw-export")
     store = load_store(path=path)
     try:
         validate_and_consume_consent(
@@ -165,17 +168,17 @@ def command_env(args: argparse.Namespace) -> None:
             purpose=args.purpose,
         )
     except ConsentError as exc:
-        write_audit_event(vault_path=path, actor="cli", action="env", key="*", purpose=args.purpose, outcome="denied")
+        write_audit_event(vault_path=path, actor="cli", action="env_bulk_export", key="*", purpose=args.purpose, outcome="denied")
         raise SystemExit(f"consent required: {exc}") from exc
     print(
-        "# WARNING: this prints raw personal data. Do not paste it into logs, public issues, or remote agents.",
+        "# WARNING: this is a human-only bulk raw export. Do not paste it into logs, public issues, or remote agents.",
         file=sys.stderr,
     )
     lines = export_env_lines(store)
     write_audit_event(
         vault_path=path,
         actor="cli",
-        action="env",
+        action="env_bulk_export",
         key="*",
         raw_returned=bool(lines),
         purpose=args.purpose,
@@ -244,6 +247,8 @@ def command_encryption(args: argparse.Namespace) -> None:
 def command_consent(args: argparse.Namespace) -> None:
     path = resolve_path(args)
     if args.consent_command == "grant":
+        if args.action == "env" and not args.i_understand_bulk_raw_export:
+            raise SystemExit("env bulk raw export consent requires --i-understand-bulk-raw-export")
         key = "*" if args.action == "env" else validate_key(args.key, load_store(path=path)["schema"])
         grant = issue_consent(
             vault_path=path,
@@ -255,6 +260,8 @@ def command_consent(args: argparse.Namespace) -> None:
         print(json.dumps(grant, ensure_ascii=False, indent=2, sort_keys=True))
         return
     if args.consent_command == "request":
+        if args.action == "env" and not args.i_understand_bulk_raw_export:
+            raise SystemExit("env bulk raw export request requires --i-understand-bulk-raw-export")
         key = "*" if args.action == "env" else validate_key(args.key, load_store(path=path)["schema"])
         request = create_consent_request(vault_path=path, action=args.action, key=key, purpose=args.purpose)
         print(json.dumps(request, ensure_ascii=False, indent=2, sort_keys=True))
@@ -295,6 +302,11 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "env":
             cmd.add_argument("--purpose", required=True, help="Raw access purpose. Stored in audit log without raw values.")
             cmd.add_argument("--consent-id", required=True, help="One-time consent token from consent grant.")
+            cmd.add_argument(
+                "--i-understand-bulk-raw-export",
+                action="store_true",
+                help="Required human-only acknowledgement for bulk raw export.",
+            )
         cmd.set_defaults(func=func)
     get = sub.add_parser("get", help="Print one raw value. Use only for the minimum required key.")
     get.add_argument("key")
@@ -334,11 +346,21 @@ def build_parser() -> argparse.ArgumentParser:
     consent_grant.add_argument("--key", default="*", help="Key for get. Use * for env.")
     consent_grant.add_argument("--purpose", required=True, help="Raw-free purpose that must match the later raw command.")
     consent_grant.add_argument("--ttl-seconds", type=int, default=300)
+    consent_grant.add_argument(
+        "--i-understand-bulk-raw-export",
+        action="store_true",
+        help="Required human-only acknowledgement when --action env is used.",
+    )
     consent_grant.set_defaults(func=command_consent)
     consent_request = consent_sub.add_parser("request", help="Queue a raw access request for human approval.")
     consent_request.add_argument("--action", choices=["get", "env"], required=True)
     consent_request.add_argument("--key", default="*", help="Key for get. Use * for env.")
     consent_request.add_argument("--purpose", required=True, help="Raw-free purpose for the requested access.")
+    consent_request.add_argument(
+        "--i-understand-bulk-raw-export",
+        action="store_true",
+        help="Required human-only acknowledgement when --action env is used.",
+    )
     consent_request.set_defaults(func=command_consent)
     consent_requests = consent_sub.add_parser("requests", help="List pending consent requests without raw values.")
     consent_requests.add_argument("--include-resolved", action="store_true")
