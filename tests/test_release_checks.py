@@ -50,6 +50,16 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertIn("mcp__agent-personal-vault__apv_request_consent", docs)
         self.assertIn("dontAsk", docs)
 
+    def test_quickstart_docs_use_venv_before_editable_install(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        mcp_docs = (root / "docs" / "MCP_CLIENT_SETUP.md").read_text(encoding="utf-8")
+
+        for docs in [readme, mcp_docs]:
+            self.assertIn("python3 -m venv .venv", docs)
+            self.assertIn(". .venv/bin/activate", docs)
+            self.assertLess(docs.index("python3 -m venv .venv"), docs.index("python3 -m pip install -e ."))
+
     def test_gitignore_covers_local_developer_config(self) -> None:
         root = Path(__file__).resolve().parent.parent
         gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
