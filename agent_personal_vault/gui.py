@@ -10,6 +10,7 @@ import threading
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .audit import audit_summary, read_audit_events, write_audit_event
@@ -61,6 +62,7 @@ def page_html(token: str, schema_name: str) -> str:
     .request {{ border-top: 1px solid #e5e7eb; padding: 10px 0; }}
     .request:first-child {{ border-top: 0; }}
     .request-actions {{ display: flex; gap: 8px; margin-top: 8px; }}
+    .bulk-warning {{ border: 1px solid #f04438; background: #fff4f2; color: #9f1f12; border-radius: 6px; padding: 8px; margin-top: 8px; font-weight: 600; }}
     .danger {{ color: #b42318; }}
     .muted {{ color: #667085; }}
     @media (max-width: 900px) {{ .app {{ display: block; }} aside {{ position: static; }} .grid {{ grid-template-columns: 1fr; }} }}
@@ -188,6 +190,7 @@ async function loadConsentRequests() {{
     <div><strong>${{esc(req.action)}} ${{esc(req.key)}}</strong></div>
     <div class="hint">目的: ${{esc(req.purpose || "")}}</div>
     <div class="hint">要求元: ${{esc(req.actor || "")}} / ${{esc(req.requested_at || "")}}</div>
+    ${{(req.action === "env" || req.key === "*") ? `<div class="bulk-warning">一括raw exportの同意リクエストです。public alphaのAIエージェント通常導線ではありません。必要性を人間が確認してから判断してください。</div>` : ""}}
     <div class="request-actions">
       <button onclick="decideConsent('${{esc(req.id)}}','approve')">承認</button>
       <button onclick="decideConsent('${{esc(req.id)}}','deny')">拒否</button>

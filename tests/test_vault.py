@@ -504,6 +504,13 @@ class VaultTests(unittest.TestCase):
         self.assertIn("--consent-id", html)
         self.assertIn("CLI get", html)
 
+    def test_gui_page_warns_on_bulk_consent_requests(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn("bulk-warning", html)
+        self.assertIn("一括raw export", html)
+        self.assertIn('req.action === "env" || req.key === "*"', html)
+
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -757,8 +764,12 @@ class VaultTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
             responses = [json.loads(line) for line in result.stdout.splitlines()]
-            tool_names = {tool["name"] for tool in responses[1]["result"]["tools"]}
+            tools = responses[1]["result"]["tools"]
+            tool_names = {tool["name"] for tool in tools}
             self.assertEqual(tool_names, {"apv.schema", "apv.context", "apv.check", "apv.list_masked", "apv.request_consent"})
+            request_tool = next(tool for tool in tools if tool["name"] == "apv.request_consent")
+            self.assertEqual(request_tool["inputSchema"]["properties"]["action"]["enum"], ["get"])
+            self.assertEqual(request_tool["inputSchema"]["required"], ["action", "key", "purpose"])
             self.assertNotIn("山田", result.stdout)
             self.assertNotIn("taro@example.test", result.stdout)
             self.assertNotIn("ta...st", result.stdout)
@@ -810,6 +821,39 @@ class VaultTests(unittest.TestCase):
             events = read_audit_events(path, limit=10)
             self.assertTrue(any(event["action"] == "consent_request" and event["actor"] == "mcp" for event in events))
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
+
+    def test_mcp_consent_request_rejects_env_bulk_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "apv.request_consent",
+                    "arguments": {
+                        "action": "env",
+                        "key": "*",
+                        "purpose": "bulk export should not be agent-facing",
+                    },
+                },
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            response = json.loads(result.stdout)
+            self.assertEqual(response["error"]["code"], -32602)
+            self.assertIn("one-key get", response["error"]["message"])
+            self.assertEqual(list_consent_requests(path), [])
+            self.assertNotIn("山田", result.stdout)
 
     def test_mcp_consent_request_accepts_derived_get_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

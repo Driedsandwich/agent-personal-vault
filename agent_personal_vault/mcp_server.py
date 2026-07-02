@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
 from .consent import create_consent_request
@@ -64,11 +65,11 @@ def tool_definitions() -> list[dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["get", "env"]},
-                    "key": {"type": "string", "description": "Schema key for get, or * for env."},
+                    "action": {"type": "string", "enum": ["get"]},
+                    "key": {"type": "string", "description": "One schema key for a get request."},
                     "purpose": {"type": "string", "description": "Raw-free reason shown to the human approver."},
                 },
-                "required": ["action", "purpose"],
+                "required": ["action", "key", "purpose"],
                 "additionalProperties": False,
             },
         },
@@ -121,11 +122,9 @@ class MCPServer:
         if name == "apv.request_consent":
             store = load_store(path=self.path)
             action = str(arguments.get("action") or "")
-            if action not in {"get", "env"}:
-                raise ValueError("action must be get or env")
-            key = "*" if action == "env" else str(arguments.get("key") or "")
-            if action == "get":
-                key = validate_key(key, store["schema"])
+            if action != "get":
+                raise ValueError("MCP request_consent supports one-key get requests only; bulk env requests are not part of the public-alpha agent path")
+            key = validate_key(str(arguments.get("key") or ""), store["schema"])
             purpose = str(arguments.get("purpose") or "").strip()
             if not purpose:
                 raise ValueError("purpose is required")
