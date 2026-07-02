@@ -96,6 +96,20 @@ class ReleaseCheckTests(unittest.TestCase):
         ]:
             self.assertIn(required, plan)
 
+    def test_agent_docs_keep_one_key_raw_boundary(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        protocol = (root / "docs" / "AGENT_PROTOCOL.md").read_text(encoding="utf-8")
+        mcp_docs = (root / "docs" / "MCP_CLIENT_SETUP.md").read_text(encoding="utf-8")
+
+        for docs in [readme, protocol]:
+            self.assertNotIn('consent request --action env --key "*"', docs)
+            self.assertIn("one-key", docs)
+        self.assertIn("AIエージェント自身に承認コマンドを実行させない", readme)
+        self.assertIn("Agents must not run approval commands for themselves", protocol)
+        self.assertIn("not part of the public-alpha agent protocol", protocol)
+        self.assertIn("AIエージェント自身に承認コマンドを実行させない", mcp_docs)
+
     def test_gitignore_covers_local_developer_config(self) -> None:
         root = Path(__file__).resolve().parent.parent
         gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()

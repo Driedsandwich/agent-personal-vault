@@ -19,8 +19,8 @@ Use this order for a first public-alpha integration test:
 2. Call `agent-personal-vault context --task "<raw-free task>"`.
 3. In MCP, call `apv.context` with the same raw-free task.
 4. If a raw value is necessary, call `apv.request_consent` for one key, such as `FULL_NAME`.
-5. Wait for a human to approve or deny the request in the GUI or CLI.
-6. After approval, call CLI `get <KEY>` with the matching consent token shown by the GUI or CLI `consent approve`. The MCP request id is not the consent token.
+5. Wait for a human-operated approval or denial in the GUI or a separate human-operated CLI session. The agent must not run approval commands for itself.
+6. After approval, call CLI `get <KEY>` with the matching consent token shown by the human approval step. The MCP request id is not the consent token.
 7. Check `audit summary` or `audit tail` and report only key names, never raw values.
 
 Do not use MCP for raw retrieval. MCP exposes planning and consent-request tools only; CLI `get` is the explicit raw-returning step after human approval.
@@ -39,9 +39,10 @@ agent-personal-vault context
 
 ```sh
 agent-personal-vault consent request --action get --key FULL_NAME --purpose "prepare local draft for user review"
-agent-personal-vault consent approve "<printed-request-id>"
 agent-personal-vault get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<printed-consent-id>"
 ```
+
+The approval step is intentionally out of band. A human may approve in the GUI or in a separate human-operated CLI session. Agents must not run `consent approve` or `consent deny` for themselves.
 
 4. Never include raw values in:
 
@@ -80,6 +81,24 @@ When a task is known, use `context --task "<raw-free task>"` to get conservative
 
 Consent tokens and audit logs are workflow controls. They are not a hard security boundary against an agent or process that already has shell access as the same OS user.
 
+## Agent-Allowed Commands
+
+In the public-alpha protocol, agents may use these commands for planning, raw-free inspection, or request creation:
+
+```sh
+agent-personal-vault context
+agent-personal-vault schema
+agent-personal-vault check
+agent-personal-vault list
+agent-personal-vault consent request --action get --key <KEY> --purpose "<raw-free purpose>"
+agent-personal-vault audit summary
+agent-personal-vault audit tail --limit 10
+agent-personal-vault consent requests
+agent-personal-vault consent list
+```
+
+Agents must not run approval commands for themselves. `consent approve` and `consent deny` are human-operated approval commands. Agents also must not use bulk raw export as a normal integration path.
+
 ## MCP Raw-Free Tools
 
 The MCP stdio server exposes only raw-free tools:
@@ -100,18 +119,16 @@ The MCP server does not expose raw-value tools, stored-value write tools, extern
 
 ## Raw Commands
 
-These commands can print raw personal values:
+After a human-operated approval, this command can print one raw personal value:
 
 ```sh
 agent-personal-vault consent request --action get --key <KEY> --purpose "<raw-free purpose>"
-agent-personal-vault consent approve "<printed-request-id>"
 agent-personal-vault get <KEY> --purpose "<raw-free purpose>" --consent-id "<printed-consent-id>"
-agent-personal-vault consent request --action env --key "*" --purpose "<raw-free purpose>"
-agent-personal-vault consent approve "<printed-request-id>"
-agent-personal-vault env --purpose "<raw-free purpose>" --consent-id "<printed-consent-id>"
 ```
 
-Use them only after the agent has a concrete local purpose and the key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied in the GUI or CLI. Consent tokens are one-time tokens and must match action, key, and purpose.
+Use it only after the agent has a concrete local purpose and the single key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied by a human in the GUI or a separate human-operated CLI session. Consent tokens are one-time tokens and must match action, key, and purpose.
+
+`env` is an advanced/manual bulk raw export command. It is not part of the public-alpha agent protocol, MCP integration path, Quickstart, or release validation path. Prefer one-key `get <KEY>` retrieval.
 
 These commands change stored values and also write raw-free audit events:
 
