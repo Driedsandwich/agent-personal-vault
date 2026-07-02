@@ -240,6 +240,7 @@ Required wording constraints:
 - Do not ask users to post real personal data.
 - Link to README, SECURITY, and issue reporting guidance.
 - Keep Claude Desktop full app live UX unvalidated unless it is separately approved and tested.
+- Follow the pre-announcement checklist in `docs/LAUNCH_MESSAGING.md`.
 
 Rollback:
 
