@@ -4,7 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 
 All notable changes to Agent Personal Vault will be documented here.
 
@@ -12,10 +12,28 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 0.1.3 - 2026-07-03
+
+### Security And Privacy Changes
+
+- Avoid changing permissions on existing custom store parent directories.
+- Redact active raw-access consent grant IDs from agent-facing audit and consent listing surfaces.
+- Sanitize unexpected MCP error responses so local store paths and internal filesystem details are not returned to MCP clients.
+- Require explicit human acknowledgement for `env` bulk raw export and for `consent grant/request --action env`.
+- Record guarded bulk raw export attempts as `env_bulk_export` audit events.
+- Align the MCP server version with the package version.
+
 ### Documentation And Release Hygiene
 
-- Update README install examples to the current public alpha package version, `0.1.2`.
+- Update README install examples to the current public alpha package version, `0.1.3`.
 - Treat local build outputs such as `dist/`, `build/`, and `*.egg-info/` as generated release-check cleanup targets so repository-root metadata checks do not pick up stale local package metadata.
+- Refresh the package long description from the current README so PyPI can pick up the latest install example and safety-boundary wording after a separately approved package publish.
+
+### Known Limitations
+
+- This preparation does not create a GitHub release, tag, package publish, public announcement, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop UI operation, or API-billed validation.
 
 ## 0.1.2 - 2026-07-02
 
