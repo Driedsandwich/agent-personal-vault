@@ -16,6 +16,8 @@ audience: public-alpha-user
 ローカルでCLIを使える状態にします。
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
 python3 -m pip install -e .
 export APV_STORE="$(mktemp -d)/vault.json"
 
@@ -26,7 +28,7 @@ printf 'taro@example.test\n' | agent-personal-vault --store "$APV_STORE" set EMA
 agent-personal-vault --store "$APV_STORE" context --task "応募フォームの氏名とメール連絡先を下書きする"
 ```
 
-MCPクライアント設定では、`$APV_STORE` ではなく実際の絶対パスを使うのが確実です。editable installのconsole scriptが見つからない場合は、`apv-mcp` ではなく `/absolute/path/to/venv/bin/apv-mcp` のように絶対パスを指定してください。
+MCPクライアント設定では、`$APV_STORE` ではなく実際の絶対パスを使うのが確実です。editable installのconsole scriptが見つからない場合や、MCPクライアントがshellの仮想環境を引き継がない場合は、`apv-mcp` ではなく `/absolute/path/to/venv/bin/apv-mcp` のように絶対パスを指定してください。
 
 ## Codex
 
@@ -120,6 +122,7 @@ MCPには `get`、`env`、`set`、`unset`、外部送信、フォーム送信、
 
 | Symptom | Check |
 |---|---|
+| `python3 -m pip install -e .` がexternally managed environmentで失敗する | `python3 -m venv .venv` と `. .venv/bin/activate` を先に実行してからinstallする |
 | MCP serverが起動しない | `apv-mcp --store /absolute/path/to/vault.json` をterminalで直接実行し、command not foundやPython import errorを確認する |
 | clientにserverが出ない | clientを完全に再起動し、設定ファイルの場所とJSON/TOML構文を確認する |
 | `apv.context` がstoreを読めない | store pathが絶対パスか、CLIで `agent-personal-vault --store /absolute/path/to/vault.json check` が通るか確認する |

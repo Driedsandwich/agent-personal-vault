@@ -27,6 +27,8 @@
 まずはdummy値かローカルで扱ってよい値だけで試してください。`get` の結果はraw値なので、ログ、Issue、外部AIへ貼らないでください。
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
 python3 -m pip install -e .
 export APV_STORE="$(mktemp -d)/vault.json"
 
@@ -101,12 +103,15 @@ Codex、Claude Desktop、Claude Codeなどの設定例は [docs/MCP_CLIENT_SETUP
 開発版:
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
 python3 -m pip install -e .
 ```
 
 通常利用の依存関係は標準ライブラリのみです。保存時暗号化を使う場合だけoptional extraを入れます。
 
 ```sh
+. .venv/bin/activate
 python3 -m pip install -e '.[encrypted]'
 ```
 
