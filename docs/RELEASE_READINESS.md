@@ -81,7 +81,7 @@ Results:
 
 ```text
 py_compile: passed
-unittest: 45 tests passed
+unittest: 48 tests passed
 pii_scan: No obvious private data patterns found
 check_release: release checks passed
 make release-check: release checks passed
@@ -110,14 +110,31 @@ Additional local checks:
 - Claude Desktop-like validation covered venv-based install, stdio MCP `apv.context`, MCP `apv.request_consent`, GUI approval/denial through the same local API used by the browser UI, CLI `get` with the GUI-issued consent id, and raw-free audit checks using non-sensitive dummy data.
 - Issue #49 terminal-only validation rechecked stdio MCP `apv.context`, `apv.request_consent`, unknown key, invalid action, unknown tool, invalid arguments, CLI approve/deny, one-time consent id use, denied access failure, and raw-free audit summary/tail using non-sensitive dummy data.
 - Issue #53 local release/package dry-run built sdist and wheel from a clean-checkout-equivalent worktree, checked artifact hashes, confirmed package contents contained no forbidden vault, consent, audit, private config, image, database, or local secret files, and updated package license metadata to avoid setuptools deprecation warnings before any release or package publish.
-- Current main GitHub Actions `test` and CodeQL runs passed after PR #44.
+- Current main GitHub Actions `test`, CodeQL, and dependency graph update passed after PR #54.
 - Current open CodeQL alerts: 0.
+
+## Current Release Decision
+
+Decision: continue public-alpha operation. Do not move to release candidate preparation yet.
+
+Rationale:
+
+- Local release/package dry-run, artifact inspection, package metadata correction, release checks, CI, CodeQL, and Security alert coverage are in good shape for continued public-alpha repository availability.
+- No known P0 issue currently blocks public-alpha use.
+- Remaining P1 risks still affect distribution confidence: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, unmeasured support load, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
+- Package build artifacts were validated locally, but no externally distributed release, tag, package index upload, or public support cycle has been exercised.
+
+Next release-candidate gate:
+
+- At least one additional lightweight public-alpha observation cycle shows no security, consent, raw leakage, onboarding, or support-load issue that requires a fix.
+- Release candidate checklist is prepared through Issue/PR and includes version bump policy, changelog draft, artifact hashes, rollback plan, Security alert snapshot, and support expectation.
+- The user separately approves release candidate preparation. This approval would still not authorize GitHub release creation, tag creation, package publish, or announcement.
 
 ## Remaining P0/P1 Risks
 
 No known P0 issue currently blocks continued public-alpha repository availability.
 
-Remaining P1 risks before any release or package publish:
+Remaining P1 risks before any release candidate, release, or package publish:
 
 - Encryption is optional and passphrase-managed. OS key store integration and recovery UX remain pending.
 - MCP remains intentionally raw-free except for consent request creation. Raw-value MCP tools should not be added without a separate consent, audit, and client-behavior review.
@@ -155,7 +172,7 @@ The following actions remain stopped:
 If the user wants to proceed, the next bounded action is:
 
 ```text
-Run a release/package dry-run review using `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`: confirm versioning, changelog, build artifact contents, rollback, dependency/provenance, Security alerts, and support-load assumptions with dummy data only.
+Continue public-alpha lightweight observation for one cycle. Confirm open Issues/PRs, Actions, Security alerts, release/tag absence, README display, support-load signals, and external feedback. If no blocker appears, prepare a release-candidate checklist draft through Issue/PR without creating a release, tag, package publish, or announcement.
 ```
 
 This still does not create a GitHub release, tag, publish a package, change repository settings, delete branches, operate Claude Desktop app UI, use API-billed validation, or announce the project publicly. Release creation, tag creation, package publish, repository setting changes, branch deletion, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.
