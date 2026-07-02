@@ -116,14 +116,28 @@ Additional local checks:
 
 ## Current Release Decision
 
-Decision: continue public-alpha operation. Do not move to release candidate preparation yet.
+Decision: proceed to release-candidate preparation through Issue/PR workflow. Do not create a release candidate artifact, GitHub release, tag, package publish, or announcement yet.
 
 Rationale:
 
 - Local release/package dry-run, artifact inspection, package metadata correction, release checks, CI, CodeQL, and Security alert coverage are in good shape for continued public-alpha repository availability.
 - No known P0 issue currently blocks public-alpha use.
-- Remaining P1 risks still affect distribution confidence: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, unmeasured support load, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
+- Post-PR #60 observation found no security, consent, raw leakage, onboarding, or support-load issue requiring a fix.
+- Remaining P1 risks still affect distribution confidence and must stay visible during RC preparation: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, limited support-load observation, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
 - Package build artifacts were validated locally, but no externally distributed release, tag, package index upload, or public support cycle has been exercised.
+
+## RC Preparation Checklist
+
+RC preparation is allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+- Version candidate: keep `0.1.0` as the current alpha package version unless a dedicated versioning Issue/PR proposes a different pre-release or patch version. Any actual version change requires explicit approval for that change and still does not authorize release/tag/publish.
+- CHANGELOG: keep `CHANGELOG.md` as the source for the future release note draft. Before any release approval request, review the Unreleased section for user-visible changes, security/privacy changes, docs/governance changes, package prep, and known limitations.
+- Artifact hash confirmation: rerun the clean-copy-equivalent local build immediately before any release approval request and compare the generated filenames, SHA-256 hashes, entry counts, and forbidden-name scan with the latest recorded dry-run.
+- Rollback preparation: prepare a short rollback note before any release approval request. It should cover withdrawing announcements, opening corrective Issues/advisories, reverting docs/code through PR, and publishing a corrective patch only if separately approved.
+- Support expectation: keep public-alpha and any RC candidate support best-effort only. Do not promise response times, production support, data recovery, or broad client compatibility.
+- Stop conditions: stop RC preparation if CI fails, CodeQL/security alerts open, raw personal data or secrets are found, consent bypass is reported, audit raw leakage is suspected, release/tag/package artifacts contain forbidden files, or two or more independent support signals show the same consent/raw retrieval/MCP setup confusion.
+- MCP host differences: keep generic stdio, Codex, and Claude Code as validated paths. Do not claim full Claude Desktop app restart or in-app live tool-call UX support unless separately approved and tested in a non-interfering environment.
+- Approval boundary: after this checklist is complete, ask separately before GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ## Pre-RC Draft Snapshot
 
