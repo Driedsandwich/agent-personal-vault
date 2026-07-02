@@ -42,7 +42,7 @@ agent-personal-vault consent request --action get --key FULL_NAME --purpose "pre
 agent-personal-vault get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<printed-consent-id>"
 ```
 
-The approval step is intentionally out of band. A human may approve in the GUI or in a separate human-operated CLI session. Agents must not run `consent approve` or `consent deny` for themselves.
+The approval step is intentionally out of band. A human may approve in the GUI or in a separate human-operated CLI session. Agents must not run `consent approve`, `consent deny`, or `consent grant` for themselves.
 
 4. Never include raw values in:
 
@@ -97,7 +97,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-Agents must not run approval commands for themselves. `consent approve` and `consent deny` are human-operated approval commands. Agents also must not use bulk raw export as a normal integration path.
+Agents must not run approval commands for themselves. `consent approve`, `consent deny`, and direct `consent grant` are human-operated commands. Agents also must not use bulk raw export as a normal integration path.
 
 ## MCP Raw-Free Tools
 
