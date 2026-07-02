@@ -12,9 +12,13 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 0.1.1 - 2026-07-02
+
 ### v0.1.1 Candidate Scope
 
-The current v0.1.1 candidate is intentionally small. It is expected to include Project-URL package metadata and documentation/governance updates only. The actual version bump remains a separate Issue/PR and is not implied by this changelog draft.
+This v0.1.1 candidate is intentionally small. It includes Project-URL package metadata and documentation/governance updates only.
 
 ### User-Visible Changes
 
