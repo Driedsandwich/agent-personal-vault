@@ -30,7 +30,7 @@
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install -e .
+python3 -m pip install agent-personal-vault==0.1.0
 export APV_STORE="$(mktemp -d)/vault.json"
 
 agent-personal-vault --store "$APV_STORE" init
@@ -101,6 +101,14 @@ Codex、Claude Desktop、Claude Codeなどの設定例は [docs/MCP_CLIENT_SETUP
 
 ## インストール
 
+通常利用:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install agent-personal-vault==0.1.0
+```
+
 開発版:
 
 ```sh
@@ -110,6 +118,13 @@ python3 -m pip install -e .
 ```
 
 通常利用の依存関係は標準ライブラリのみです。保存時暗号化を使う場合だけoptional extraを入れます。
+
+```sh
+. .venv/bin/activate
+python3 -m pip install 'agent-personal-vault[encrypted]==0.1.0'
+```
+
+開発版で保存時暗号化を試す場合は、次を使います。
 
 ```sh
 . .venv/bin/activate
