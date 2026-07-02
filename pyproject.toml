@@ -19,6 +19,12 @@ classifiers = [
   "Topic :: Utilities",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Driedsandwich/agent-personal-vault"
+Source = "https://github.com/Driedsandwich/agent-personal-vault"
+Issues = "https://github.com/Driedsandwich/agent-personal-vault/issues"
+Documentation = "https://github.com/Driedsandwich/agent-personal-vault#readme"
+
 [project.optional-dependencies]
 encrypted = ["cryptography>=42"]
 
