@@ -139,6 +139,24 @@ RC preparation is allowed only as checklist, documentation, and local dry-run wo
 - MCP host differences: keep generic stdio, Codex, and Claude Code as validated paths. Do not claim full Claude Desktop app restart or in-app live tool-call UX support unless separately approved and tested in a non-interfering environment.
 - Approval boundary: after this checklist is complete, ask separately before GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
+## RC Candidate Final Dry-Run Snapshot
+
+This is the final local dry-run snapshot for deciding whether to ask for a separate RC/release action. It still does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+- Tracking Issue: #67.
+- Target commit for this dry-run: `5209055 docs: add RC preparation checklist`.
+- Version candidate: keep `0.1.0` for the current alpha line. No version bump is included in this dry-run.
+- CHANGELOG: `CHANGELOG.md` remains an Unreleased draft and is the current release-note source. It includes user-visible changes, security/privacy changes, docs/governance, package prep, and known limitations.
+- Security snapshot: latest `main` test and CodeQL are successful. Open CodeQL alerts, Dependabot alerts, and secret scanning alerts are 0. Vulnerability alerts endpoint returns `204 No Content`.
+- Repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run is the tracking Issue for this work. Stars, watchers/subscribers, and forks are 0. Traffic API reported 8 views and 47 clones.
+- Artifact dry-run: completed from a temporary clean-copy-equivalent source tree without upload. Artifacts were built into a temporary directory and were not committed.
+  - `agent_personal_vault-0.1.0-py3-none-any.whl`: SHA-256 `fbf280d1f77cc6c81c4cbff1d297cdceb0d7c1b726eb3e443534a949ee124fcb`, 33121 bytes, 15 entries, no forbidden name hits.
+  - `agent_personal_vault-0.1.0.tar.gz`: SHA-256 `265544a427176dcb468a16caeb70b870ce628b837db7c5ac88e18fb7d2e3b5d2`, 41448 bytes, 26 entries, no forbidden name hits.
+- Rollback note: if a future release or package publish is separately approved and then found unsafe, stop announcements, open a corrective Issue or security advisory as appropriate, revert docs/code through PR, and publish a corrective patch only with separate approval. Do not rely on deletion as the sole rollback path.
+- Support expectation: best-effort only. Do not promise response times, production support, data recovery, or broad MCP/client compatibility.
+- Stop conditions: do not proceed to any release action if CI fails, CodeQL/security alerts open, raw personal data or secrets appear, consent bypass is reported, audit raw leakage is suspected, artifacts include forbidden files, or repeated support signals show the same consent/raw retrieval/MCP setup confusion.
+- MCP host differences: generic stdio, Codex, and Claude Code remain the validated paths. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and must not be claimed as supported.
+
 ## Pre-RC Draft Snapshot
 
 This section records the current draft inputs for a future release-candidate preparation decision. It is not a release-candidate approval and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
