@@ -12,6 +12,10 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
+### v0.1.1 Candidate Scope
+
+The current v0.1.1 candidate is intentionally small. It is expected to include Project-URL package metadata and documentation/governance updates only. The actual version bump remains a separate Issue/PR and is not implied by this changelog draft.
+
 ### User-Visible Changes
 
 - Added raw-free task planning hints so agents can choose smaller candidate key sets before requesting raw access.
@@ -37,10 +41,15 @@ This file is a draft planning document for a possible future release candidate. 
 - Added release/package dry-run planning and pre-RC entry criteria.
 - Recorded terminal-only and Claude Desktop-like validation boundaries without claiming full Claude Desktop in-app live UX support.
 - Documented that approval commands, including direct `consent grant`, are human-operated and not agent-facing.
+- Added PyPI Trusted Publishing planning without enabling publisher settings or an active publishing workflow.
+- Added branch cleanup candidate verification without deleting local or remote branches.
+- Finalized the pre-announcement checklist, safe/forbidden wording, correction procedure, and public-alpha support-load expectations.
+- Added v0.1.1 readiness and RC preparation notes that keep release, tag, package publish, announcement, repository settings, and branch deletion as separate approval lanes.
 
 ### Package And Release Preparation
 
 - Added package metadata and console entry points for `agent-personal-vault`, `apv-gui`, and `apv-mcp`.
+- Added Project-URL package metadata for Homepage, Source, Issues, and Documentation. This will appear on PyPI only after a future separately approved package publish.
 - Performed local release/package dry-run checks for sdist and wheel contents without publishing.
 - Updated package license metadata to avoid setuptools deprecation warnings.
 
@@ -50,5 +59,6 @@ This file is a draft planning document for a possible future release candidate. 
 - Optional encryption is passphrase-managed; OS key store integration and recovery UX are not implemented.
 - GUI localhost access is an operator convenience, not a hard multi-user security boundary.
 - MCP host/client behavior differs by client. Generic stdio, Codex, and Claude Code paths have been validated; full Claude Desktop app restart and in-app live tool-call UX remain unvalidated without explicit approval and a non-interfering environment.
-- GitHub release creation, tag creation, package publish, and public announcement have not been performed.
+- GitHub release creation, tag creation, package publish, and public announcement for v0.1.1 have not been performed.
+- PyPI Trusted Publishing is documented as a future hardening step but is not enabled.
 - External user feedback and support load remain lightly observed and should be rechecked before release-candidate preparation.
