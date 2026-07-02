@@ -189,6 +189,127 @@ That preparation should:
 
 Completing that preparation still would not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
+## v0.1.1 RC Preparation Snapshot
+
+Status date: 2026-07-02.
+
+Tracking Issue: #96.
+
+This snapshot prepares a possible v0.1.1 release candidate. It does not authorize the actual version bump, GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+### Intended Scope
+
+Keep v0.1.1 narrow:
+
+- Include the already-merged Project-URL package metadata for Homepage, Source, Issues, and Documentation.
+- Include documentation and governance updates for Trusted Publishing planning, branch cleanup candidate verification, pre-announcement checks, and v0.1.1 readiness.
+- Keep runtime behavior unchanged unless a later Issue/PR explicitly identifies a release-blocking bug.
+
+Do not include by default:
+
+- PyPI Trusted Publishing activation.
+- GitHub Actions package-publish workflow activation.
+- repository setting changes or GitHub environment protection changes.
+- branch deletion.
+- SNS/blog/community announcement.
+- MCP raw-value tool expansion or bulk raw export.
+- Claude Desktop full app live UX support claims.
+
+### Version Bump Policy
+
+`pyproject.toml` remains at `0.1.0` during this preparation.
+
+If v0.1.1 proceeds, the version bump to `0.1.1` must be a dedicated Issue/PR with CI. That PR still would not authorize release creation, tag creation, package publish, or announcement.
+
+### CHANGELOG State
+
+`CHANGELOG.md` now records a v0.1.1 candidate scope inside `Unreleased`.
+
+Before any release approval request:
+
+- confirm the Unreleased section still matches merged changes;
+- convert the relevant content into a release-note approval draft;
+- keep known limitations visible;
+- exclude raw personal data, local paths, screenshots, vault files, consent files, audit files, tokens, and private support details.
+
+### Fresh Isolated Artifact Dry-Run
+
+Dry-run command shape:
+
+```sh
+rm -rf /tmp/apv-v011-rc-src /tmp/apv-v011-rc-venv /tmp/apv-v011-rc-dist
+mkdir -p /tmp/apv-v011-rc-src /tmp/apv-v011-rc-dist
+git archive HEAD | tar -x -C /tmp/apv-v011-rc-src
+python3 -m venv /tmp/apv-v011-rc-venv
+/tmp/apv-v011-rc-venv/bin/python -m pip install --upgrade pip build twine
+/tmp/apv-v011-rc-venv/bin/python -m build --outdir /tmp/apv-v011-rc-dist /tmp/apv-v011-rc-src
+/tmp/apv-v011-rc-venv/bin/twine check /tmp/apv-v011-rc-dist/*
+```
+
+Build environment:
+
+- Target source: `git archive HEAD` from pre-version-bump `main`.
+- Python: local `python3` venv using Python 3.14 at dry-run time.
+- `pip`: 26.1.2.
+- `build`: 1.5.0.
+- `twine`: 6.2.0.
+
+Artifact evidence from this preparation run:
+
+| File | Bytes | Entries | SHA-256 |
+|---|---:|---:|---|
+| `agent_personal_vault-0.1.0-py3-none-any.whl` | 33469 | 15 | `c131f0b5cf0b9f8e0492dda989b07347c16118a5678953a2c675ec316bdc48d0` |
+| `agent_personal_vault-0.1.0.tar.gz` | 42005 | 26 | `eced88e6bf65d62cc501ea6096f565fc70c391856b8e16d6b555ae48e6ebdcf2` |
+
+Interpretation:
+
+- These artifacts are evidence for the current pre-version-bump source only.
+- The artifact names still show `0.1.0` because version bump was intentionally not performed in this preparation step.
+- Fresh artifacts must be regenerated after any future `0.1.1` version bump and immediately before any separately approved package publish.
+- `twine check` passed for both files.
+- A strict forbidden-name check over the archived source found no vault, consent, audit, private, database, image, `.env`, or `.pypirc` style files.
+
+### PyPI Metadata Expectation
+
+Current PyPI version at preparation time: `0.1.0`.
+
+Current PyPI metadata does not show the new Project-URL entries because the metadata has not been published yet.
+
+Expected after a future separately approved v0.1.1 package publish:
+
+- Homepage: `https://github.com/Driedsandwich/agent-personal-vault`
+- Source: `https://github.com/Driedsandwich/agent-personal-vault`
+- Issues: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+- Documentation: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+The dry-run wheel metadata contained all four `Project-URL` entries.
+
+### Rollback Preparation
+
+Before any v0.1.1 release or publish approval request, prepare a short approval-packet rollback note:
+
+- If release text is wrong before publish, edit the draft or close it.
+- If a published GitHub release is wrong, stop announcements, add a corrective note or prepare a patch through PR, and delete only with separate approval when appropriate.
+- If a package publish is wrong, consider yanking only if PyPI supports it and only after separate approval; otherwise prepare a corrective patch release through Issue/PR.
+- If safety, raw leakage, or consent bypass is involved, stop public messaging and use the security reporting path.
+- Do not rely on deleting tags, releases, branches, or package files as the only rollback plan.
+
+### Stop Conditions
+
+Stop before any v0.1.1 version bump, release, tag, package publish, or announcement request if:
+
+- local `main` is not clean or does not match `origin/main`;
+- open Issues/PRs include unresolved release safety, packaging, install, consent, raw leakage, MCP setup, or support-load concerns;
+- latest `main` test, CodeQL, Dependency Graph, local release check, or security alert state is failing or unknown;
+- PyPI already contains the intended version;
+- fresh post-version-bump artifacts have not been generated and checked;
+- artifacts contain forbidden files or unexpected private/developer files;
+- release notes, CHANGELOG, approval packet, target commit, tag, version, and artifact hashes do not agree;
+- public text contains unsupported security/compliance/production claims;
+- any raw personal data, secret, token, local private path, screenshot with raw values, vault file, consent file, audit file, database, backup, or private support detail appears in public text, docs, artifacts, logs, Issues, or PRs;
+- two or more independent support signals show the same consent, raw retrieval, MCP setup, install, or safety-boundary confusion;
+- the requested action would require repository settings, PyPI publisher settings, branch deletion, public announcement, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## RC Preparation Checklist
 
 RC preparation is allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
