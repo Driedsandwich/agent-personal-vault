@@ -56,6 +56,47 @@ python3 scripts/check_release.py
 
 Stop if these results change before execution.
 
+## Latest Preflight Snapshot
+
+Recorded on 2026-07-02 before any release, tag, package publish, or announcement action.
+
+- Target source: `origin/main`
+- Target commit: `ae89c5d7cd9d953d395ac25daad495727c1d0c9f`
+- Target commit subject: `docs: make RC target approval-time filled`
+- Version candidate: `0.1.0`
+- GitHub Actions `test`: success
+- CodeQL: success
+- open PRs: 0
+- open Issues: 0
+- open CodeQL alerts: 0
+- open Dependabot alerts: 0
+- open secret scanning alerts: 0
+- vulnerability alerts endpoint: `204 No Content`
+- GitHub releases: 0
+- Git tags: 0
+- Release note check: the draft below was compared with `CHANGELOG.md`, `docs/LAUNCH_MESSAGING.md`, and `SECURITY.md`; no wording change was required for this preflight.
+
+Fresh local artifact dry-run:
+
+- Source: `git archive origin/main` extracted into a temporary directory.
+- Build environment: temporary local virtual environment, deleted after the check.
+- Python: `Python 3.14.6`
+- pip: `pip 26.1.2`
+- build: `build 1.5.0`
+- Upload: none.
+- Repository artifacts left behind: none.
+
+Artifacts:
+
+| File | Bytes | Entries | SHA-256 | Forbidden-name hits |
+|---|---:|---:|---|---|
+| `agent_personal_vault-0.1.0-py3-none-any.whl` | 33200 | 15 | `b00357c06b0e7f860953557274bd3fd5eef79098a4f5c9ebd622c1a35c5777b3` | none |
+| `agent_personal_vault-0.1.0.tar.gz` | 41418 | 26 | `e9c3f42cbc753367a35c1ec92077029439749bcaf9e3624f33a05a31f0ae7c4a` | none |
+
+Forbidden-name scan covered vault, consent, audit, private, backup, database, image, local `.venv`, `.codex`, and `.claude` style paths. These hashes are evidence for this exact generated-file set only and are not a cross-environment reproducible-build guarantee.
+
+Reconfirm this snapshot immediately before any separate execution approval.
+
 ## Release Note Draft
 
 Draft source: `CHANGELOG.md` `Unreleased`.
