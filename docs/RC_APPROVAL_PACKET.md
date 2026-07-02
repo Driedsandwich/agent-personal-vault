@@ -19,15 +19,15 @@ Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy. Use this packet as t
 - Repository: `Driedsandwich/agent-personal-vault`
 - Repository visibility: public
 - Default branch: `main`
-- Target commit: `0e46438fd6cbe0ca66a8012a3101796ba0237dd5`
-- Target commit subject: `docs: add RC individual approval plan`
+- Target commit: `1bc53b9ba94c86830c367943ee139063b1688f2d`
+- Target commit subject: `docs: add RC approval packet`
 - Version candidate: `0.1.0`
 - Package name: `agent-personal-vault`
 - Python requirement: `>=3.11`
 - License: MIT
 - Release note source: `CHANGELOG.md` `Unreleased`
 
-This target snapshot is current as of 2026-07-02 before this packet is merged. If this packet is merged, the final execution target commit will be the post-merge `main` commit and must be reconfirmed immediately before any separate execution approval.
+This target snapshot is current as of 2026-07-02 after PR #74 was merged. Reconfirm the final execution target commit immediately before any separate execution approval.
 
 ## Current CI And Security Snapshot
 
