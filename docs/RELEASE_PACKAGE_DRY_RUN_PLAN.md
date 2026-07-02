@@ -122,6 +122,8 @@ Candidate: evaluate PyPI Trusted Publishing for a future publish lane so uploads
 
 Trusted Publishing should be handled as a separate repository-setting and workflow-change lane because it requires PyPI-side publisher configuration and a GitHub Actions publish workflow. It is not required for emergency token-based maintenance, but it is preferable before repeated package publishes.
 
+Detailed plan: `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
+
 Do not enable it without separate explicit approval for:
 
 - the PyPI project publisher configuration;
