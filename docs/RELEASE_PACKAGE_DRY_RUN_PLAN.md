@@ -18,6 +18,8 @@ Use this plan before any distribution approval request to confirm that the relea
 
 The dry-run should use dummy data only.
 
+After this dry-run evidence is current, use `docs/RC_APPROVAL_PLAN.md` to separate GitHub release, tag creation, package publish, and announcement into independent approval lanes.
+
 ## Versioning
 
 - Treat `pyproject.toml` `project.version` as the package version source of truth.

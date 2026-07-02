@@ -214,6 +214,7 @@ git log --oneline -1
 
 Release creation, package publish, public announcement, and external sharing remain approval-gated.
 Distribution dry-run planning is tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
+Individual approval lanes for release drafting/publishing, tag creation, package publish, and announcement are tracked in `docs/RC_APPROVAL_PLAN.md`.
 
 ## Not Done Without Explicit Approval
 
