@@ -12,12 +12,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .consent import create_consent_request
 from .vault import agent_context, check_summary, get_schema, load_store, local_user_path, schema_context, store_path, validate_key
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "agent-personal-vault"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = __version__
+VALIDATION_ERROR_MESSAGES = (
+    "MCP request_consent supports one-key get requests only; bulk env requests are not part of the public-alpha agent path",
+    "purpose is required",
+)
 
 
 def text_json(payload: dict[str, Any]) -> dict[str, Any]:
@@ -173,9 +178,12 @@ class MCPServer:
             except KeyError:
                 return self.error(request_id, -32601, "Unknown tool")
             except ValueError as exc:
-                return self.error(request_id, -32602, str(exc))
-            except Exception as exc:
-                return self.error(request_id, -32000, str(exc))
+                message = str(exc)
+                if message.startswith("Unknown key: ") or message in VALIDATION_ERROR_MESSAGES:
+                    return self.error(request_id, -32602, message)
+                return self.error(request_id, -32602, "Invalid request")
+            except Exception:
+                return self.error(request_id, -32000, "Internal server error")
         return self.error(request_id, -32601, "Method not found")
 
     def serve(self) -> None:
@@ -188,8 +196,12 @@ class MCPServer:
                 if not isinstance(message, dict):
                     raise ValueError("message must be an object")
                 response = self.handle(message)
-            except Exception as exc:
-                response = self.error(None, -32700, str(exc))
+            except json.JSONDecodeError:
+                response = self.error(None, -32700, "Parse error")
+            except ValueError:
+                response = self.error(None, -32700, "Invalid message")
+            except Exception:
+                response = self.error(None, -32000, "Internal server error")
             if response is not None:
                 print(json.dumps(response, ensure_ascii=False), flush=True)
 
