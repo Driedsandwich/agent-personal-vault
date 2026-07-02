@@ -109,6 +109,7 @@ Additional local checks:
 - Claude Code restrictive/noninteractive mode requires explicit tool approval for `mcp__agent-personal-vault__apv_context` and `mcp__agent-personal-vault__apv_request_consent`; this is documented in `docs/MCP_CLIENT_SETUP.md`.
 - Claude Desktop-like validation covered venv-based install, stdio MCP `apv.context`, MCP `apv.request_consent`, GUI approval/denial through the same local API used by the browser UI, CLI `get` with the GUI-issued consent id, and raw-free audit checks using non-sensitive dummy data.
 - Issue #49 terminal-only validation rechecked stdio MCP `apv.context`, `apv.request_consent`, unknown key, invalid action, unknown tool, invalid arguments, CLI approve/deny, one-time consent id use, denied access failure, and raw-free audit summary/tail using non-sensitive dummy data.
+- Issue #53 local release/package dry-run built sdist and wheel from a clean-checkout-equivalent worktree, checked artifact hashes, confirmed package contents contained no forbidden vault, consent, audit, private config, image, database, or local secret files, and updated package license metadata to avoid setuptools deprecation warnings before any release or package publish.
 - Current main GitHub Actions `test` and CodeQL runs passed after PR #44.
 - Current open CodeQL alerts: 0.
 
