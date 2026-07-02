@@ -66,6 +66,32 @@ The project is intentionally small: agents can inspect schema/status/context wit
 Important limitation: it is not encrypted by default and is not a compliance, enterprise-security, or password-manager replacement. Please do not post real personal data, screenshots, or vault files in issues.
 ```
 
+## Pre-Announcement Checklist
+
+Before any SNS, blog, newsletter, community post, or other public announcement, confirm all items below. This checklist does not authorize announcement by itself; each channel still requires separate explicit approval.
+
+- The announcement text uses the safe framing in this file.
+- The announcement text says alpha/local utility, raw-free first, one-key raw retrieval, and human stop before external actions.
+- The text does not ask readers to post real personal data, screenshots, logs, vault files, consent files, audit files, or local paths.
+- The text does not include local developer paths, private support details, private screenshots, PyPI tokens, GitHub tokens, or unpublished issue details.
+- The current GitHub release, PyPI page, README install path, Actions, Security alerts, and open Issue/PR state have been checked.
+- The planned channel, text, target URL, rollback/edit path, and expected support burden are written down before approval.
+
+Forbidden wording:
+
+- secure vault
+- encrypted by default
+- privacy guaranteed
+- compliance-ready
+- enterprise-ready
+- production-ready
+- safe for all personal data
+- password-manager replacement
+- secret-manager replacement
+- consent-system replacement
+- fully automated personal-data access
+- world-first or first-of-kind claims
+
 ## Issue Response Template
 
 Use this when a report includes or asks for real personal data:
