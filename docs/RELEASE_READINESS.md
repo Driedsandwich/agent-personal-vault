@@ -63,6 +63,7 @@ Core product boundary:
 - Product positioning and MVP boundary document exists.
 - Reputation risk review and launch messaging documents exist.
 - Final publication audit document exists.
+- Release/package dry-run planning document exists in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 
 ## Latest Verification
 
@@ -120,7 +121,7 @@ Remaining P1 risks before any release or package publish:
 - Encryption is optional and passphrase-managed. OS key store integration and recovery UX remain pending.
 - MCP remains intentionally raw-free except for consent request creation. Raw-value MCP tools should not be added without a separate consent, audit, and client-behavior review.
 - GUI localhost access is an operator workflow convenience, not a hard multi-user security boundary.
-- Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated.
+- Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated. A dry-run plan exists in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, but no release, tag, package upload, or announcement has been authorized.
 - Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
 - MCP host/client behavior differs. Generic stdio, Codex configuration, and Claude Code configuration were validated, but broader host UI behavior still depends on each client.
 - Claude Desktop was validated by configuration shape, generic stdio behavior, and terminal-only/Desktop-like local consent handoff. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and should not be run without explicit user approval and a non-interfering environment because it requires editing user-level Desktop config, restarting the app, and operating the user's active GUI.
@@ -136,12 +137,14 @@ git log --oneline -1
 ```
 
 Release creation, package publish, public announcement, and external sharing remain approval-gated.
+Distribution dry-run planning is tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 
 ## Not Done Without Explicit Approval
 
 The following actions remain stopped:
 
 - release creation
+- tag creation
 - package publish
 - public announcement
 - external sharing
@@ -151,7 +154,7 @@ The following actions remain stopped:
 If the user wants to proceed, the next bounded action is:
 
 ```text
-Move from high-frequency launch checks to lightweight public-alpha observation. Check open Issues/PRs, Actions, Security alerts, README display, release/tag absence, and external feedback weekly or when prompted, then open Issues for concrete defects.
+Run a release/package dry-run review using `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`: confirm versioning, changelog, build artifact contents, rollback, dependency/provenance, Security alerts, and support-load assumptions with dummy data only.
 ```
 
-This still does not create a GitHub release, publish a package, change repository settings, delete branches, or announce the project publicly. Release creation, package publish, repository setting changes, branch deletion, and public announcement remain separate approvals.
+This still does not create a GitHub release, tag, publish a package, change repository settings, delete branches, operate Claude Desktop app UI, use API-billed validation, or announce the project publicly. Release creation, tag creation, package publish, repository setting changes, branch deletion, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.

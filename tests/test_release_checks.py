@@ -71,6 +71,31 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertIn("Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated", readiness)
         self.assertIn("明示承認", roadmap)
 
+    def test_release_package_dry_run_plan_keeps_publish_boundary(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        readiness = (root / "docs" / "RELEASE_READINESS.md").read_text(encoding="utf-8")
+        plan = (root / "docs" / "RELEASE_PACKAGE_DRY_RUN_PLAN.md").read_text(encoding="utf-8")
+
+        self.assertIn("docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md", readme)
+        self.assertIn("docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md", readiness)
+        for required in [
+            "version",
+            "changelog",
+            "artifact",
+            "package publish",
+            "rollback",
+            "provenance",
+            "Security Alerts",
+            "support",
+            "GitHub release",
+            "tag creation",
+            "明示承認",
+            "Claude Desktop app UI operation",
+            "API-billed",
+        ]:
+            self.assertIn(required, plan)
+
     def test_gitignore_covers_local_developer_config(self) -> None:
         root = Path(__file__).resolve().parent.parent
         gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
