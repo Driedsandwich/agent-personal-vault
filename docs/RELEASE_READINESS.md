@@ -130,7 +130,7 @@ Rationale:
 
 Status date: 2026-07-02.
 
-This snapshot summarizes the current v0.1.1 candidate state after the post-`v0.1.0` preparation pass. It does not authorize a version bump, GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This snapshot summarizes the current v0.1.1 candidate state after the post-`v0.1.0` preparation pass. The dedicated version bump is tracked separately in Issue #98. This snapshot does not authorize GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### Current State
 
@@ -175,12 +175,12 @@ Stop before any v0.1.1 release, tag, or package publish request if any of these 
 
 ### Next Gate
 
-The next safe step is a v0.1.1 release-candidate preparation Issue/PR, not a release action.
+The next safe step after the v0.1.1 release-candidate preparation pass is the dedicated v0.1.1 version bump Issue/PR, not a release action.
 
 That preparation should:
 
-- decide whether the version should be `0.1.1`;
-- update `pyproject.toml` version only in a dedicated version bump PR;
+- confirm the version should be `0.1.1`;
+- update `pyproject.toml` version only in the dedicated version bump PR;
 - prepare or update `CHANGELOG.md`;
 - run a fresh isolated package build from the intended target commit;
 - record sdist/wheel filenames, sizes, entry counts, SHA-256 hashes, and strict forbidden-file scan results;
@@ -195,7 +195,7 @@ Status date: 2026-07-02.
 
 Tracking Issue: #96.
 
-This snapshot prepares a possible v0.1.1 release candidate. It does not authorize the actual version bump, GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This snapshot prepares a possible v0.1.1 release candidate and records the dedicated version bump evidence from Issue #98. It does not authorize GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### Intended Scope
 
@@ -217,17 +217,17 @@ Do not include by default:
 
 ### Version Bump Policy
 
-`pyproject.toml` remains at `0.1.0` during this preparation.
+`pyproject.toml` is now bumped to `0.1.1` through Issue #98.
 
-If v0.1.1 proceeds, the version bump to `0.1.1` must be a dedicated Issue/PR with CI. That PR still would not authorize release creation, tag creation, package publish, or announcement.
+This version bump does not authorize release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### CHANGELOG State
 
-`CHANGELOG.md` now records a v0.1.1 candidate scope inside `Unreleased`.
+`CHANGELOG.md` now has an empty `Unreleased` section and a `0.1.1 - 2026-07-02` section for the current release-candidate content.
 
 Before any release approval request:
 
-- confirm the Unreleased section still matches merged changes;
+- confirm the `0.1.1 - 2026-07-02` section still matches merged changes;
 - convert the relevant content into a release-note approval draft;
 - keep known limitations visible;
 - exclude raw personal data, local paths, screenshots, vault files, consent files, audit files, tokens, and private support details.
@@ -248,7 +248,7 @@ python3 -m venv /tmp/apv-v011-rc-venv
 
 Build environment:
 
-- Target source: `git archive HEAD` from pre-version-bump `main`.
+- Target source: `git archive HEAD` plus the Issue #98 worktree version bump and changelog updates.
 - Python: local `python3` venv using Python 3.14 at dry-run time.
 - `pip`: 26.1.2.
 - `build`: 1.5.0.
@@ -258,16 +258,16 @@ Artifact evidence from this preparation run:
 
 | File | Bytes | Entries | SHA-256 |
 |---|---:|---:|---|
-| `agent_personal_vault-0.1.0-py3-none-any.whl` | 33469 | 15 | `c131f0b5cf0b9f8e0492dda989b07347c16118a5678953a2c675ec316bdc48d0` |
-| `agent_personal_vault-0.1.0.tar.gz` | 42005 | 26 | `eced88e6bf65d62cc501ea6096f565fc70c391856b8e16d6b555ae48e6ebdcf2` |
+| `agent_personal_vault-0.1.1-py3-none-any.whl` | 33471 | 15 | `c202905fe52c85882437985978e86d2f028602b87d8c3a66a5b3553593cfdf6a` |
+| `agent_personal_vault-0.1.1.tar.gz` | 42018 | 26 | `18d51459916330bbd5139fdd86b83b7a4444a017f5924affca135bac5d5f0e18` |
 
 Interpretation:
 
-- These artifacts are evidence for the current pre-version-bump source only.
-- The artifact names still show `0.1.0` because version bump was intentionally not performed in this preparation step.
-- Fresh artifacts must be regenerated after any future `0.1.1` version bump and immediately before any separately approved package publish.
+- These artifacts are evidence for the current v0.1.1 version-bump worktree only.
+- Fresh artifacts must still be regenerated immediately before any separately approved package publish.
 - `twine check` passed for both files.
-- A strict forbidden-name check over the archived source found no vault, consent, audit, private, database, image, `.env`, or `.pypirc` style files.
+- A strict artifact forbidden-file check found no `.env`, `.pypirc`, raw vault data files, consent data files, audit log files, database files, or image files in the generated sdist/wheel.
+- The dry-run wheel metadata reported `Version: 0.1.1`.
 
 ### PyPI Metadata Expectation
 
@@ -296,13 +296,13 @@ Before any v0.1.1 release or publish approval request, prepare a short approval-
 
 ### Stop Conditions
 
-Stop before any v0.1.1 version bump, release, tag, package publish, or announcement request if:
+Stop before any v0.1.1 release, tag, package publish, or announcement request if:
 
 - local `main` is not clean or does not match `origin/main`;
 - open Issues/PRs include unresolved release safety, packaging, install, consent, raw leakage, MCP setup, or support-load concerns;
 - latest `main` test, CodeQL, Dependency Graph, local release check, or security alert state is failing or unknown;
 - PyPI already contains the intended version;
-- fresh post-version-bump artifacts have not been generated and checked;
+- fresh artifacts have not been regenerated and checked from the final intended release commit;
 - artifacts contain forbidden files or unexpected private/developer files;
 - release notes, CHANGELOG, approval packet, target commit, tag, version, and artifact hashes do not agree;
 - public text contains unsupported security/compliance/production claims;
