@@ -52,6 +52,8 @@ Codex内では `/mcp` で接続状態を確認します。
 
 Claude Desktopの設定ファイルに `mcpServers` を追加します。macOSでは通常 `~/Library/Application Support/Claude/claude_desktop_config.json`、Windowsでは通常 `%APPDATA%\Claude\claude_desktop_config.json` です。
 
+この設定はユーザーlevelのClaude Desktop設定を変更し、アプリ再起動が必要です。共有中のDesktop作業を妨げる可能性があるため、検証や自動化でClaude Desktop本体UIを操作する場合は、事前に明示承認を取り、別モニター、テスト用プロファイル、専用時間帯など人間作業を邪魔しない条件で行ってください。通常の接続確認は、まずterminal上の `apv-mcp` stdio JSON-RPCとCLI/GUI/APIで行うのが安全です。
+
 ```json
 {
   "mcpServers": {
