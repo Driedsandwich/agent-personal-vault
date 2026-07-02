@@ -125,6 +125,18 @@ Rationale:
 - Remaining P1 risks still affect distribution confidence: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, unmeasured support load, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
 - Package build artifacts were validated locally, but no externally distributed release, tag, package index upload, or public support cycle has been exercised.
 
+## Pre-RC Draft Snapshot
+
+This section records the current draft inputs for a future release-candidate preparation decision. It is not a release-candidate approval and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+- Target version: keep `pyproject.toml` at `0.1.0` for the current public-alpha line unless a later dedicated versioning Issue/PR chooses a different pre-release or patch version.
+- Version bump policy: do not bump the version in documentation-only readiness PRs. Any version bump must be a dedicated Issue/PR with CI and explicit user approval for that exact bump. A version bump still would not authorize release, tag, package publish, or announcement.
+- Changelog draft: `CHANGELOG.md` exists as an unreleased draft and separates user-visible changes, security/privacy changes, documentation/governance, package/release preparation, and known limitations.
+- Support expectation: public alpha support is best-effort only. No response-time, production support, data recovery, or compatibility guarantee should be promised before a separate support policy is approved.
+- Support-load signal: two or more independent reports about the same consent, raw retrieval, MCP setup, or safety-boundary confusion should block RC preparation until addressed or explicitly accepted as an alpha limitation.
+- MCP host differences: generic stdio, Codex, and Claude Code remain the validated paths. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and must stay visible as a limitation unless separately approved.
+- Fresh artifact hash dry-run: completed locally from a temporary clean-copy-equivalent source tree without upload. Artifacts were built into a temporary directory, not committed. `agent_personal_vault-0.1.0-py3-none-any.whl` SHA-256: `498b480d7b33802e18ef026d9cf5d77af5ceba98e4b145751e3d513019b78740` (33121 bytes, 15 entries, no forbidden name hits). `agent_personal_vault-0.1.0.tar.gz` SHA-256: `3d6a59e8cce3872d5ba19b0e35298fe8be15cf1c8a7f5c2e194c34f5e173d4ea` (41427 bytes, 26 entries, no forbidden name hits).
+
 Next release-candidate gate:
 
 - At least one additional lightweight public-alpha observation cycle shows no security, consent, raw leakage, onboarding, or support-load issue that requires a fix.
