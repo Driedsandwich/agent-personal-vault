@@ -345,6 +345,7 @@ python3 scripts/check_release.py
 | [RC Approval Packet](docs/RC_APPROVAL_PACKET.md) | RC実行前の対象commit・release note・承認文レビュー |
 | [Reputation Risk Review](docs/REPUTATION_RISK_REVIEW.md) | 表現・炎上リスクの確認 |
 | [Launch Messaging](docs/LAUNCH_MESSAGING.md) | README、release notes、告知文の安全な書き方 |
+| [Announcement Approval Packet](docs/ANNOUNCEMENT_APPROVAL_PACKET.md) | 告知文案、禁止表現チェック、投稿後監視、撤回手順 |
 
 </details>
 
