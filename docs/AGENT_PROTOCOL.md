@@ -128,7 +128,7 @@ agent-personal-vault get <KEY> --purpose "<raw-free purpose>" --consent-id "<pri
 
 Use it only after the agent has a concrete local purpose and the single key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied by a human in the GUI or a separate human-operated CLI session. Consent tokens are one-time tokens and must match action, key, and purpose.
 
-`env` is an advanced/manual bulk raw export command. It is not part of the public-alpha agent protocol, MCP integration path, Quickstart, or release validation path. Prefer one-key `get <KEY>` retrieval.
+`env` is an advanced/manual human-only bulk raw export command. It is not part of the public-alpha agent protocol, MCP integration path, Quickstart, or release validation path. Prefer one-key `get <KEY>` retrieval. `env` and `consent grant/request --action env` require the explicit `--i-understand-bulk-raw-export` acknowledgement and write `env_bulk_export` audit events.
 
 These commands change stored values and also write raw-free audit events:
 
