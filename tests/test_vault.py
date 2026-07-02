@@ -6,9 +6,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
+from agent_personal_vault import __version__
 from agent_personal_vault.audit import audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
@@ -103,6 +105,20 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
             self.assertEqual(store["schema"], "job_hunting_profile")
+
+    def test_existing_store_parent_permissions_are_not_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "shared-parent"
+            parent.mkdir()
+            os.chmod(parent, 0o755)
+            path = parent / "vault.json"
+            load_store(create=True, path=path)
+            self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    def test_package_version_matches_pyproject(self) -> None:
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(__version__, pyproject["project"]["version"])
 
     def test_normalizers(self) -> None:
         self.assertEqual(normalize_postal_code("１０００００１"), "100-0001")
@@ -764,6 +780,7 @@ class VaultTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
             responses = [json.loads(line) for line in result.stdout.splitlines()]
+            self.assertEqual(responses[0]["result"]["serverInfo"]["version"], __version__)
             tools = responses[1]["result"]["tools"]
             tool_names = {tool["name"] for tool in tools}
             self.assertEqual(tool_names, {"apv.schema", "apv.context", "apv.check", "apv.list_masked", "apv.request_consent"})
@@ -931,6 +948,29 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(response["error"]["code"], -32602)
             self.assertIn("Unknown key: UNKNOWN", response["error"]["message"])
             self.assertIn("FULL_NAME", response["error"]["message"])
+
+    def test_mcp_missing_store_error_does_not_leak_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "missing-vault.json"
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "apv.check", "arguments": {}},
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            response = json.loads(result.stdout)
+            self.assertEqual(response["error"]["code"], -32000)
+            self.assertEqual(response["error"]["message"], "Internal server error")
+            self.assertNotIn(str(path), result.stdout)
+            self.assertNotIn("private-path-marker", result.stdout)
 
 
 if __name__ == "__main__":

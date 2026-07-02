@@ -119,6 +119,10 @@ def get_schema(schema_name: str) -> dict[str, FieldSpec]:
 
 
 def ensure_private_dir(path: Path) -> None:
+    if path.exists():
+        if not path.is_dir():
+            raise NotADirectoryError(f"Vault parent path is not a directory: {path}")
+        return
     path.mkdir(parents=True, exist_ok=True)
     os.chmod(path, 0o700)
 
