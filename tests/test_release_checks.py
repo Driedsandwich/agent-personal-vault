@@ -60,6 +60,17 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertIn(". .venv/bin/activate", docs)
             self.assertLess(docs.index("python3 -m venv .venv"), docs.index("python3 -m pip install -e ."))
 
+    def test_claude_desktop_docs_keep_ui_validation_boundary(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        mcp_docs = (root / "docs" / "MCP_CLIENT_SETUP.md").read_text(encoding="utf-8")
+        readiness = (root / "docs" / "RELEASE_READINESS.md").read_text(encoding="utf-8")
+        roadmap = (root / "docs" / "SECURITY_AND_AGENT_INTEGRATION_ROADMAP.md").read_text(encoding="utf-8")
+
+        self.assertIn("人間作業を邪魔しない", mcp_docs)
+        self.assertIn("terminal-only", readiness)
+        self.assertIn("Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated", readiness)
+        self.assertIn("明示承認", roadmap)
+
     def test_gitignore_covers_local_developer_config(self) -> None:
         root = Path(__file__).resolve().parent.parent
         gitignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()

@@ -107,6 +107,7 @@ Additional local checks:
 - MCP client interoperability validation covered generic stdio JSON-RPC, Codex `mcp add/list/get`, Claude Code `mcp add/list/get`, Claude Code project `.mcp.json`, and Claude Code noninteractive tool calls.
 - Claude Code restrictive/noninteractive mode requires explicit tool approval for `mcp__agent-personal-vault__apv_context` and `mcp__agent-personal-vault__apv_request_consent`; this is documented in `docs/MCP_CLIENT_SETUP.md`.
 - Claude Desktop-like validation covered venv-based install, stdio MCP `apv.context`, MCP `apv.request_consent`, GUI approval/denial through the same local API used by the browser UI, CLI `get` with the GUI-issued consent id, and raw-free audit checks using non-sensitive dummy data.
+- Issue #49 terminal-only validation rechecked stdio MCP `apv.context`, `apv.request_consent`, unknown key, invalid action, unknown tool, invalid arguments, CLI approve/deny, one-time consent id use, denied access failure, and raw-free audit summary/tail using non-sensitive dummy data.
 - Current main GitHub Actions `test` and CodeQL runs passed after PR #44.
 - Current open CodeQL alerts: 0.
 
@@ -122,7 +123,7 @@ Remaining P1 risks before any release or package publish:
 - Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated.
 - Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
 - MCP host/client behavior differs. Generic stdio, Codex configuration, and Claude Code configuration were validated, but broader host UI behavior still depends on each client.
-- Claude Desktop was validated by configuration shape, generic stdio behavior, and a Desktop-like local GUI/API consent handoff. Full Claude Desktop app restart and in-app live tool-call UX remain a future manual check because it requires editing a user-level Desktop config and restarting the app.
+- Claude Desktop was validated by configuration shape, generic stdio behavior, and terminal-only/Desktop-like local consent handoff. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and should not be run without explicit user approval and a non-interfering environment because it requires editing user-level Desktop config, restarting the app, and operating the user's active GUI.
 
 ## Git Status
 
