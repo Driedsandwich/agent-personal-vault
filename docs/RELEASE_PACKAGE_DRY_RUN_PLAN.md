@@ -31,6 +31,7 @@ The dry-run should use dummy data only.
 - Separate user-visible changes, security changes, docs-only changes, and known limitations.
 - Do not include raw personal data, local paths, private screenshots, private config snippets, or private support details.
 - Keep alpha limitations explicit: local-first, raw-free default, consent-gated raw retrieval, and no external submission automation.
+- Before RC preparation, prepare a `CHANGELOG.md` draft or release-note draft that covers all merged public-alpha changes since the last release-readiness decision.
 
 ## Release Artifact Check
 
@@ -38,6 +39,7 @@ The dry-run should use dummy data only.
 - Inspect the files that would be included in a source distribution or wheel.
 - Confirm generated artifacts do not include `vault.json`, consent/audit files, local developer config, images, screenshots, databases, backups, or private paths.
 - Keep build outputs out of the repository unless a later PR explicitly adds an ignored local artifact path or CI artifact workflow.
+- Record source distribution and wheel filenames plus SHA-256 hashes in the future RC proposal. Hash recording is evidence for the proposal only; it does not authorize upload.
 
 ## Package Build Check
 
@@ -54,6 +56,20 @@ python3 scripts/check_release.py
 ```
 
 Do not upload the built package. If an additional build dependency or packaging workflow change is needed, handle it in a separate PR.
+
+## RC Entry Snapshot
+
+Before asking to move from public alpha into release-candidate preparation, record this snapshot in `docs/RELEASE_READINESS.md` or a linked Issue:
+
+- target `main` commit SHA
+- latest successful GitHub Actions `test` run
+- latest successful CodeQL run
+- open CodeQL alert count
+- Dependabot/vulnerability/secret-scanning status
+- local `python3 scripts/check_release.py` result
+- whether release/tag absence was confirmed
+- whether open Issues/PRs or external feedback contain repeated consent, raw retrieval, MCP setup, or safety-boundary confusion
+- which MCP hosts are validated and which remain explicitly unvalidated
 
 ## Rollback
 
@@ -94,6 +110,7 @@ Public alpha support should stay lightweight.
 - Avoid promising response times, production support, or data-recovery guarantees.
 - Prefer docs fixes for repeated onboarding questions.
 - Treat repeated confusion about consent, raw retrieval, or MCP setup as a release-blocking signal.
+- Treat two or more independent reports about the same consent, raw retrieval, MCP setup, or safety-boundary confusion as a stop condition for RC preparation until the confusion is fixed or explicitly accepted as an alpha limitation.
 
 ## Forbidden During Dry-Run
 
