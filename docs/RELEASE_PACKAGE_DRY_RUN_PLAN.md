@@ -131,6 +131,38 @@ Do not enable it without separate explicit approval for:
 - any GitHub environment or reviewer protection used by that workflow;
 - the first publish attempt through that workflow.
 
+## v0.1.2 Candidate Planning
+
+This section tracks the minimal follow-up candidate after the `v0.1.1` GitHub prerelease and PyPI publish. It is planning only. It does not authorize a version bump, tag, release, package publish, repository setting change, branch deletion, announcement, Claude Desktop app UI operation, or API-billed validation.
+
+### PyPI Long Description Refresh
+
+Issue #102 records that the PyPI project page for `0.1.1` still shows the old `agent-personal-vault==0.1.0` install examples in the long description. The GitHub README on `main` is already corrected to `0.1.1`, but PyPI renders the long description captured inside the uploaded package metadata.
+
+Recommended v0.1.2 scope:
+
+- Keep v0.1.2 as a documentation/package-metadata patch only.
+- Include the corrected README long description so PyPI shows `agent-personal-vault==0.1.1` or the then-current version in install examples.
+- Avoid runtime behavior changes unless a separate blocker is found before the v0.1.2 approval packet.
+
+Expected release shape if separately approved:
+
+- dedicated version bump from `0.1.1` to `0.1.2`;
+- updated CHANGELOG entry describing the PyPI description refresh;
+- fresh isolated sdist/wheel build from the target commit;
+- `twine check`, SHA-256 recording, Project-URL metadata check, and strict forbidden-file scan;
+- separate approvals for tag creation, GitHub prerelease, PyPI package publish, and any announcement.
+
+Trusted Publishing should not be bundled into this minimal v0.1.2 fix by default. It remains a separate repository/PyPI settings lane because it changes the publish mechanism and requires PyPI publisher configuration, GitHub workflow review, and environment protection decisions. It can be prepared in parallel as documentation or a dry-run plan, but activation should require separate explicit approval.
+
+Stop before any v0.1.2 release/tag/package publish request if:
+
+- PyPI already contains the intended version;
+- README, CHANGELOG, package version, release notes, and artifact metadata do not agree;
+- artifacts include forbidden local/private files;
+- Security alerts, CI, open Issues/PRs, or support signals identify a release-blocking issue;
+- the requested action would also activate Trusted Publishing, change repository settings, delete branches, announce publicly, operate Claude Desktop app UI, or use API-billed validation without separate explicit approval.
+
 ### Branch Cleanup Candidate Verification
 
 Candidate: prune merged `codex/*` branches after verifying that each branch is already merged to `main` or has a tree matching `main`.
