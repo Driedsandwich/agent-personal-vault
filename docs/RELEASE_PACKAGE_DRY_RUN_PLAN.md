@@ -135,6 +135,8 @@ Do not enable it without separate explicit approval for:
 
 Candidate: prune merged `codex/*` branches after verifying that each branch is already merged to `main` or has a tree matching `main`.
 
+Detailed verification: `docs/BRANCH_CLEANUP_CANDIDATES.md`.
+
 Current branch cleanup must stay read-only unless branch deletion is separately approved. A safe verification pass may record:
 
 - local and remote `codex/*` branch counts;
