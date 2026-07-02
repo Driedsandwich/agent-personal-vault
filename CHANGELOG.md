@@ -14,6 +14,17 @@ This file is a draft planning document for a possible future release candidate. 
 
 No unreleased changes yet.
 
+## 0.1.2 - 2026-07-02
+
+### Package And Release Preparation
+
+- Refresh the package long description from the corrected README so the PyPI project page no longer shows the old `agent-personal-vault==0.1.0` install examples.
+
+### Known Limitations
+
+- This patch does not change runtime behavior.
+- GitHub release creation, tag creation, package publish, and public announcement for v0.1.2 have not been performed.
+
 ## 0.1.1 - 2026-07-02
 
 ### v0.1.1 Candidate Scope
