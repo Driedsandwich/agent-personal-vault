@@ -362,6 +362,8 @@ class VaultTests(unittest.TestCase):
             encoded = json.dumps(events, ensure_ascii=False)
             self.assertIn("FAMILY_NAME", encoded)
             self.assertIn("local draft", encoded)
+            self.assertNotIn(consent_id, encoded)
+            self.assertIn("c_[redacted]", encoded)
             self.assertNotIn("山田", encoded)
 
     def test_cli_audit_summary_is_raw_free(self) -> None:
@@ -595,7 +597,7 @@ class VaultTests(unittest.TestCase):
             store = load_store(create=True, path=path)
             store["fields"]["EMAIL"] = "taro@example.test"
             write_store(store, path)
-            self.grant_consent(path, "get", "EMAIL", "email access")
+            consent_id = self.grant_consent(path, "get", "EMAIL", "email access")
             result = subprocess.run(
                 [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "consent", "list"],
                 check=True,
@@ -604,6 +606,8 @@ class VaultTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
             self.assertIn("EMAIL", result.stdout)
+            self.assertNotIn(consent_id, result.stdout)
+            self.assertIn("c_[redacted]", result.stdout)
             self.assertNotIn("taro@example.test", result.stdout)
 
     def test_cli_consent_request_approve_enables_one_raw_access(self) -> None:
@@ -631,6 +635,7 @@ class VaultTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
             )
             consent_id = json.loads(approve.stdout)["grant"]["id"]
+            self.assertIn(consent_id, approve.stdout)
             result = subprocess.run(
                 [
                     sys.executable,
@@ -654,6 +659,62 @@ class VaultTests(unittest.TestCase):
             consent_text = consent_path(path).read_text(encoding="utf-8")
             self.assertIn('"status": "approved"', consent_text)
             self.assertNotIn("山田", consent_text)
+            request_listing = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "requests",
+                    "--include-resolved",
+                ],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotIn(consent_id, request_listing.stdout)
+            self.assertIn("c_[redacted]", request_listing.stdout)
+
+    def test_cli_audit_tail_redacts_active_consent_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            purpose = "audit redaction"
+            consent_id = self.grant_consent(path, "get", "FAMILY_NAME", purpose)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "get",
+                    "FAMILY_NAME",
+                    "--purpose",
+                    purpose,
+                    "--consent-id",
+                    consent_id,
+                ],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "audit", "tail", "--limit", "10"],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotIn(consent_id, result.stdout)
+            self.assertIn("c_[redacted]", result.stdout)
+            self.assertNotIn("山田", result.stdout)
 
     def test_cli_consent_request_deny_does_not_issue_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

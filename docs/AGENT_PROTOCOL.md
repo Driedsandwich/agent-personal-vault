@@ -150,7 +150,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-Audit events include action, key, consent id, raw-returned flag, purpose, and outcome. Consent requests and grants include action, key, purpose, expiry or resolution state, and used status. They do not include raw stored values.
+Audit events include action, key, redacted consent id, raw-returned flag, purpose, and outcome. Agent-facing consent request and grant lists include action, key, purpose, expiry or resolution state, and used status; active raw-access grant ids are redacted. They do not include raw stored values.
 
 ## Subagents
 
