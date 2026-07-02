@@ -25,6 +25,13 @@ def _clean_text(value: str | None) -> str:
     return text[:240]
 
 
+def redact_consent_id(value: str | None) -> str:
+    text = _clean_text(value)
+    if text.startswith("c_"):
+        return "c_[redacted]"
+    return text
+
+
 def write_audit_event(
     *,
     vault_path: Path,
@@ -45,7 +52,7 @@ def write_audit_event(
         "key": key or "",
         "raw_returned": bool(raw_returned),
         "purpose": _clean_text(purpose),
-        "consent_id": _clean_text(consent_id),
+        "consent_id": redact_consent_id(consent_id),
         "outcome": outcome,
     }
     with path.open("a", encoding="utf-8") as handle:

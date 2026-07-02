@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .audit import write_audit_event
+from .audit import redact_consent_id, write_audit_event
 from .vault import ensure_private_dir, now_iso, store_path
 
 DEFAULT_TTL_SECONDS = 300
@@ -147,7 +147,7 @@ def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> l
             continue
         output.append(
             {
-                key: request.get(key, "")
+                key: redact_consent_id(str(request.get(key) or "")) if key == "consent_id" else request.get(key, "")
                 for key in ["id", "action", "key", "purpose", "requested_at", "resolved_at", "status", "actor", "consent_id"]
             }
         )
@@ -273,5 +273,10 @@ def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str
             continue
         if grant.get("used_at") and not include_used:
             continue
-        output.append({key: grant.get(key, "") for key in ["id", "action", "key", "purpose", "issued_at", "expires_at", "used_at", "actor"]})
+        output.append(
+            {
+                key: redact_consent_id(str(grant.get(key) or "")) if key == "id" else grant.get(key, "")
+                for key in ["id", "action", "key", "purpose", "issued_at", "expires_at", "used_at", "actor"]
+            }
+        )
     return output
