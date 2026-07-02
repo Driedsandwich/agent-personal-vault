@@ -62,8 +62,14 @@ def is_within_root(path: Path, root: Path) -> bool:
     return True
 
 
+def is_generated_dir_name(name: str) -> bool:
+    return name in GENERATED_DIRS or name.endswith(".egg-info")
+
+
 def is_skipped_path(path: Path) -> bool:
-    return path.name in LOCAL_DEVELOPER_CONFIG_FILES or any(part in SKIP_DIRS for part in path.parts)
+    return path.name in LOCAL_DEVELOPER_CONFIG_FILES or any(
+        part in SKIP_DIRS or is_generated_dir_name(part) for part in path.parts
+    )
 
 
 def iter_release_files(root: Path) -> list[Path]:

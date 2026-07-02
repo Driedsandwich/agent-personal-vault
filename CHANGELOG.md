@@ -12,7 +12,10 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
-No unreleased changes yet.
+### Documentation And Release Hygiene
+
+- Update README install examples to the current public alpha package version, `0.1.2`.
+- Treat local build outputs such as `dist/`, `build/`, and `*.egg-info/` as generated release-check cleanup targets so repository-root metadata checks do not pick up stale local package metadata.
 
 ## 0.1.2 - 2026-07-02
 

@@ -209,6 +209,42 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(files, {Path("README.md")})
 
+    def test_non_git_release_files_skip_build_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            (root / "README.md").write_text("public docs only\n", encoding="utf-8")
+            (root / "dist").mkdir()
+            (root / "dist" / "package.tar.gz").write_bytes(b"generated artifact")
+            egg_info = root / "agent_personal_vault.egg-info"
+            egg_info.mkdir()
+            (egg_info / "PKG-INFO").write_text("Version: 0.1.0\n", encoding="utf-8")
+
+            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
+
+            self.assertEqual(files, {Path("README.md")})
+
+    def test_clean_generated_removes_build_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            (root / "dist").mkdir()
+            (root / "dist" / "package.whl").write_bytes(b"generated artifact")
+            (root / "build").mkdir()
+            (root / "build" / "temp.txt").write_text("generated\n", encoding="utf-8")
+            egg_info = root / "agent_personal_vault.egg-info"
+            egg_info.mkdir()
+            (egg_info / "PKG-INFO").write_text("Version: 0.1.0\n", encoding="utf-8")
+
+            old_root = check_release.ROOT
+            try:
+                check_release.ROOT = root
+                check_release.clean_generated()
+            finally:
+                check_release.ROOT = old_root
+
+            self.assertFalse((root / "dist").exists())
+            self.assertFalse((root / "build").exists())
+            self.assertFalse(egg_info.exists())
+
     def test_tracked_local_developer_config_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()

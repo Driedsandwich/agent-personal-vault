@@ -90,6 +90,13 @@ def clean_generated() -> None:
     for path in ROOT.rglob(".pytest_cache"):
         if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
+    for dirname in ("dist", "build"):
+        path = ROOT / dirname
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+    for path in ROOT.glob("*.egg-info"):
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
     print("generated files cleaned")
 
 
