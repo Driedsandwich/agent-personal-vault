@@ -14,6 +14,24 @@ It does not authorize SNS, blog, newsletter, community, or other public announce
 
 Before posting anywhere, create a channel-specific approval request with the exact channel, account, text, timing, and target URL.
 
+## Non-Removable Disclaimer
+
+Every channel-specific announcement must keep the following points visible in the final text. Do not remove them to fit a short channel format.
+
+- Agent Personal Vault is an alpha local utility.
+- It is not encrypted by default.
+- It is not a compliance, enterprise-security, password-manager, or secret-manager replacement.
+- Public issues, comments, examples, and screenshots must use dummy data only.
+- The primary link must be the GitHub README:
+
+```text
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+- Do not quote a pinned `pip install agent-personal-vault==...` command in generic announcement text.
+
+If these points do not fit in a channel's short format, do not post there until a channel-specific approval packet is prepared.
+
 ## Current Routing Decision
 
 Use the GitHub README as the primary link:
@@ -64,6 +82,8 @@ Allowed framing present:
 - not encrypted by default
 - not a compliance, enterprise-security, password-manager, or secret-manager replacement
 - dummy data in public issues
+- GitHub README as the primary link
+- no pinned `pip install` command in generic announcement text
 
 Forbidden wording not used:
 
@@ -92,6 +112,7 @@ Announcement handling:
 - Link to the GitHub README instead of the PyPI project page.
 - Do not include a pinned `pip install` command in generic announcement copy.
 - If a channel requires installation instructions, use the README link and ask readers to follow the current README.
+- If a channel preview or auto-card emphasizes the PyPI project page or a pinned install command, do not post until that preview is corrected or a separate approval accepts the routing risk.
 - Do not create a new patch release solely from this packet. Version bump, tag, GitHub release, and PyPI publish remain separate approval lanes.
 
 ## Post-Announcement Monitoring
@@ -108,6 +129,7 @@ For the first 24 hours and the first week after any approved announcement, check
 
 Pause further announcements if:
 
+- the non-removable disclaimer is missing or weakened in the final channel text;
 - two or more independent users report the same consent, raw retrieval, MCP setup, install, or safety-boundary confusion;
 - any report suggests raw personal data, token, local private path, vault file, consent file, or audit file exposure;
 - CodeQL, Dependabot, secret scanning, or release-check state becomes red;
@@ -131,7 +153,7 @@ If a public announcement is wrong, misleading, or unsafe:
 Use this only after selecting the exact channel, account, timing, and final text:
 
 ```text
-Approve publishing the reviewed Agent Personal Vault announcement text to <channel/account> at <time or timing>. Target URL: https://github.com/Driedsandwich/agent-personal-vault. Do not create releases, tags, package publishes, repository setting changes, branch deletions, Trusted Publishing changes, Claude Desktop UI operations, API-billed validation, or additional announcements.
+Approve publishing the reviewed Agent Personal Vault announcement text to <channel/account> at <time or timing>. Target URL: https://github.com/Driedsandwich/agent-personal-vault. The final text must keep the non-removable disclaimer: alpha local utility, not encrypted by default, not a compliance/enterprise-security/password-manager/secret-manager replacement, public issues use dummy data only, GitHub README link only, and no pinned pip install command. Do not create releases, tags, package publishes, repository setting changes, branch deletions, Trusted Publishing changes, Claude Desktop UI operations, API-billed validation, or additional announcements.
 ```
 
 Approval for one channel does not authorize any other channel.
