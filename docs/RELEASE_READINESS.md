@@ -126,6 +126,69 @@ Rationale:
 - Remaining P1 risks still affect distribution confidence and must stay visible during RC preparation: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, limited support-load observation, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
 - Package build artifacts were validated locally, but no externally distributed release, tag, package index upload, or public support cycle has been exercised.
 
+## v0.1.1 Readiness Snapshot
+
+Status date: 2026-07-02.
+
+This snapshot summarizes the current v0.1.1 candidate state after the post-`v0.1.0` preparation pass. It does not authorize a version bump, GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+### Current State
+
+- `v0.1.0` is published as a GitHub prerelease and as the current PyPI package version.
+- `main` contains the post-publish documentation and packaging metadata follow-ups.
+- Open Issues/PRs were 0/0 at the start of the Issue #94 readiness pass.
+- Latest `main` test and CodeQL were successful at the start of the Issue #94 readiness pass.
+- Open CodeQL, Dependabot, and secret scanning alerts were 0 at the start of the Issue #94 readiness pass.
+
+### Candidate Changes To Include
+
+The current v0.1.1 candidate should stay small.
+
+- Project URL metadata: include the already-merged `[project.urls]` package metadata from Issue #86 / PR #87. This is the only current code/package metadata change intended for v0.1.1.
+- Documentation readiness: include the Trusted Publishing plan, branch cleanup candidate verification, and pre-announcement checklist updates as documentation/governance improvements.
+- Safety posture: keep the existing raw-free default, one-key raw retrieval boundary, no bulk raw export, and no unsupported security/compliance claims.
+
+### Changes To Exclude Unless Separately Approved
+
+Do not include these in v0.1.1 by default:
+
+- PyPI Trusted Publishing activation. The plan is documented in `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`, but PyPI publisher settings, GitHub environment protection, and an active publishing workflow remain separate approval lanes.
+- Branch deletion. Candidate evidence is documented in `docs/BRANCH_CLEANUP_CANDIDATES.md`, but local or remote branch deletion remains a separate explicit approval.
+- Public announcement. The checklist is documented in `docs/LAUNCH_MESSAGING.md`, but SNS/blog/community posting remains a separate explicit approval per channel and text.
+- New MCP raw-value tools, broader raw retrieval, or bulk raw export.
+- Claude Desktop full app restart or in-app live tool-call UX claims. That UX remains unvalidated unless separately approved and tested in a non-interfering environment.
+- Production, enterprise, compliance, privacy guarantee, data recovery, or broad MCP/client compatibility claims.
+
+### Release/Tag/Package Publish Stop Conditions
+
+Stop before any v0.1.1 release, tag, or package publish request if any of these are true:
+
+- `main` is not clean locally or does not match `origin/main`.
+- Open Issues/PRs include unresolved release safety, consent, raw leakage, install, packaging, MCP setup, or support-load concerns.
+- Latest `main` test, CodeQL, Dependency Graph, Dependabot, secret scanning, or local `python3 scripts/check_release.py` is failing or unknown.
+- Any raw personal data, secret, token, local private path, screenshot with raw values, vault file, consent file, audit file, database, backup, or private support detail appears in docs, release text, artifacts, workflow logs, PRs, or Issues.
+- The package version, target commit, tag, release text, changelog, or artifact hashes do not match the approval packet.
+- A fresh isolated build and `twine check` have not been run from the intended target commit.
+- PyPI already contains the intended version.
+- Two or more independent support signals show the same consent, raw retrieval, MCP setup, install, or safety-boundary confusion.
+- Any action would require repository settings, PyPI publisher settings, branch deletion, public announcement, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
+### Next Gate
+
+The next safe step is a v0.1.1 release-candidate preparation Issue/PR, not a release action.
+
+That preparation should:
+
+- decide whether the version should be `0.1.1`;
+- update `pyproject.toml` version only in a dedicated version bump PR;
+- prepare or update `CHANGELOG.md`;
+- run a fresh isolated package build from the intended target commit;
+- record sdist/wheel filenames, sizes, entry counts, SHA-256 hashes, and strict forbidden-file scan results;
+- verify PyPI metadata expectations, including Project URL display after a future publish;
+- prepare rollback notes and per-lane approval text.
+
+Completing that preparation still would not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
 ## RC Preparation Checklist
 
 RC preparation is allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
