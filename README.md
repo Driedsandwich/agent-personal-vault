@@ -325,6 +325,7 @@ python3 scripts/check_release.py
 | [OSS Governance](docs/OSS_GOVERNANCE.md) | Issue / PR / branch protection運用 |
 | [Release/Package Dry-Run Plan](docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md) | release/package publish前のdry-run確認項目 |
 | [RC Approval Plan](docs/RC_APPROVAL_PLAN.md) | release / tag / package publish / 告知の個別承認レーン |
+| [RC Approval Packet](docs/RC_APPROVAL_PACKET.md) | RC実行前の対象commit・release note・承認文レビュー |
 | [Reputation Risk Review](docs/REPUTATION_RISK_REVIEW.md) | 表現・炎上リスクの確認 |
 | [Launch Messaging](docs/LAUNCH_MESSAGING.md) | README、release notes、告知文の安全な書き方 |
 

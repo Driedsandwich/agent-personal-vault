@@ -14,6 +14,8 @@ It is a planning document only. It does not authorize GitHub release creation, t
 
 Each lane below requires a separate explicit approval before execution.
 
+Use `docs/RC_APPROVAL_PACKET.md` as the compact review packet for the current target commit, version, release note draft, security snapshot, and lane-specific approval text.
+
 ## Shared Preflight
 
 Run this preflight before asking for any execution approval:
