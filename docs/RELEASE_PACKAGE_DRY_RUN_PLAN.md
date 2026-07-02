@@ -95,6 +95,61 @@ Prepare these actions before approval:
 - Prefer artifacts built from a clean checkout of the target commit.
 - Do not claim supply-chain provenance stronger than what was actually verified.
 
+## v0.1.1 Candidate Planning
+
+This section tracks small follow-up candidates after the `v0.1.0` GitHub prerelease and PyPI publish. It is planning only. It does not authorize a version bump, tag, release, package publish, repository setting change, branch deletion, or announcement.
+
+### Project URL Metadata
+
+Candidate: add `[project.urls]` to `pyproject.toml` in a dedicated v0.1.1 PR so PyPI can show canonical project links.
+
+Recommended initial keys:
+
+- `Homepage`: GitHub repository URL.
+- `Source`: GitHub repository URL.
+- `Issues`: GitHub Issues URL.
+- `Documentation`: README or docs entry point URL.
+
+Acceptance checks before implementation:
+
+- Confirm the URLs are public and stable.
+- Confirm `python3 -m build`, `twine check`, and `python3 scripts/check_release.py` still pass.
+- Confirm the package metadata shown by PyPI matches the intended links after a separately approved future package publish.
+
+### PyPI Trusted Publishing
+
+Candidate: evaluate PyPI Trusted Publishing for a future publish lane so uploads can use a GitHub Actions OIDC workflow instead of a long-lived local API token.
+
+Trusted Publishing should be handled as a separate repository-setting and workflow-change lane because it requires PyPI-side publisher configuration and a GitHub Actions publish workflow. It is not required for emergency token-based maintenance, but it is preferable before repeated package publishes.
+
+Do not enable it without separate explicit approval for:
+
+- the PyPI project publisher configuration;
+- any GitHub Actions workflow that can publish to PyPI;
+- any GitHub environment or reviewer protection used by that workflow;
+- the first publish attempt through that workflow.
+
+### Branch Cleanup Candidate Verification
+
+Candidate: prune merged `codex/*` branches after verifying that each branch is already merged to `main` or has a tree matching `main`.
+
+Current branch cleanup must stay read-only unless branch deletion is separately approved. A safe verification pass may record:
+
+- local and remote `codex/*` branch counts;
+- `git branch --merged main --list "codex/*"` output;
+- `git branch -r --merged origin/main --list "origin/codex/*"` output;
+- any branch whose tree differs from `main`, with the relevant PR or risk note.
+
+Snapshot from Issue #83 planning:
+
+- Local `codex/*` branches before pushing this planning branch: 31, including the active planning branch.
+- Remote `origin/codex/*` branches before pushing this planning branch: 29.
+- Simple tree matching against current `main` is not enough for old squash-merged PR branches, because current `main` can include later commits that were not in the old branch tip.
+- GitHub PR history is the better first verification source for squash-merged branches: the visible `origin/codex/*` branches checked in this pass had corresponding merged PRs where a PR association was available.
+- Local-only `codex/sync-alpha-readiness-docs` appeared in `git branch --merged main --list "codex/*"` and is a potential local cleanup candidate, but still requires separate branch-deletion approval.
+
+Deletion commands remain prohibited in this planning lane. If deletion is later approved, local and remote deletions should be listed explicitly before execution and verified afterward. Use `gh pr merge` without `--delete-branch` unless branch deletion is separately approved.
+
 ## Security Alerts
 
 Before requesting release or package publish approval:
