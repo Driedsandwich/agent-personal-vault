@@ -8,13 +8,13 @@ last_updated: 2026-07-04
 
 ## Purpose
 
-This document evaluates PyPI Trusted Publishing for a future Agent Personal Vault package publish lane.
+This document records the Trusted Publishing setup and operating boundary for the Agent Personal Vault package publish lane.
 
-This is a planning document only. It does not authorize PyPI publisher configuration, GitHub repository setting changes, GitHub environment changes, workflow activation, package publishing, tag creation, release creation, branch deletion, announcement, Claude Desktop app UI operation, or API-billed validation.
+This is a planning and status document only. It does not authorize PyPI publisher configuration changes, GitHub repository setting changes, GitHub environment changes, workflow activation, package publishing, tag creation, release creation, branch deletion, announcement, Claude Desktop app UI operation, or API-billed validation.
 
 ## Recommendation
 
-Adopt PyPI Trusted Publishing before repeated package publishes, but not as an immediate background change.
+Use PyPI Trusted Publishing as the normal package publish path after the successful `v0.1.5` OIDC publish.
 
 Reason:
 
@@ -23,21 +23,22 @@ Reason:
 - It can be paired with a protected GitHub environment for human approval before upload.
 - It adds operational complexity and repository/PyPI settings that must be approved separately.
 
-Manual token publishing can remain an emergency fallback, but it should not be the preferred recurring path once a protected Trusted Publishing workflow is reviewed.
+Manual token publishing remains an emergency fallback only. It should not be the preferred recurring path now that the protected Trusted Publishing workflow has been validated.
 
 ## Current Repository State
 
-- Latest GitHub prerelease: `v0.1.4`.
-- Latest PyPI package: `0.1.4`.
+- Latest GitHub prerelease: `v0.1.5`.
+- Latest PyPI package: `0.1.5`.
 - Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.5` was published to PyPI through the Trusted Publishing OIDC lane.
 - The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
-- `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for a future OIDC publish lane. It does not authorize a publish by itself.
+- `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for the OIDC publish lane. It does not authorize a publish by itself.
 - GitHub environment `pypi` exists. It requires reviewer `Driedsandwich`, has `prevent_self_review: false`, uses protected-branches-only deployment policy, stores no environment secrets or PyPI token, and currently has `can_admins_bypass: true`.
 - PyPI Trusted Publisher setup is complete according to the PyPI project management UI confirmed by the project owner. The configured publisher is GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- PyPI public JSON does not expose Trusted Publisher configuration, so re-check the PyPI management UI or first OIDC workflow result before treating the lane as operational.
+- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
-- No package publish has used Trusted Publishing yet.
-- First OIDC publish preflight planning is tracked in Issue #142 and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
+- Trusted Publishing has been used successfully for `v0.1.5`.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 - Future publish actions remain separately approval-gated.
 
 ## PyPI Publisher Settings
@@ -51,7 +52,7 @@ Configured settings:
 - Workflow name: `pypi-publish.yml`
 - Environment name: `pypi`
 
-The PyPI project setting must match the future GitHub Actions workflow identity exactly. If the workflow filename or environment name changes, the PyPI publisher configuration must be reviewed again.
+The PyPI project setting must match the GitHub Actions workflow identity exactly. If the workflow filename or environment name changes, the PyPI publisher configuration must be reviewed again.
 
 PyPI-side setup is a separate external account action. Before changing it, confirm:
 
@@ -63,7 +64,7 @@ PyPI-side setup is a separate external account action. Before changing it, confi
 
 ## GitHub Actions Workflow
 
-The workflow file exists as the Lane 1 code preparation step. Do not run it for a real publish until GitHub environment setup, PyPI publisher setup, and first OIDC publish are separately approved.
+The workflow file exists and the first OIDC publish succeeded for `v0.1.5`. Do not run it for another real publish until the next version, tag, release, package availability, artifact, CI, security, and human approval gates are complete.
 
 Workflow shape:
 
@@ -190,7 +191,7 @@ Current approved setup:
 
 Optional later hardening:
 
-- Review whether admin bypass should be disabled before the first OIDC publish.
+- Review whether admin bypass should be disabled before a future publish as a separate repository-settings lane.
 - If a trusted second reviewer is available, reconsider `prevent_self_review: true`.
 - Do not change those settings without a separate repository-settings approval.
 
@@ -213,7 +214,7 @@ Fallback rules:
 - Run `twine check`, strict forbidden-file scan, and hash recording before upload.
 - Stop if there is any uncertainty about token scope, account ownership, artifact contents, or PyPI project ownership.
 
-## First OIDC Publish Stop Conditions
+## OIDC Publish Stop Conditions
 
 Stop before upload if any of these occur:
 
@@ -227,9 +228,9 @@ Stop before upload if any of these occur:
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
 
-First OIDC publish approval should be a separate release lane for a future version, not a background migration step.
+The first OIDC publish was completed for `v0.1.5`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
 
-Required preflight before the first OIDC publish:
+Required preflight before any future OIDC publish:
 
 - latest `main` is clean and matches `origin/main`;
 - target tag, package version, CHANGELOG, GitHub release state, and PyPI availability all agree;
@@ -249,10 +250,10 @@ Rollback after a bad OIDC publish:
 
 ## Decision
 
-Trusted Publishing is suitable for Agent Personal Vault, but only as a future explicitly approved publish-lane hardening step.
+Trusted Publishing is the validated normal publish lane for Agent Personal Vault, with manual token publishing retained only as an emergency fallback.
 
-Next safe step, if approved later:
+Next safe steps, if approved later:
 
-1. Separately approve the first OIDC publish attempt for a future version.
-2. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
-3. Consider admin-bypass hardening as a separate repository-settings lane before the first OIDC publish.
+1. Use Trusted Publishing for future approved package publishes by default.
+2. Keep manual project-scoped token publishing as a documented emergency fallback only.
+3. Consider admin-bypass hardening as a separate repository-settings lane.

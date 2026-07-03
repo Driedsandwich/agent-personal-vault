@@ -14,48 +14,47 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.4`.
-- Latest PyPI package: `0.1.4`.
-- Latest Trusted Publisher documentation checkpoint before this preflight plan: `179ec1b2a2c7f5ddc913d33277d9224320bb4293`.
-- Trusted Publishing setup is prepared, but it has not been used for a package publish. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
-- A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
+- Latest GitHub prerelease: `v0.1.5`.
+- Latest PyPI package: `0.1.5`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `329534a10cd2ac00141a1bd4d323d27709c5c4b3`.
+- Trusted Publishing setup has been validated by the `v0.1.5` PyPI publish through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.5` is tagged, published as a GitHub prerelease, and published to PyPI.
+- The manual `publish-package` workflow exists and was used for the first OIDC publish after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- No package publish has used the Trusted Publisher yet.
-- PyPI `0.1.5` was not published when this preflight plan was created.
+- The Trusted Publisher was used successfully for the `v0.1.5` PyPI publish.
+- Manual token publishing is now an emergency fallback only.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
-## First Trusted Publishing OIDC Publish Preflight Plan
+## Trusted Publishing OIDC Publish Plan
 
 Status date: 2026-07-04.
 
-This section records the preflight plan for a future first Trusted Publishing OIDC publish. It does not authorize a version bump, GitHub tag creation, GitHub release creation or publish, PyPI package upload, SNS/blog announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This section records the preflight plan that was used for the first Trusted Publishing OIDC publish and remains the baseline for future OIDC publishes. It does not authorize a version bump, GitHub tag creation, GitHub release creation or publish, PyPI package upload, SNS/blog announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### Current Verified State
 
-- `origin/main` was `179ec1b2a2c7f5ddc913d33277d9224320bb4293` at the start of this preflight planning pass.
-- Open Issues/PRs were 0/0 before Issue #142 was opened for this planning work.
-- GitHub release `v0.1.4` is published as a prerelease and points to `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
-- PyPI latest is `0.1.4`; PyPI `0.1.5` is not present.
+- `v0.1.5` is published as a GitHub prerelease and points to `329534a10cd2ac00141a1bd4d323d27709c5c4b3`.
+- PyPI latest is `0.1.5`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- Latest `main` GitHub Actions `test` and CodeQL runs succeeded at commit `179ec1b2a2c7f5ddc913d33277d9224320bb4293`.
-- Open CodeQL, Dependabot, and secret-scanning alerts were 0 during this preflight planning pass.
+- The `v0.1.5` OIDC publish workflow completed successfully.
+- PyPI provenance/attestation metadata is present for the `v0.1.5` wheel and sdist.
+- Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
 
-Do not use Trusted Publishing to republish `0.1.4`. PyPI versions are immutable, and the workflow should stop if the target version already exists on PyPI.
+Do not use Trusted Publishing to republish an existing PyPI version. PyPI versions are immutable, and the workflow should stop if the target version already exists on PyPI.
 
-If the first OIDC publish is approved, use a future version such as `0.1.5` only after a dedicated Issue/PR updates:
+For a future OIDC publish, use a new version only after a dedicated Issue/PR updates:
 
 - `pyproject.toml` version;
 - `CHANGELOG.md`;
 - release/package dry-run evidence;
 - any release-note text that must mention the publishing-lane change.
 
-The first OIDC publish may be an infrastructure-validation patch release if no runtime change is needed, but it still needs the same version, changelog, artifact, CI, and security checks as any package publish.
+An OIDC publish may be an infrastructure-validation patch release if no runtime change is needed, but it still needs the same version, changelog, artifact, CI, and security checks as any package publish.
 
 ### Fresh Artifact Preflight
 
@@ -70,22 +69,22 @@ Before asking to run the OIDC workflow, rebuild artifacts from the approved tag 
 - strict forbidden-file scan result;
 - PyPI absence for the exact target version.
 
-Do not reuse the `v0.1.4` local artifact hashes as authorization for an OIDC publish.
+Do not reuse previous local artifact hashes as authorization for an OIDC publish.
 
 ### Approval Lanes
 
-Keep the first OIDC publish split into separate approvals:
+Keep each OIDC publish split into separate approvals:
 
-1. `v0.1.5` or later version-bump PR, including `CHANGELOG.md` and fresh artifact dry-run evidence.
+1. Version-bump PR, including `CHANGELOG.md` and fresh artifact dry-run evidence.
 2. GitHub tag creation for the approved commit.
 3. GitHub prerelease draft and publish for the approved tag, if still desired before package upload.
-4. First OIDC publish workflow dispatch using the approved tag and exact confirmation phrase.
+4. OIDC publish workflow dispatch using the approved tag and exact confirmation phrase.
 5. Post-publish verification of PyPI page, install, console scripts, Project-URL metadata, Actions logs, security alerts, and open Issue/PR state.
 6. Any SNS/blog/community announcement as a separate optional lane.
 
 ### Stop Conditions
 
-Stop before the first OIDC publish if any of these are true:
+Stop before an OIDC publish if any of these are true:
 
 - The target version already exists on PyPI.
 - The workflow filename, repository, owner, or environment no longer matches the PyPI Trusted Publisher settings.
@@ -124,12 +123,19 @@ Candidate scope:
 - include the first Trusted Publishing OIDC publish preflight planning updates;
 - refresh README install examples so the package long description points to `agent-personal-vault==0.1.5`.
 
-Current external state during this dry-run:
+External state during the original dry-run:
 
 - PyPI latest remains `0.1.4`.
 - PyPI `0.1.5` is absent.
 - GitHub release `v0.1.4` remains the latest GitHub prerelease.
 - No Trusted Publishing OIDC publish has been run yet.
+
+Post-publish status after the separately approved release lanes:
+
+- GitHub release `v0.1.5` is published as a prerelease.
+- PyPI latest is `0.1.5`.
+- Trusted Publishing OIDC publish succeeded through the `publish-package` workflow.
+- Manual token publishing is now an emergency fallback only.
 
 Local dry-run checks:
 
@@ -150,13 +156,23 @@ Artifact evidence:
 | `agent_personal_vault-0.1.5-py3-none-any.whl` | 34,723 bytes | 15 | `59ada157b83e7c93d34687760bc76672c8a76855ae79c48b8dbb91a3cf789bc9` |
 | `agent_personal_vault-0.1.5.tar.gz` | 44,831 bytes | 22 | `035346aae2064a17ff1528e1ab57ee032d4adf07ff029df5ba60ec02a4ee16d4` |
 
-Next approval gates:
+Uploaded artifact evidence:
 
-1. Merge the `v0.1.5` preparation PR after release-check and CI pass.
-2. Separately approve tag creation for the merged commit.
-3. Separately approve GitHub prerelease draft/publish if still desired.
-4. Separately approve the first OIDC workflow dispatch for the approved tag.
-5. Separately approve any public announcement.
+| Artifact | Size | SHA-256 |
+| --- | ---: | --- |
+| `agent_personal_vault-0.1.5-py3-none-any.whl` | 34,723 bytes | `b8b7709a6ca17ca5413a6e7228e963b5b3a16e8d2b8fbd95fc134eb8c06a6633` |
+| `agent_personal_vault-0.1.5.tar.gz` | 44,611 bytes | `990259a0d259355e4b88236170a7a843483e10151ecbea2199376b0d3a96884c` |
+
+Completed approval gates:
+
+1. The `v0.1.5` preparation PR was merged after release-check and CI passed.
+2. Tag `v0.1.5` was created for the approved commit.
+3. GitHub prerelease `v0.1.5` was published.
+4. The first OIDC workflow dispatch for tag `v0.1.5` completed successfully.
+
+Remaining approval gate:
+
+1. Separately approve any public announcement.
 
 ## Scope
 
@@ -396,7 +412,7 @@ Post-publish status:
 
 - `v0.1.4` has since been tagged, published as a GitHub prerelease, and uploaded to PyPI through the separately approved release/package lanes.
 - The uploaded PyPI files were regenerated from tag `v0.1.4` at `ce0abbef2c899e9d0d227080da4b969f9cfde560`; their hashes are listed below.
-- `v0.1.4` itself used the manual token fallback lane. Trusted Publishing setup was handled later and still requires a separately approved first OIDC publish before it becomes the verified recurring publish path.
+- `v0.1.4` itself used the manual token fallback lane. Trusted Publishing setup was handled later and was validated by the separately approved `v0.1.5` OIDC publish.
 
 Candidate scope:
 
@@ -430,5 +446,6 @@ Before any future separately approved package publish, regenerate artifacts from
 Trusted Publishing note:
 
 - `v0.1.4` was published through the manual token fallback lane.
-- A future OIDC publish must not reuse these artifact hashes as authorization.
-- The first Trusted Publishing run needs fresh artifacts, the existing GitHub `pypi` environment to be reviewed as still correct, matching PyPI publisher settings, and a separate first-OIDC-publish approval.
+- `v0.1.5` was published through the Trusted Publishing OIDC lane.
+- A future OIDC publish must not reuse old artifact hashes as authorization.
+- Future Trusted Publishing runs need fresh artifacts, the existing GitHub `pypi` environment to be reviewed as still correct, matching PyPI publisher settings, and a separate publish approval.
