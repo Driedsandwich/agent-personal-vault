@@ -12,12 +12,12 @@ last_updated: 2026-07-03
 
 Current distribution snapshot:
 
-- Latest GitHub prerelease: `v0.1.3`.
-- Latest PyPI package: `0.1.3`.
-- Latest main commit: `4d81a2b fix: harden consent state access`.
+- Latest GitHub prerelease: `v0.1.4`.
+- Latest PyPI package: `0.1.4`.
+- Latest main commit: `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
-- Trusted Publishing is still not enabled. All package publishes through `v0.1.3` used the manual token fallback lane.
-- Changes after `v0.1.3` are not on PyPI yet. They include boundary cleanup plus consent/local-file hardening.
+- Trusted Publishing is still not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
+- The v0.1.4 GitHub prerelease and PyPI package now include the boundary cleanup plus consent/local-file hardening.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
@@ -425,35 +425,34 @@ The following actions remain stopped:
 
 Current v0.1.4 candidate decision:
 
-- Recommendation: prepare a small `v0.1.4` patch release next, rather than waiting for additional hardening.
-- Reason: main now contains user-facing safety-boundary docs and consent-state hardening that are not present in the PyPI `0.1.3` package.
-- Scope should stay narrow: version bump to `0.1.4`, CHANGELOG finalization, fresh isolated artifact build from the target commit, hash recording, GitHub tag/release lanes, and PyPI publish lane.
+- Outcome: `v0.1.4` was released as a GitHub prerelease and published to PyPI.
+- Reason: v0.1.4 carries the user-facing safety-boundary docs and consent-state hardening that were not present in the PyPI `0.1.3` package.
+- Scope stayed narrow: version bump to `0.1.4`, CHANGELOG finalization, fresh isolated artifact build from the target commit, hash recording, GitHub tag/release lanes, and PyPI publish lane.
 - Do not bundle Trusted Publishing activation into this patch by default. It remains a separate repository/PyPI settings lane.
 - Stop if local release-check, PR CI, CodeQL, Dependabot/security alerts, PyPI version availability, or artifact forbidden-file scan fails.
 
-Latest pre-version-bump checks:
+Latest v0.1.4 publish checks:
 
-- Local `python3 scripts/check_release.py`: pass on `4d81a2b`.
-- Main `test` workflow: success on `4d81a2b`.
-- Main `CodeQL` workflow: success on `4d81a2b`.
+- Local `python3 scripts/check_release.py`: pass on `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- Main `test` workflow: success on `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- Main `CodeQL` workflow: success on `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
 - Open GitHub Issues/PRs: `0 / 0` at the checkpoint.
 - Open CodeQL alerts: `0`.
 - Open Dependabot alerts: `0`.
-- PyPI latest: `0.1.3`; `0.1.4` is not published.
-- GitHub release `v0.1.4`: not present.
-- v0.1.4 candidate version bump and artifact dry-run evidence are tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
+- PyPI latest: `0.1.4`.
+- GitHub release `v0.1.4`: published as a prerelease.
+- v0.1.4 candidate and publish evidence are tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 
-Current-main artifact dry-run evidence, before any version bump:
+v0.1.4 uploaded artifact evidence:
 
-- Built from `HEAD` with current package version `0.1.3`; these hashes are not v0.1.4 release hashes.
-- `agent_personal_vault-0.1.3-py3-none-any.whl`: 34,724 bytes, 15 entries, SHA-256 `45d7608915fab5ea3df5540db00fd9a6570a4d92277642dd5a2a5ec8ed8e318d`, no forbidden artifact name hits.
-- `agent_personal_vault-0.1.3.tar.gz`: 44,647 bytes, 26 entries, SHA-256 `90194a23a9daf0d45b2c55cb8ba2e3acea6dbc0d248fed7a2ea1d60e42421c2a`, no forbidden artifact name hits.
-- Regenerate fresh artifact hashes after any separately approved version bump to `0.1.4`.
+- Built from tag `v0.1.4` at `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- `agent_personal_vault-0.1.4-py3-none-any.whl`: 34,722 bytes, 15 entries, SHA-256 `08470b40a84f6efcde1661584bf1e647b0001bdecacc6a73925b2a069f8df16e`, no forbidden artifact name hits.
+- `agent_personal_vault-0.1.4.tar.gz`: 44,619 bytes, 26 entries, SHA-256 `d62d2a4c2e8699d1a80fce7c21385bd8d7a057a33a6dfa3103c0d2c81f4c4572`, no forbidden artifact name hits.
 
 If the user wants to proceed, the next bounded action is:
 
 ```text
-Prepare the v0.1.4 patch release candidate through Issue/PR by bumping the package version to 0.1.4, finalizing the CHANGELOG entry from Unreleased, rebuilding fresh isolated artifacts from the target commit, recording hashes, running release-check and CI, and then stopping for separate tag/release/package-publish approvals.
+Run the post-v0.1.4 lightweight observation cycle: confirm the GitHub prerelease, PyPI page, clean install, console scripts, README/PyPI description, Actions, security alerts, open Issue/PR state, and external feedback. Issue or PR only small corrections discovered by that observation.
 ```
 
-This still does not create a GitHub release, tag, publish a package, change repository settings, delete branches, operate Claude Desktop app UI, use API-billed validation, or announce the project publicly. Release creation, tag creation, package publish, repository setting changes, branch deletion, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.
+This still does not create a new GitHub release, tag, package publish, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, or public announcement. Future release creation, tag creation, package publish, repository setting changes, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.

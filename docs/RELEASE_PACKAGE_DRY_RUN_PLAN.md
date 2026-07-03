@@ -14,11 +14,11 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.3`.
-- Latest PyPI package: `0.1.3`.
-- Latest main commit: `4d81a2b fix: harden consent state access`.
-- Trusted Publishing is not enabled. Package publishes through `v0.1.3` used the manual token fallback lane.
-- `v0.1.4` is not tagged, released, or published.
+- Latest GitHub prerelease: `v0.1.4`.
+- Latest PyPI package: `0.1.4`.
+- Latest main commit: `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- Trusted Publishing is not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Scope
@@ -246,6 +246,12 @@ Meeting these criteria still does not authorize release creation or package publ
 
 This section records the package dry-run for the `v0.1.4` patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, or API-billed validation.
 
+Post-publish status:
+
+- `v0.1.4` has since been tagged, published as a GitHub prerelease, and uploaded to PyPI through the separately approved release/package lanes.
+- The uploaded PyPI files were regenerated from tag `v0.1.4` at `ce0abbef2c899e9d0d227080da4b969f9cfde560`; their hashes are listed below.
+- Trusted Publishing remains disabled and should be handled as a separate settings/workflow lane.
+
 Candidate scope:
 
 - publish the post-`v0.1.3` boundary cleanup and consent/local-file hardening already merged to `main`;
@@ -270,7 +276,7 @@ Artifacts:
 
 | file | size | entries | SHA-256 |
 | --- | ---: | ---: | --- |
-| `agent_personal_vault-0.1.4-py3-none-any.whl` | 34,722 bytes | 15 | `a9fe8147b696c5079092e66a3751cfb5bf34665781a0b522f1b84d9f71ea1084` |
-| `agent_personal_vault-0.1.4.tar.gz` | 44,818 bytes | 26 | `d75423071f110c722985c265f7b281ebd7e42e8c07fb318a1d16ed938967fed2` |
+| `agent_personal_vault-0.1.4-py3-none-any.whl` | 34,722 bytes | 15 | `08470b40a84f6efcde1661584bf1e647b0001bdecacc6a73925b2a069f8df16e` |
+| `agent_personal_vault-0.1.4.tar.gz` | 44,619 bytes | 26 | `d62d2a4c2e8699d1a80fce7c21385bd8d7a057a33a6dfa3103c0d2c81f4c4572` |
 
-Before any separately approved package publish, regenerate artifacts from the approved tag or target commit and compare the filename, version, metadata, forbidden-file scan, and SHA-256 values. Do not upload these dry-run artifacts unless that exact upload is separately approved.
+Before any future separately approved package publish, regenerate artifacts from the approved tag or target commit and compare the filename, version, metadata, forbidden-file scan, and SHA-256 values. Do not upload dry-run artifacts unless that exact upload is separately approved.

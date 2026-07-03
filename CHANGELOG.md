@@ -12,7 +12,9 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
-No unreleased changes yet.
+### Documentation And Release Hygiene
+
+- Refreshed post-`v0.1.4` release/package status text after the GitHub prerelease and PyPI package were both published.
 
 ## 0.1.4 - 2026-07-03
 

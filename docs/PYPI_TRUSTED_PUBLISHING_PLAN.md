@@ -29,7 +29,7 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 
 - The repository currently has a test workflow only.
 - There is no active package-publishing GitHub Actions workflow.
-- Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, and `v0.1.3`.
+- Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
 - No package publish has used Trusted Publishing yet.
 - Future publish actions remain separately approval-gated.
 
