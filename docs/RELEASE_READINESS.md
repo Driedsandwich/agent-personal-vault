@@ -19,7 +19,8 @@ Current distribution snapshot:
 - Trusted Publishing is still not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
 - A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
-- PyPI Trusted Publisher configuration should be treated as not configured until the project owner confirms it in PyPI.
+- PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
+- No package publish has used the Trusted Publisher yet.
 - The v0.1.4 GitHub prerelease and PyPI package now include the boundary cleanup plus consent/local-file hardening.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
@@ -470,12 +471,12 @@ Current state:
 - Package publishes through `v0.1.4` used the manual token fallback lane.
 - `.github/workflows/pypi-publish.yml` exists as a manual workflow-dispatch path for a future OIDC publish lane.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
-- PyPI Trusted Publisher setup has not been performed through this repository workflow and should be treated as not configured until the project owner confirms it in PyPI.
+- PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
+- PyPI public JSON does not expose this publisher configuration; confirm again in the PyPI management UI or through the first OIDC workflow result before treating the lane as operational.
 
 Recommended sequencing:
 
-1. Configure the PyPI Trusted Publisher for owner `Driedsandwich`, repository `agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi` through a separate PyPI account approval.
-2. Attempt the first OIDC publish only for a future separately approved version after fresh artifact, CI, security, PyPI availability, and release-note checks.
-3. Consider disabling admin bypass before the first OIDC publish as a separate repository-settings approval.
+1. Attempt the first OIDC publish only for a future separately approved version after fresh artifact, CI, security, PyPI availability, and release-note checks.
+2. Consider disabling admin bypass before the first OIDC publish as a separate repository-settings approval.
 
 Stop before any Trusted Publishing activation if the workflow can publish from an unapproved branch, the environment lacks human approval, PyPI settings do not exactly match the workflow identity, artifacts contain forbidden files, the package version already exists on PyPI, or any real personal data, secrets, private paths, or private support details appear in logs or artifacts.

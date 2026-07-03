@@ -21,7 +21,8 @@ Current package state:
 - `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
 - A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
-- PyPI Trusted Publisher configuration should be treated as not configured until it is explicitly confirmed in PyPI.
+- PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
+- No package publish has used the Trusted Publisher yet.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Scope
@@ -138,10 +139,10 @@ Detailed plan: `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 Do not enable it without separate explicit approval for:
 
-- the PyPI project publisher configuration;
 - the first publish attempt through that workflow.
 
 The GitHub `pypi` environment already exists. Changing its reviewers, admin bypass behavior, self-review setting, branch policy, or secrets remains a separate repository-settings approval.
+The PyPI Trusted Publisher already exists according to the PyPI management UI. Changing or deleting it remains a separate PyPI account approval.
 
 Before the first OIDC publish dry-run, confirm:
 
