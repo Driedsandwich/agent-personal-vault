@@ -8,6 +8,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from agent_personal_vault import __version__
@@ -662,6 +663,48 @@ class VaultTests(unittest.TestCase):
             consent_text = consent_path(path).read_text(encoding="utf-8")
             self.assertNotIn("山田", consent_text)
 
+    def test_cli_consent_token_concurrent_consume_allows_one_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            purpose = "concurrent one time access"
+            consent_id = self.grant_consent(path, "get", "FAMILY_NAME", purpose)
+            command = [
+                sys.executable,
+                "-m",
+                "agent_personal_vault.cli",
+                "--store",
+                str(path),
+                "get",
+                "FAMILY_NAME",
+                "--purpose",
+                purpose,
+                "--consent-id",
+                consent_id,
+            ]
+
+            def run_get() -> subprocess.CompletedProcess[str]:
+                return subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                results = list(executor.map(lambda _: run_get(), range(8)))
+
+            successes = [result for result in results if result.returncode == 0]
+            failures = [result for result in results if result.returncode != 0]
+            self.assertEqual(len(successes), 1)
+            self.assertEqual(successes[0].stdout.strip(), "山田")
+            self.assertEqual(len(failures), 7)
+            self.assertTrue(all("already been used" in result.stderr for result in failures))
+
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            used = [grant for grant in state["grants"] if grant["id"] == consent_id and grant["used_at"]]
+            self.assertEqual(len(used), 1)
+            events = read_audit_events(path, limit=20)
+            self.assertEqual(sum(1 for event in events if event["action"] == "consent_consume" and event["outcome"] == "allowed"), 1)
+            self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
+
     def test_cli_consent_list_is_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1063,8 +1106,8 @@ class VaultTests(unittest.TestCase):
                     "name": "apv.request_consent",
                     "arguments": {
                         "action": "get",
-                        "key": "UNKNOWN",
-                        "purpose": "prepare local draft for user review",
+                        "key": "UNKNOWN/private-path-marker",
+                        "purpose": "raw-looking purpose 山田 private.person@example.test",
                     },
                 },
             }
@@ -1078,8 +1121,12 @@ class VaultTests(unittest.TestCase):
             )
             response = json.loads(result.stdout)
             self.assertEqual(response["error"]["code"], -32602)
-            self.assertIn("Unknown key: UNKNOWN", response["error"]["message"])
-            self.assertIn("FULL_NAME", response["error"]["message"])
+            self.assertEqual(response["error"]["message"], "Unknown key")
+            encoded = json.dumps(response, ensure_ascii=False)
+            self.assertNotIn("private-path-marker", encoded)
+            self.assertNotIn("山田", encoded)
+            self.assertNotIn("private.person@example.test", encoded)
+            self.assertEqual(list_consent_requests(path), [])
 
     def test_mcp_missing_store_error_does_not_leak_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
