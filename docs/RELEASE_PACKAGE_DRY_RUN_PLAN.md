@@ -16,7 +16,9 @@ Current package state:
 
 - Latest GitHub prerelease: `v0.1.3`.
 - Latest PyPI package: `0.1.3`.
+- Latest main commit: `4d81a2b fix: harden consent state access`.
 - Trusted Publishing is not enabled. Package publishes through `v0.1.3` used the manual token fallback lane.
+- `v0.1.4` is not tagged, released, or published.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Scope
