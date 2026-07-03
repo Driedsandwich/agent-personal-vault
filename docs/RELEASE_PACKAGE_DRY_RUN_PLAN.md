@@ -93,7 +93,7 @@ Stop before an OIDC publish if any of these are true:
 - GitHub environment approval is missing, bypassed unexpectedly, or changed without a separate repository-settings approval.
 - CI, CodeQL, Dependabot, secret scanning, local release-check, `twine check`, or strict artifact scan fails.
 - Artifacts, docs, workflow logs, Issues, PRs, or release text contain raw personal data, secrets, private local paths, vault files, consent files, audit files, generated databases, or private support details.
-- The requested action also includes repository setting changes, branch deletion, SNS/blog announcement, Claude Desktop app UI operation, API-billed validation, or manual token fallback without separate explicit approval.
+- The requested action also includes repository setting changes, branch deletion, SNS/blog announcement, Claude Desktop app UI operation, API-billed validation, or manual token fallback without separate explicit emergency approval.
 
 ### Rollback
 
@@ -300,7 +300,7 @@ Before the first OIDC publish dry-run, confirm:
 - the publish job uses the protected `pypi` environment;
 - the workflow dispatch input tag resolves to `refs/tags/<tag>`, not a branch;
 - artifacts are built from the approved tag and downloaded into the publish job;
-- manual token fallback remains available only for separately approved emergency maintenance.
+- manual token fallback remains available only for separately approved emergency maintenance and is not the normal publish path after the `v0.1.5` OIDC validation.
 
 ## v0.1.2 Candidate Planning
 
