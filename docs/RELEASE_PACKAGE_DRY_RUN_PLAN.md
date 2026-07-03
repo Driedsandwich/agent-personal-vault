@@ -111,6 +111,47 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.8 Boundary Hardening Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.8` boundary-hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
+Candidate scope:
+
+- bump package version from `0.1.7` to `0.1.8`;
+- move post-`v0.1.7` safety changes into the `0.1.8` changelog entry;
+- include raw-looking task redaction for CLI `context --task` and MCP `apv.context` planning hints;
+- include CLI negative-path hardening so expected local errors do not emit Python tracebacks, raw values, or local store paths;
+- include private-mode temporary file creation before atomic vault and consent state replacement;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.8`.
+
+External state during this dry-run:
+
+- PyPI latest is `0.1.7`.
+- PyPI `0.1.8` is absent.
+- GitHub release `v0.1.7` is published as a prerelease.
+- No `v0.1.8` tag, GitHub release, package publish, or Trusted Publishing publish has been run.
+
+Local dry-run checks:
+
+- Fresh isolated artifact build source: temporary worktree copy with generated outputs, `.git`, and local metadata excluded.
+- `twine check dist/*`: passed.
+- Project URL metadata is present in the wheel artifact:
+  - `Homepage`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues`: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation`: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file scan: passed for both artifacts.
+- Wheel metadata reports version `0.1.8`.
+
+Artifact evidence:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.8-py3-none-any.whl` | 35,689 bytes | 15 | `4983ad573351fc3ef76c033f76f00105d0009102b565b48c75290225cd52603f` |
+| `agent_personal_vault-0.1.8.tar.gz` | 46,997 bytes | 26 | `cc450bbccb96d95959ab553ecaf9a746d6f5e0b1bc6f5991d409150e70108051` |
+
 ## v0.1.7 Purpose Redaction Patch Candidate Dry-Run
 
 Status date: 2026-07-04.
