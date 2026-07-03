@@ -22,7 +22,8 @@ Current distribution snapshot:
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
 - The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, and `v0.1.7` PyPI publishes.
 - First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, and post-`v0.1.7` status synchronization is tracked in Issue #167.
-- The v0.1.7 GitHub prerelease and PyPI package include the latest raw-looking `purpose` redaction and regression coverage updates.
+- The v0.1.7 GitHub prerelease and PyPI package include raw-looking `purpose` redaction and regression coverage updates.
+- Main now contains a v0.1.8 patch candidate for post-`v0.1.7` raw-looking task redaction, CLI negative-path hardening, and private temp write improvements. It is not tagged, released, or published until separate approvals are granted.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
