@@ -4,7 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 
 All notable changes to Agent Personal Vault will be documented here.
 
@@ -12,9 +12,15 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.1.5 - 2026-07-04
+
 ### Documentation And Release Hygiene
 
 - Refreshed post-`v0.1.4` release/package status text after the GitHub prerelease and PyPI package were both published.
+- Prepared the first Trusted Publishing OIDC publish validation patch, including release-readiness and package dry-run planning updates.
+- Updated README install examples so the PyPI long description for this patch points to `agent-personal-vault==0.1.5`.
 
 ## 0.1.4 - 2026-07-03
 

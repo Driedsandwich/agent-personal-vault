@@ -111,6 +111,53 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.5 Infrastructure Validation Patch Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.5` infrastructure-validation patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing first publish run, Claude Desktop app UI operation, or API-billed validation.
+
+Candidate scope:
+
+- bump package version from `0.1.4` to `0.1.5`;
+- move the post-`v0.1.4` release/package status refresh from `Unreleased` into the `0.1.5` changelog entry;
+- include the first Trusted Publishing OIDC publish preflight planning updates;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.5`.
+
+Current external state during this dry-run:
+
+- PyPI latest remains `0.1.4`.
+- PyPI `0.1.5` is absent.
+- GitHub release `v0.1.4` remains the latest GitHub prerelease.
+- No Trusted Publishing OIDC publish has been run yet.
+
+Local dry-run checks:
+
+- Fresh isolated artifact build path: `/tmp/apv-v015-dry-run`.
+- `twine check dist/*`: passed.
+- Project URL metadata is present in both artifacts:
+  - `Homepage`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues`: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation`: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file scan: passed for both artifacts.
+- README install examples contain `agent-personal-vault==0.1.5` and no `agent-personal-vault==0.1.4` examples.
+
+Artifact evidence:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.5-py3-none-any.whl` | 34,723 bytes | 15 | `59ada157b83e7c93d34687760bc76672c8a76855ae79c48b8dbb91a3cf789bc9` |
+| `agent_personal_vault-0.1.5.tar.gz` | 44,831 bytes | 22 | `035346aae2064a17ff1528e1ab57ee032d4adf07ff029df5ba60ec02a4ee16d4` |
+
+Next approval gates:
+
+1. Merge the `v0.1.5` preparation PR after release-check and CI pass.
+2. Separately approve tag creation for the merged commit.
+3. Separately approve GitHub prerelease draft/publish if still desired.
+4. Separately approve the first OIDC workflow dispatch for the approved tag.
+5. Separately approve any public announcement.
+
 ## Scope
 
 Use this plan before any distribution approval request to confirm that the release path is reproducible, reversible enough for an alpha project, and still raw-free by default.
