@@ -21,7 +21,7 @@ except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
 from .audit import _clean_text, redact_consent_id, write_audit_event
-from .vault import ensure_private_dir, now_iso, store_path
+from .vault import ensure_private_dir, now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
 
@@ -95,14 +95,7 @@ def _load_state(path: Path) -> dict[str, Any]:
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
-    ensure_private_dir(path.parent)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with tmp_path.open("w", encoding="utf-8") as handle:
-        json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.chmod(tmp_path, 0o600)
-    tmp_path.replace(path)
-    os.chmod(path, 0o600)
+    write_json_private(path, state)
 
 
 def issue_consent(

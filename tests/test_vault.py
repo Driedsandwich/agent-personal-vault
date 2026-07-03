@@ -8,6 +8,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from agent_personal_vault.crypto_store import cryptography_available, is_encrypt
 from agent_personal_vault.gui import audit_view_payload, page_html, save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
+    blank_store,
     check_summary,
     derived_fields,
     local_user_path,
@@ -123,6 +125,27 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o755)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
+    def test_store_temp_file_is_private_before_json_write(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "shared-parent"
+            parent.mkdir()
+            os.chmod(parent, 0o777)
+            path = parent / "vault.json"
+            tmp_path = path.with_suffix(path.suffix + ".tmp")
+            store = blank_store()
+            original_dump = json.dump
+            observed_modes: list[int] = []
+
+            def checking_dump(*args, **kwargs):
+                observed_modes.append(stat.S_IMODE(tmp_path.stat().st_mode))
+                return original_dump(*args, **kwargs)
+
+            with mock.patch("agent_personal_vault.vault.json.dump", side_effect=checking_dump):
+                write_store(store, path)
+
+            self.assertEqual(observed_modes, [0o600])
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
     def test_package_version_matches_pyproject(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(__version__, pyproject["project"]["version"])
@@ -181,6 +204,8 @@ class VaultTests(unittest.TestCase):
             encoded = json.dumps(hints, ensure_ascii=False)
             self.assertFalse(hints["raw_values_included"])
             self.assertTrue(hints["conservative"])
+            self.assertEqual(hints["task"], "[redacted]")
+            self.assertFalse(hints["task_echoed"])
             self.assertIn("FULL_NAME", encoded)
             self.assertIn("EMAIL", encoded)
             self.assertNotIn("山田", encoded)
@@ -251,10 +276,40 @@ class VaultTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertFalse(payload["raw_values_included"])
             self.assertIn("planning_hints", payload)
+            self.assertEqual(payload["planning_hints"]["task"], "[redacted]")
+            self.assertFalse(payload["planning_hints"]["task_echoed"])
             self.assertIn("FULL_NAME", result.stdout)
             self.assertIn("EMAIL", result.stdout)
             self.assertNotIn("山田", result.stdout)
             self.assertNotIn("private.person@example.test", result.stdout)
+
+    def test_cli_context_task_redacts_raw_looking_user_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            raw_task = "draft for 山田 private.person@example.test 03-1234-5678"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "context",
+                    "--task",
+                    raw_task,
+                ],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["planning_hints"]["task"], "[redacted]")
+            self.assertFalse(payload["planning_hints"]["task_echoed"])
+            self.assertNotIn("山田", result.stdout)
+            self.assertNotIn("private.person@example.test", result.stdout)
+            self.assertNotIn("03-1234-5678", result.stdout)
 
     def test_cli_list_does_not_return_raw_fragments(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -911,6 +966,62 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(listing.stdout.strip(), "")
             self.assertNotIn("taro@example.test", consent_path(path).read_text(encoding="utf-8"))
 
+    def test_cli_consent_negative_path_is_traceback_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "approve",
+                    "missing-request",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error: consent request not found", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_unknown_key_error_is_traceback_free_and_raw_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "request",
+                    "--action",
+                    "get",
+                    "--key",
+                    "UNKNOWN/private-path-marker",
+                    "--purpose",
+                    "raw-looking purpose 山田 private.person@example.test",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error: Unknown key", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertNotIn("private-path-marker", result.stderr)
+            self.assertNotIn("山田", result.stderr)
+            self.assertNotIn("private.person@example.test", result.stderr)
+
     def test_cli_encryption_status_is_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1006,6 +1117,33 @@ class VaultTests(unittest.TestCase):
             self.assertIn("planning_hints", result.stdout)
             self.assertIn("FULL_NAME", result.stdout)
             self.assertIn("EMAIL", result.stdout)
+
+    def test_mcp_context_redacts_raw_looking_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            raw_task = "draft for 山田 private.person@example.test 03-1234-5678"
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "apv.context", "arguments": {"task": raw_task}},
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            response = json.loads(result.stdout)
+            payload = json.loads(response["result"]["content"][0]["text"])
+            self.assertEqual(payload["planning_hints"]["task"], "[redacted]")
+            self.assertFalse(payload["planning_hints"]["task_echoed"])
+            self.assertNotIn("山田", result.stdout)
+            self.assertNotIn("private.person@example.test", result.stdout)
+            self.assertNotIn("03-1234-5678", result.stdout)
 
     def test_mcp_consent_request_is_raw_free_and_audited(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
