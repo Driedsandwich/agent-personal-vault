@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Use the GitHub README as the primary announcement link. PyPI latest is `0.1.3` and Issue #108 has been closed after the PyPI long description was refreshed, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.4` and the PyPI long description now reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
@@ -105,6 +105,8 @@ Forbidden wording not used:
 ## PyPI Routing Handling
 
 Issue #108 is closed. It previously tracked that the PyPI project description could lag the README install examples after the `v0.1.2` cleanup. The `v0.1.3` PyPI publish refreshed the long description.
+
+Issue #132 tracks the post-`v0.1.4` cleanup of stale release/package status text. The `v0.1.4` PyPI publish refreshed the project description again, and announcements should continue to point readers to the GitHub README for the current installation path.
 
 Announcement handling:
 
