@@ -14,15 +14,15 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.5`.
-- Latest PyPI package: `0.1.5`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `329534a10cd2ac00141a1bd4d323d27709c5c4b3`.
-- Trusted Publishing setup has been validated by the `v0.1.5` PyPI publish through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.5` is tagged, published as a GitHub prerelease, and published to PyPI.
-- The manual `publish-package` workflow exists and was used for the first OIDC publish after GitHub environment approval.
+- Latest GitHub prerelease: `v0.1.6`.
+- Latest PyPI package: `0.1.6`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `3eb98dc6edf722709935c7e98bbe559d77655b4c`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6` PyPI publish through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.6` is tagged, published as a GitHub prerelease, and published to PyPI.
+- The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5` PyPI publish.
+- The Trusted Publisher was used successfully for the `v0.1.5` and `v0.1.6` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
@@ -34,13 +34,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.5` is published as a GitHub prerelease and points to `329534a10cd2ac00141a1bd4d323d27709c5c4b3`.
-- PyPI latest is `0.1.5`.
+- `v0.1.6` is published as a GitHub prerelease and points to `3eb98dc6edf722709935c7e98bbe559d77655b4c`.
+- PyPI latest is `0.1.6`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.5` OIDC publish workflow completed successfully.
-- PyPI provenance/attestation metadata is present for the `v0.1.5` wheel and sdist.
+- The `v0.1.6` OIDC publish workflow completed successfully.
+- The `v0.1.6` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump

@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Use the GitHub README as the primary announcement link. PyPI latest is `0.1.5`, the `v0.1.5` GitHub prerelease is published, and the first Trusted Publishing OIDC publish succeeded. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.6`, the `v0.1.6` GitHub prerelease is published, and Trusted Publishing OIDC publish has succeeded for `v0.1.5` and `v0.1.6`. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
@@ -242,7 +242,7 @@ https://github.com/Driedsandwich/agent-personal-vault
 Link handling:
 
 - Primary link: GitHub README.
-- Optional secondary link after the main text: GitHub release `v0.1.5` if the post is explicitly about the current alpha release.
+- Optional secondary link after the main text: GitHub release `v0.1.6` if the post is explicitly about the current alpha release.
 - Avoid PyPI-first routing unless the post is specifically about installation and the PyPI page has been rechecked immediately before publishing.
 
 24-hour monitoring:
@@ -317,7 +317,9 @@ Issue #132 is closed. It tracked the post-`v0.1.4` cleanup of stale release/pack
 
 Issue #146 is closed. It tracked the post-`v0.1.5` status sync after the first Trusted Publishing OIDC publish.
 
-Issue #149 tracks this announcement packet refresh after the `v0.1.5` GitHub prerelease and PyPI `0.1.5` package were published. Announcements should continue to point readers to the GitHub README for the current installation path.
+Issue #149 tracked the announcement packet refresh after the `v0.1.5` GitHub prerelease and PyPI `0.1.5` package were published.
+
+Issue #161 tracks this post-`v0.1.6` status sync after the `v0.1.6` GitHub prerelease and PyPI `0.1.6` package were published through the Trusted Publishing OIDC lane. Announcements should continue to point readers to the GitHub README for the current installation path.
 
 Announcement handling:
 
