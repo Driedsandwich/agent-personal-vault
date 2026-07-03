@@ -32,7 +32,7 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 - Package publishes through `v0.1.4` used the manual token fallback lane.
 - The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
 - `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for a future OIDC publish lane. It does not authorize a publish by itself.
-- GitHub environments check on 2026-07-03 returned `total_count: 0`; the `pypi` environment has not been created.
+- GitHub environment `pypi` exists. It requires reviewer `Driedsandwich`, has `prevent_self_review: false`, uses protected-branches-only deployment policy, stores no environment secrets or PyPI token, and currently has `can_admins_bypass: true`.
 - No PyPI publisher setup has been performed as part of this repository workflow. Treat the PyPI project publisher as not configured until the project owner confirms it in PyPI.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
 - No package publish has used Trusted Publishing yet.
@@ -176,13 +176,21 @@ Creating or changing this environment is a repository setting change and require
 
 GitHub environment setup is separate from the workflow PR.
 
-Recommended approval packet:
+Current approved setup:
 
-- create environment `pypi`;
-- require at least one reviewer;
-- use narrow branch/tag deployment policy where available;
-- avoid storing PyPI tokens in the environment when Trusted Publishing is the normal path;
-- record how to remove or disable the environment if it blocks CI or permits an unintended publish path.
+- environment name: `pypi`;
+- required reviewer: `Driedsandwich`;
+- `prevent_self_review: false`;
+- deployment branch policy: protected branches only;
+- environment secrets: none;
+- PyPI token: not stored;
+- `can_admins_bypass: true`.
+
+Optional later hardening:
+
+- Review whether admin bypass should be disabled before the first OIDC publish.
+- If a trusted second reviewer is available, reconsider `prevent_self_review: true`.
+- Do not change those settings without a separate repository-settings approval.
 
 Rollback if the environment is wrong:
 
@@ -243,8 +251,7 @@ Trusted Publishing is suitable for Agent Personal Vault, but only as a future ex
 
 Next safe step, if approved later:
 
-1. Create a dedicated Issue/PR for an inactive `pypi-publish.yml` workflow implementation.
-2. Separately approve GitHub environment `pypi` creation and protection.
-3. Separately approve PyPI publisher configuration.
-4. Separately approve the first OIDC publish attempt for a future version.
-5. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
+1. Separately approve PyPI publisher configuration.
+2. Separately approve the first OIDC publish attempt for a future version.
+3. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
+4. Consider admin-bypass hardening as a separate repository-settings lane before the first OIDC publish.

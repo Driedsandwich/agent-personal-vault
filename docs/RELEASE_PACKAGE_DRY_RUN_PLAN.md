@@ -20,7 +20,7 @@ Current package state:
 - Trusted Publishing is not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
 - `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
 - A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
-- No GitHub `pypi` environment exists yet.
+- GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher configuration should be treated as not configured until it is explicitly confirmed in PyPI.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
@@ -138,9 +138,10 @@ Detailed plan: `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 Do not enable it without separate explicit approval for:
 
-- the GitHub `pypi` environment and protection rules;
 - the PyPI project publisher configuration;
 - the first publish attempt through that workflow.
+
+The GitHub `pypi` environment already exists. Changing its reviewers, admin bypass behavior, self-review setting, branch policy, or secrets remains a separate repository-settings approval.
 
 Before the first OIDC publish dry-run, confirm:
 
@@ -296,4 +297,4 @@ Trusted Publishing note:
 
 - `v0.1.4` was published through the manual token fallback lane.
 - A future OIDC publish must not reuse these artifact hashes as authorization.
-- The first Trusted Publishing run needs fresh artifacts, a matching GitHub `pypi` environment, matching PyPI publisher settings, and a separate first-OIDC-publish approval.
+- The first Trusted Publishing run needs fresh artifacts, the existing GitHub `pypi` environment to be reviewed as still correct, matching PyPI publisher settings, and a separate first-OIDC-publish approval.
