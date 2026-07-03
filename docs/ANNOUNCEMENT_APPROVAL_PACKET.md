@@ -68,6 +68,213 @@ README:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
+## Channel-Specific Final Draft Candidates
+
+These drafts are final candidates for per-channel review. They do not authorize posting.
+
+Before using any draft, create a separate approval request with the exact channel, account, final text, timing, target URL, and monitoring owner.
+
+Shared target URL:
+
+```text
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+Shared non-removable safety notes:
+
+- alpha local utility
+- not encrypted by default
+- not a compliance, enterprise-security, password-manager, or secret-manager replacement
+- public issues, comments, examples, and screenshots must use dummy data only
+- primary link is the GitHub README
+- no pinned `pip install agent-personal-vault==...` command in generic announcement text
+- human stop before external submission, upload, registration, application, or publication
+
+If these notes do not fit a channel's format, do not post from that channel until a new channel-specific packet is reviewed.
+
+### X/Twitter
+
+Use a short thread so the safety notes are not removed for length. Do not compress this into a single post if that would remove the limitation or dummy-data notice.
+
+English draft:
+
+```text
+Post 1/2
+I published Agent Personal Vault, an alpha local utility for AI-agent workflows that need repeated personal-data fields.
+
+It starts with raw-free context, supports explicit one-key retrieval, and keeps a human stop before external actions.
+
+https://github.com/Driedsandwich/agent-personal-vault
+
+Post 2/2
+Safety boundary: not encrypted by default; not a compliance, enterprise-security, password-manager, or secret-manager replacement. Please use dummy data only in public issues, examples, and screenshots.
+```
+
+Japanese draft:
+
+```text
+投稿 1/2
+Agent Personal Vaultを公開しました。AIエージェント作業で繰り返し必要になる個人情報フィールドをローカルで扱うalpha版ユーティリティです。
+
+rawなしのcontextを先に使い、必要な時だけ1 key単位で取得し、外部送信前に人間確認で止めます。
+
+https://github.com/Driedsandwich/agent-personal-vault
+
+投稿 2/2
+安全境界: 既定では暗号化されません。法令対応、企業向けセキュリティ、password/secret managerの代替ではありません。public issue、例、スクショはdummy dataのみでお願いします。
+```
+
+Link handling:
+
+- Use the GitHub README URL only.
+- Do not include a PyPI URL or pinned install command in the post.
+- Review the generated link preview before posting; stop if it implies production readiness, broad security guarantees, or stale install guidance.
+
+24-hour monitoring:
+
+- replies, quote posts, repost comments, and bookmark/share-driven questions if visible
+- repeated confusion around encryption, raw retrieval, MCP setup, install path, or whether real data can be posted publicly
+- GitHub Issues/PRs opened from the post
+- Star/Fork/Watch spikes accompanied by support questions
+- any public screenshot or example containing real personal data, local private paths, tokens, vault files, consent files, or audit logs
+
+Correction/withdrawal:
+
+- If the text is merely imprecise and the channel supports edits, edit the post and add a short correction reply.
+- If a required safety note is missing, delete or withdraw the thread if possible and repost only after a new approval.
+- If readers may already have acted on unsafe wording, add a correction reply that points to the GitHub README and dummy-data-only issue policy.
+
+### GitHub Discussions Or Community Post
+
+Use this for GitHub Discussions, developer communities, or similar forums where a short paragraph plus bullets is acceptable.
+
+English draft:
+
+```text
+I published Agent Personal Vault, an alpha local utility for AI-agent workflows that need repeated personal-data fields.
+
+The project is designed around:
+
+- raw-free schema/status/context first
+- explicit one-key retrieval only when a raw value is needed
+- a human stop before external submission, upload, registration, application, or publication
+
+Important limitations:
+
+- not encrypted by default
+- not a compliance, enterprise-security, password-manager, or secret-manager replacement
+- public issues, comments, examples, and screenshots must use dummy data only
+
+README:
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+Japanese draft:
+
+```text
+Agent Personal Vaultを公開しました。AIエージェント作業で繰り返し必要になる個人情報フィールドをローカルで扱うalpha版ユーティリティです。
+
+設計上の中心は以下です。
+
+- raw値なしのschema/status/contextを先に使う
+- raw値が必要な場合だけ1 key単位で明示的に取得する
+- 外部送信、アップロード、登録、応募、公開の前には人間確認で止める
+
+重要な制限:
+
+- 既定では暗号化されません
+- 法令対応、企業向けセキュリティ、password manager、secret managerの代替ではありません
+- public issue、コメント、例、スクリーンショットではdummy dataのみを使ってください
+
+README:
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+Link handling:
+
+- Prefer the GitHub README URL.
+- If the forum allows related links, `SECURITY.md` may be linked in a follow-up comment, but do not replace the README as the primary URL.
+- Do not paste local paths, private support instructions, tokens, or unpublished operational details.
+
+24-hour monitoring:
+
+- comments, replies, reactions, and duplicate GitHub Issues/PRs
+- requests to review real vault files, screenshots, logs, personal data, or local paths
+- confusion around alpha status, encryption, compliance, password-manager/secret-manager boundaries, or public support expectations
+- Actions, CodeQL, Dependabot/security alerts, and README/PyPI install consistency if the post drives new traffic
+
+Correction/withdrawal:
+
+- Edit the discussion post if the channel supports edits and the problem is narrow.
+- Add a visible correction comment if replies already quote or depend on the incorrect wording.
+- Lock or close the discussion only if moderation is needed to stop raw personal-data sharing or repeated unsafe requests.
+
+### Personal Blog Or Longer Note
+
+Use this when the channel allows more context while still keeping the announcement short.
+
+English draft:
+
+```text
+I published Agent Personal Vault, an alpha local utility for AI-agent workflows that need repeated personal-data fields.
+
+The project focuses on a narrow boundary: agents can inspect schema, status, and task-oriented context without receiving raw personal data. When a raw value is actually needed, the intended path is explicit one-key retrieval, with a human stop before external submission, upload, registration, application, or publication.
+
+This is not a security product. It is not encrypted by default, and it is not a compliance, enterprise-security, password-manager, or secret-manager replacement. Public issues, examples, and screenshots should use dummy data only.
+
+README:
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+Japanese draft:
+
+```text
+Agent Personal Vaultを公開しました。AIエージェント作業で繰り返し必要になる個人情報フィールドを、ローカルで扱いやすくするalpha版ユーティリティです。
+
+中心に置いている境界は狭いです。AIエージェントはraw個人情報を受け取らずにschema、status、用途別contextを確認できます。raw値が本当に必要な場合は、1 key単位で明示的に取得し、外部送信、アップロード、登録、応募、公開の前には人間確認で止める設計です。
+
+これはセキュリティ製品ではありません。既定では暗号化されず、法令対応、企業向けセキュリティ、password manager、secret managerの代替でもありません。public issue、例、スクリーンショットでは必ずdummy dataを使ってください。
+
+README:
+https://github.com/Driedsandwich/agent-personal-vault
+```
+
+Link handling:
+
+- Primary link: GitHub README.
+- Optional secondary link after the main text: GitHub release `v0.1.5` if the post is explicitly about the current alpha release.
+- Avoid PyPI-first routing unless the post is specifically about installation and the PyPI page has been rechecked immediately before publishing.
+
+24-hour monitoring:
+
+- comments, backlinks, referrers if available, and social reposts
+- GitHub Issues/PRs created after the post
+- install or onboarding confusion caused by the article
+- any use of real personal data, screenshots, paths, tokens, vault files, consent files, or audit logs in public responses
+- Actions, CodeQL, Dependabot/security alerts, and README/PyPI consistency
+
+Correction/withdrawal:
+
+- Prefer an inline correction note at the top or bottom when the issue is limited.
+- If the article creates unsafe expectations around security, encryption, compliance, or automated data access, unpublish or withdraw until a corrected version is approved.
+- If the article sends users to stale install guidance, update the article and add a visible correction note with the current README link.
+
+## Per-Channel Approval Checklist
+
+Before any channel-specific post, confirm:
+
+- exact channel and account
+- exact final text
+- exact target URL
+- intended timing
+- link preview or rendered preview
+- non-removable safety notes are present
+- no pinned `pip install agent-personal-vault==...` command in generic announcement text
+- no local private path, token, raw personal data, vault file, consent file, audit file, or unpublished operational detail
+- 24-hour monitoring owner and check schedule
+- edit, deletion, withdrawal, or correction procedure for that channel
+- GitHub Issues/PRs, Actions, CodeQL, Dependabot/security alerts, README, PyPI description, and GitHub release state checked immediately before posting
+
 ## Safe Wording Check
 
 Checked against `docs/LAUNCH_MESSAGING.md`.
