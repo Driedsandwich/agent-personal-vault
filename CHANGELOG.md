@@ -12,6 +12,10 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 0.1.4 - 2026-07-03
+
 ### Security And Privacy Changes
 
 - Hardened local consent state updates with a lock file so one-time consent tokens cannot be consumed twice under concurrent access.
@@ -20,6 +24,7 @@ This file is a draft planning document for a possible future release candidate. 
 ### Documentation And Release Hygiene
 
 - Clarified that existing custom store parent directories are not automatically chmodded.
+- Updated README install examples for the v0.1.4 package candidate.
 - Refreshed announcement and release-readiness docs for the current `v0.1.3` / PyPI `0.1.3` state.
 - Marked CLI `env` as a human-only bulk raw export path, outside the normal public-alpha agent/MCP flow.
 - Clarified that CLI `check` is local-facing and may show a store path, while agent-facing status should use `context` or MCP raw-free tools.

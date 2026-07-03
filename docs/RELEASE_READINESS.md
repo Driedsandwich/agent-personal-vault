@@ -441,6 +441,7 @@ Latest pre-version-bump checks:
 - Open Dependabot alerts: `0`.
 - PyPI latest: `0.1.3`; `0.1.4` is not published.
 - GitHub release `v0.1.4`: not present.
+- v0.1.4 candidate version bump and artifact dry-run evidence are tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 
 Current-main artifact dry-run evidence, before any version bump:
 

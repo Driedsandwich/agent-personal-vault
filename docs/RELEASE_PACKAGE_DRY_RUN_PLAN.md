@@ -241,3 +241,36 @@ The dry-run plan is complete only when:
 - the PR is merged through the repository's Issue/PR workflow
 
 Meeting these criteria still does not authorize release creation or package publish.
+
+## v0.1.4 Patch Candidate Dry-Run
+
+This section records the package dry-run for the `v0.1.4` patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, or API-billed validation.
+
+Candidate scope:
+
+- publish the post-`v0.1.3` boundary cleanup and consent/local-file hardening already merged to `main`;
+- keep the release as a patch release;
+- keep Trusted Publishing activation outside this patch by default.
+
+Dry-run command shape:
+
+```sh
+python -m build --outdir /tmp/apv-v014-rc-dist /tmp/apv-v014-rc-src
+twine check /tmp/apv-v014-rc-dist/*
+```
+
+Dry-run result:
+
+- `twine check`: passed for sdist and wheel.
+- Project-URL metadata present: Homepage, Source, Issues, Documentation.
+- Package metadata includes the README install example for `agent-personal-vault==0.1.4` and does not include the old pinned `agent-personal-vault==0.1.3` example.
+- Strict forbidden-file scan found no `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile path, username-specific path fragment, or `/Users/` path in artifact entries.
+
+Artifacts:
+
+| file | size | entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.4-py3-none-any.whl` | 34,722 bytes | 15 | `a9fe8147b696c5079092e66a3751cfb5bf34665781a0b522f1b84d9f71ea1084` |
+| `agent_personal_vault-0.1.4.tar.gz` | 44,818 bytes | 26 | `d75423071f110c722985c265f7b281ebd7e42e8c07fb318a1d16ed938967fed2` |
+
+Before any separately approved package publish, regenerate artifacts from the approved tag or target commit and compare the filename, version, metadata, forbidden-file scan, and SHA-256 values. Do not upload these dry-run artifacts unless that exact upload is separately approved.
