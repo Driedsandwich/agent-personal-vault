@@ -19,7 +19,8 @@ Current package state:
 - Latest post-v0.1.4 status-refresh main checkpoint: `f10c5ee12130e780eb1ff093cb3cb39747a53279`.
 - Trusted Publishing is not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
 - `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
-- No package-publishing workflow or GitHub `pypi` environment exists yet.
+- A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
+- No GitHub `pypi` environment exists yet.
 - PyPI Trusted Publisher configuration should be treated as not configured until it is explicitly confirmed in PyPI.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
@@ -137,7 +138,6 @@ Detailed plan: `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 Do not enable it without separate explicit approval for:
 
-- the package-publish workflow PR;
 - the GitHub `pypi` environment and protection rules;
 - the PyPI project publisher configuration;
 - the first publish attempt through that workflow.
@@ -147,6 +147,7 @@ Before the first OIDC publish dry-run, confirm:
 - workflow identity exactly matches the PyPI publisher settings;
 - `id-token: write` is granted only to the publishing job;
 - the publish job uses the protected `pypi` environment;
+- the workflow dispatch input tag resolves to `refs/tags/<tag>`, not a branch;
 - artifacts are built from the approved tag and downloaded into the publish job;
 - manual token fallback remains available only for separately approved emergency maintenance.
 
