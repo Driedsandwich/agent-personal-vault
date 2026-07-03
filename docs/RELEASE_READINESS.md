@@ -23,6 +23,7 @@ Current distribution snapshot:
 - The Trusted Publisher was used successfully for the `v0.1.5` and `v0.1.6` PyPI publishes.
 - First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161.
 - The v0.1.6 GitHub prerelease and PyPI package include the latest safety warning and lifecycle documentation updates.
+- A v0.1.7 patch release candidate is being prepared for post-v0.1.6 raw-looking `purpose` redaction and regression coverage. It is not tagged, released, or published.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:

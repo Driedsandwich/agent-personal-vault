@@ -24,6 +24,7 @@ Current package state:
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
 - The Trusted Publisher was used successfully for the `v0.1.5` and `v0.1.6` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
+- A `v0.1.7` patch release candidate is being prepared after `v0.1.6` for post-release status docs sync and raw-looking purpose redaction coverage. It is not tagged, released, or published.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -109,6 +110,47 @@ Prepared rollback actions:
 - disable or revert the publish workflow through PR if workflow behavior is wrong;
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
+
+## v0.1.7 Purpose Redaction Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.7` purpose-redaction patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
+Candidate scope:
+
+- bump package version from `0.1.6` to `0.1.7`;
+- move post-`v0.1.6` safety and release-hygiene changes into the `0.1.7` changelog entry;
+- include raw-looking `purpose` redaction for agent-facing consent and audit outputs;
+- include MCP/audit raw-free regression coverage for raw-looking `purpose` text;
+- include post-`v0.1.6` release/package status documentation synchronization;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.7`.
+
+External state during this dry-run:
+
+- PyPI latest remains `0.1.6`.
+- PyPI `0.1.7` is absent.
+- GitHub release `v0.1.6` remains the latest GitHub prerelease.
+- No `v0.1.7` tag, GitHub release, package publish, or Trusted Publishing publish has been run.
+
+Local dry-run checks:
+
+- Fresh isolated artifact build source: temporary worktree copy with generated outputs, `.git`, and local metadata excluded.
+- `twine check dist/*`: passed.
+- Project URL metadata is present in the wheel artifact:
+  - `Homepage`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues`: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation`: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file scan: passed for both artifacts.
+- Wheel metadata reports version `0.1.7`.
+
+Artifact evidence:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.7-py3-none-any.whl` | 35,331 bytes | 15 | `926b19c4efefeb579237b674b550245eb15e6b51c5e5b6d4f8813e93d07c5896` |
+| `agent_personal_vault-0.1.7.tar.gz` | 45,963 bytes | 26 | `4b0b0002ad2ddfb8ea77253f07fae14421fbe68c0246f7df8ffcae9062e7332b` |
 
 ## v0.1.6 Safety Patch Candidate Dry-Run
 

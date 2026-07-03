@@ -14,6 +14,19 @@ This file is a draft planning document for a possible future release candidate. 
 
 No unreleased changes.
 
+## 0.1.7 - 2026-07-04
+
+### Security And Privacy Changes
+
+- Redact raw-looking `purpose` text containing email, phone, or postal-code-like values from agent-facing consent and audit outputs.
+- Added MCP regression coverage that verifies `apv.request_consent` does not return raw stored values or raw-looking purpose text.
+
+### Documentation And Release Hygiene
+
+- Refreshed post-`v0.1.6` release/package status text after the GitHub prerelease and PyPI package were both published.
+- Recorded the post-`v0.1.6` Opus product-review checkpoint, continued P1 monitoring areas, and stop conditions.
+- Updated README install examples so the PyPI long description for this patch points to `agent-personal-vault==0.1.7`.
+
 ## 0.1.6 - 2026-07-04
 
 ### Security And Privacy Changes
