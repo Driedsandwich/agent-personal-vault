@@ -203,16 +203,29 @@ Rollback if the environment is wrong:
 
 ## Manual Token Fallback
 
-Manual token publish can remain available for emergency or one-off maintenance, but it has higher secret-handling burden.
+Manual token publish can remain available only as an emergency fallback after the successful `v0.1.5` Trusted Publishing OIDC publish. It is not the normal package publish path.
+
+Use Trusted Publishing OIDC for normal package publishes. Do not switch back to token-based upload for convenience, speed, local debugging, or routine maintenance.
+
+Manual fallback requires a separate explicit approval that names:
+
+- the target package version and tag;
+- why the OIDC path cannot be used or must be avoided for that specific publish;
+- the token scope and account ownership checks;
+- the artifact rebuild, `twine check`, strict forbidden-file scan, and hash-recording steps;
+- the rollback or corrective-release path.
 
 Fallback rules:
 
 - Use project-scoped PyPI tokens only.
-- Do not store tokens in repository files, PR text, Issues, docs, shell history examples, or logs.
-- Prefer local one-time environment variables for the upload session.
+- Do not store tokens in repository files, PR text, Issues, docs, shell history examples, terminal transcripts, screenshots, CI logs, or package artifacts.
+- Prefer local one-time environment variables for the upload session; do not persist token values in checked-in config or GitHub environment secrets.
+- Keep `.pypirc` and any local token material out of the repository and out of public support artifacts.
+- Do not paste token values into Codex, GitHub, PyPI support messages, Issues, PRs, release notes, or announcement drafts.
 - Rebuild artifacts from the approved tag immediately before upload.
 - Run `twine check`, strict forbidden-file scan, and hash recording before upload.
 - Stop if there is any uncertainty about token scope, account ownership, artifact contents, or PyPI project ownership.
+- After an emergency fallback upload, immediately open a follow-up Issue to record the reason, public-safe outcome, and whether the OIDC path needs repair. Do not include token values, private paths, local shell history, or private support details.
 
 ## OIDC Publish Stop Conditions
 
