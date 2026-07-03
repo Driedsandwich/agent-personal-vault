@@ -4,13 +4,13 @@
 
 status: draft
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 
 ## Purpose
 
 This packet prepares a future announcement review for Agent Personal Vault.
 
-It does not authorize SNS, blog, newsletter, community, or other public announcement. It also does not authorize repository setting changes, branch deletion, next-version release/tag/package publish, Trusted Publishing activation, Claude Desktop app UI operation, or API-billed validation.
+It does not authorize SNS, blog, newsletter, community, or other public announcement. It also does not authorize repository setting changes, branch deletion, next-version release/tag/package publish, Trusted Publishing changes or additional publish runs, Claude Desktop app UI operation, or API-billed validation.
 
 Before posting anywhere, create a channel-specific approval request with the exact channel, account, text, timing, and target URL.
 
@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Use the GitHub README as the primary announcement link. PyPI latest is `0.1.4` and the PyPI long description now reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.5`, the `v0.1.5` GitHub prerelease is published, and the first Trusted Publishing OIDC publish succeeded. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
@@ -104,9 +104,13 @@ Forbidden wording not used:
 
 ## PyPI Routing Handling
 
-Issue #108 is closed. It previously tracked that the PyPI project description could lag the README install examples after the `v0.1.2` cleanup. The `v0.1.3` PyPI publish refreshed the long description.
+Issue #108 is closed. It previously tracked that the PyPI project description could lag the README install examples after the `v0.1.2` cleanup. The `v0.1.3` PyPI publish refreshed the long description at that time.
 
-Issue #132 tracks the post-`v0.1.4` cleanup of stale release/package status text. The `v0.1.4` PyPI publish refreshed the project description again, and announcements should continue to point readers to the GitHub README for the current installation path.
+Issue #132 is closed. It tracked the post-`v0.1.4` cleanup of stale release/package status text.
+
+Issue #146 is closed. It tracked the post-`v0.1.5` status sync after the first Trusted Publishing OIDC publish.
+
+Issue #149 tracks this announcement packet refresh after the `v0.1.5` GitHub prerelease and PyPI `0.1.5` package were published. Announcements should continue to point readers to the GitHub README for the current installation path.
 
 Announcement handling:
 
