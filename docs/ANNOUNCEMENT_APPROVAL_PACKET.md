@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Do not use PyPI as the primary announcement link while Issue #108 remains open. PyPI latest is `0.1.2`, but the PyPI long description is immutable for that release and can still lag the README install examples. Avoid quoting a `pip install agent-personal-vault==...` command in the announcement text unless a fresh package release or a separate channel-specific review confirms the exact wording.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.3` and Issue #108 has been closed after the PyPI long description was refreshed, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
@@ -102,17 +102,16 @@ Forbidden wording not used:
 - supports every MCP client
 - Claude Desktop live UX fully validated
 
-## Issue #108 Handling
+## PyPI Routing Handling
 
-Issue #108 tracks that the PyPI project description can lag the README install examples after the `v0.1.2` cleanup.
+Issue #108 is closed. It previously tracked that the PyPI project description could lag the README install examples after the `v0.1.2` cleanup. The `v0.1.3` PyPI publish refreshed the long description.
 
 Announcement handling:
 
-- Keep Issue #108 open until separately resolved or accepted as a known packaging-metadata limitation.
 - Link to the GitHub README instead of the PyPI project page.
 - Do not include a pinned `pip install` command in generic announcement copy.
 - If a channel requires installation instructions, use the README link and ask readers to follow the current README.
-- If a channel preview or auto-card emphasizes the PyPI project page or a pinned install command, do not post until that preview is corrected or a separate approval accepts the routing risk.
+- If a channel preview or auto-card emphasizes the PyPI project page or a pinned install command, review the preview before posting and stop if it shows stale install guidance.
 - Do not create a new patch release solely from this packet. Version bump, tag, GitHub release, and PyPI publish remain separate approval lanes.
 
 ## Post-Announcement Monitoring

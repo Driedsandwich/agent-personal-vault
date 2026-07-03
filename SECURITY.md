@@ -33,7 +33,7 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 - Do not store the encryption passphrase in logs, public issues, shell history, or repository files.
 - Consent tokens and audit logs are workflow controls, not a hard security boundary against an agent or process that already has shell access as the same OS user.
 - Localhost GUI returns all fields to a browser tab with the valid token.
-- CLI `get` and `env` intentionally print raw values only after a matching one-time consent token is supplied and raw-free audit metadata is written. Recommended agent flow is request, human approve or deny, then raw retrieval with the approved token.
+- CLI `get` intentionally prints one raw value only after a matching one-time consent token is supplied and raw-free audit metadata is written. CLI `env` is a human-only bulk raw export escape hatch and is not part of the public-alpha agent or MCP path. Recommended agent flow is request, human approve or deny, then one-key raw retrieval with the approved token.
 - Audit logs record action, key, purpose, outcome, and whether raw data was returned. They do not intentionally record raw values, but user-provided purpose text must still be kept raw-free.
 - Consent files record action, key, purpose, expiry, request resolution, and used status. They do not intentionally record raw values, but they are still local private metadata.
 - This tool cannot protect data on an already compromised machine.
