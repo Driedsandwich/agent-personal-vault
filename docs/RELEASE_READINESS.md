@@ -149,6 +149,8 @@ The project should remain a public alpha / prerelease until all criteria below a
 
 - README, PyPI long description, GUI, and CLI help continue to state that stored data is not encrypted by default.
 - First-use and save-time UX actively warns users to use dummy data or values they are comfortable storing locally.
+- CLI `init`, `set`, `get`, and `env`, plus GUI manual save, continue to emit or display explicit alpha / local-storage / non-encrypted warnings where they create, store, or reveal raw values.
+- README continues to document the default store location, one-key `unset` cleanup, and the safe manual lifecycle for deleting a disposable test vault file.
 - `audit summary`, `audit tail`, GUI audit view, MCP responses, and error responses are covered by tests that prevent raw personal values, full active consent ids, local private paths, or secrets from leaking.
 - `get` remains one-key, consent-gated, and warning-bearing; `env` remains human-only, bulk-acknowledged, and outside agent/MCP normal flow.
 - MCP continues to expose raw-free planning/status/consent-request tools only, with no raw-value or external-action tools.

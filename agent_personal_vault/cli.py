@@ -134,6 +134,10 @@ def command_set(args: argparse.Namespace) -> None:
     key = validate_key(args.key, store["schema"])
     if key in DERIVED_FIELDS:
         raise SystemExit(f"{key} is derived. Set component fields instead.")
+    print(
+        "# WARNING: this stores one personal value locally. Data is not encrypted at rest by default; use dummy data or values you are comfortable storing on this device.",
+        file=sys.stderr,
+    )
     value = sys.stdin.read().rstrip("\n") if args.stdin else getpass(f"{key} value: ")
     store["fields"][key] = normalize_value(key, value)
     write_store(store, path)

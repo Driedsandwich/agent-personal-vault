@@ -522,6 +522,34 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"action": "unset"', encoded)
             self.assertNotIn("山田", encoded)
 
+    def test_cli_set_warns_about_unencrypted_local_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "set",
+                    "FAMILY_NAME",
+                    "--stdin",
+                    "--purpose",
+                    "test input",
+                ],
+                input="山田\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("WARNING", result.stderr)
+            self.assertIn("not encrypted at rest by default", result.stderr)
+            self.assertIn("dummy data", result.stderr)
+            self.assertNotIn("山田", result.stderr)
+
     def test_gui_profile_save_writes_raw_free_audit_event(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
