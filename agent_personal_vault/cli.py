@@ -293,7 +293,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("context", command_context, "Print raw-free JSON metadata for AI agents."),
         ("schema", command_schema, "Print raw-free JSON schema metadata."),
         ("list", command_list, "Show all keys with masked values."),
-        ("env", command_env, "Print shell export lines for non-empty values."),
+        ("env", command_env, "Human-only bulk raw export as shell export lines. Not for agent/MCP normal flow."),
     ]:
         cmd = sub.add_parser(name, help=help_text)
         if name == "context":

@@ -4,11 +4,19 @@
 
 status: public-alpha-ready
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 
 ## Current Summary
 
 `agent-personal-vault` is a local OSS candidate for an AI-agent personal data vault.
+
+Current distribution snapshot:
+
+- Latest GitHub prerelease: `v0.1.3`.
+- Latest PyPI package: `0.1.3`.
+- Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
+- Trusted Publishing is still not enabled. All package publishes through `v0.1.3` used the manual token fallback lane.
+- Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
 
@@ -130,11 +138,11 @@ Rationale:
 
 Status date: 2026-07-02.
 
-This snapshot summarizes the current v0.1.1 candidate state after the post-`v0.1.0` preparation pass. The dedicated version bump is tracked separately in Issue #98. This snapshot does not authorize GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This historical snapshot summarized the v0.1.1 candidate state after the post-`v0.1.0` preparation pass. The dedicated version bump was tracked separately in Issue #98. This snapshot does not authorize GitHub release, tag creation, package publish, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### Current State
 
-- `v0.1.0` is published as a GitHub prerelease and as the current PyPI package version.
+- `v0.1.0` was published as a GitHub prerelease and was the PyPI package version at this historical checkpoint.
 - `main` contains the post-publish documentation and packaging metadata follow-ups.
 - Open Issues/PRs were 0/0 at the start of the Issue #94 readiness pass.
 - Latest `main` test and CodeQL were successful at the start of the Issue #94 readiness pass.

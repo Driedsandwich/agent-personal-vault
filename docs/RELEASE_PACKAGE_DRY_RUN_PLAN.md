@@ -4,13 +4,20 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 
 ## Purpose
 
 This document defines the dry-run checklist for a future GitHub release or package distribution of Agent Personal Vault.
 
 It is a planning document only. It does not authorize a GitHub release, package publish, tag creation, public announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed review path. Each of those actions requires separate explicit approval, or 明示承認.
+
+Current package state:
+
+- Latest GitHub prerelease: `v0.1.3`.
+- Latest PyPI package: `0.1.3`.
+- Trusted Publishing is not enabled. Package publishes through `v0.1.3` used the manual token fallback lane.
+- Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Scope
 
