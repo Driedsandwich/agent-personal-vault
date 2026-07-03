@@ -382,10 +382,33 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def safe_cli_error(exc: Exception) -> str:
+    if isinstance(exc, ConsentError):
+        return str(exc)
+    if isinstance(exc, json.JSONDecodeError):
+        return "store or state file contains invalid JSON"
+    if isinstance(exc, FileNotFoundError):
+        return "vault does not exist"
+    if isinstance(exc, NotADirectoryError):
+        return "vault parent path is not a directory"
+    if isinstance(exc, PermissionError):
+        return "permission denied"
+    message = str(exc)
+    if message.startswith("Unknown key: "):
+        return "Unknown key"
+    return message or exc.__class__.__name__
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
-    args.func(args)
+    try:
+        args.func(args)
+    except SystemExit:
+        raise
+    except (ConsentError, ValueError, FileNotFoundError, NotADirectoryError, PermissionError, json.JSONDecodeError) as exc:
+        print(f"error: {safe_cli_error(exc)}", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

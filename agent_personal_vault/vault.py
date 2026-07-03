@@ -132,6 +132,27 @@ def enforce_file_mode(path: Path) -> None:
         os.chmod(path, 0o600)
 
 
+def write_json_private(path: Path, payload: dict) -> None:
+    """Write JSON through a private-mode temporary file."""
+
+    ensure_private_dir(path.parent)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.chmod(tmp_path, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+    tmp_path.replace(path)
+    enforce_file_mode(path)
+
+
 def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
     path = path or store_path()
     ensure_private_dir(path.parent)
@@ -189,12 +210,7 @@ def write_store(store: dict, path: Path | None = None, passphrase: str | None = 
         if not effective_passphrase:
             raise ValueError("Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
         payload = encrypt_store_payload(store, effective_passphrase)
-    with tmp_path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-    os.chmod(tmp_path, 0o600)
-    tmp_path.replace(path)
-    enforce_file_mode(path)
+    write_json_private(path, payload)
 
 
 def validate_key(key: str, schema_name: str = DEFAULT_SCHEMA) -> str:
@@ -342,7 +358,8 @@ def planning_hints(store: dict, task: str) -> dict:
                 }
             )
     return {
-        "task": query,
+        "task": "[redacted]" if query else "",
+        "task_echoed": False,
         "raw_values_included": False,
         "conservative": True,
         "matched_hints": matched,
