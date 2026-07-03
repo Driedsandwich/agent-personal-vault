@@ -20,7 +20,7 @@ try:
 except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
-from .audit import redact_consent_id, write_audit_event
+from .audit import _clean_text, redact_consent_id, write_audit_event
 from .vault import ensure_private_dir, now_iso, store_path
 
 DEFAULT_TTL_SECONDS = 300
@@ -33,12 +33,6 @@ class ConsentError(ValueError):
 def consent_path(vault_path: Path | None = None) -> Path:
     path = vault_path or store_path()
     return path.parent / "consents.json"
-
-
-def _clean_text(value: str | None) -> str:
-    if value is None:
-        return ""
-    return " ".join(str(value).split())[:240]
 
 
 @contextmanager

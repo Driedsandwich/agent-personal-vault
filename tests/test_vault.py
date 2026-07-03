@@ -1051,6 +1051,50 @@ class VaultTests(unittest.TestCase):
             self.assertTrue(any(event["action"] == "consent_request" and event["actor"] == "mcp" for event in events))
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
 
+    def test_mcp_consent_request_redacts_raw_looking_purpose_from_agent_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+            raw_looking_purpose = "draft for 山田 private.person@example.test"
+            messages = [
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "apv.request_consent",
+                        "arguments": {
+                            "action": "get",
+                            "key": "FAMILY_NAME",
+                            "purpose": raw_looking_purpose,
+                        },
+                    },
+                },
+            ]
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+
+            self.assertNotIn("山田", result.stdout)
+            self.assertNotIn("private.person@example.test", result.stdout)
+            self.assertNotIn(raw_looking_purpose, result.stdout)
+            self.assertNotIn("山田", encoded_events)
+            self.assertNotIn("private.person@example.test", encoded_events)
+            self.assertNotIn(raw_looking_purpose, encoded_events)
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            payload = json.loads(responses[0]["result"]["content"][0]["text"])
+            self.assertFalse(payload["raw_values_included"])
+            self.assertEqual(payload["request"]["purpose"], "[redacted]")
+
     def test_mcp_consent_request_rejects_env_bulk_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"

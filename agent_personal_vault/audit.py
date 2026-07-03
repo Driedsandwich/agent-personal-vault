@@ -11,6 +11,30 @@ from .vault import ensure_private_dir, now_iso, store_path
 
 
 DEFAULT_LIMIT = 20
+EMAIL_TOKEN_STRIP = ".,;:()[]{}<>\"'"
+
+
+def _looks_like_email_token(token: str) -> bool:
+    token = token.strip(EMAIL_TOKEN_STRIP)
+    local, separator, domain = token.partition("@")
+    if separator != "@" or not local or "." not in domain:
+        return False
+    suffix = domain.rsplit(".", 1)[-1]
+    return len(suffix) >= 2 and suffix.isalpha()
+
+
+def _looks_like_grouped_number(text: str) -> bool:
+    if "-" not in text and " " not in text:
+        return False
+    digits = "".join(char for char in text if char.isdigit())
+    if len(digits) not in {7, 10, 11}:
+        return False
+    groups = [group for group in text.replace("-", " ").split() if any(char.isdigit() for char in group)]
+    return len(groups) >= 2
+
+
+def _looks_raw_like(text: str) -> bool:
+    return any(_looks_like_email_token(token) for token in text.split()) or _looks_like_grouped_number(text)
 
 
 def audit_path(vault_path: Path | None = None) -> Path:
@@ -22,6 +46,8 @@ def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
     text = " ".join(str(value).split())
+    if _looks_raw_like(text):
+        return "[redacted]"
     return text[:240]
 
 
