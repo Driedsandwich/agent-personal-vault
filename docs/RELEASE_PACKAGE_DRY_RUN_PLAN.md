@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 
 ## Purpose
 
@@ -16,14 +16,100 @@ Current package state:
 
 - Latest GitHub prerelease: `v0.1.4`.
 - Latest PyPI package: `0.1.4`.
-- Latest post-v0.1.4 status-refresh main checkpoint: `f10c5ee12130e780eb1ff093cb3cb39747a53279`.
-- Trusted Publishing is not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
+- Latest Trusted Publisher documentation checkpoint before this preflight plan: `179ec1b2a2c7f5ddc913d33277d9224320bb4293`.
+- Trusted Publishing setup is prepared, but it has not been used for a package publish. Package publishes through `v0.1.4` used the manual token fallback lane.
 - `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
 - A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
 - No package publish has used the Trusted Publisher yet.
+- PyPI `0.1.5` was not published when this preflight plan was created.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
+
+## First Trusted Publishing OIDC Publish Preflight Plan
+
+Status date: 2026-07-04.
+
+This section records the preflight plan for a future first Trusted Publishing OIDC publish. It does not authorize a version bump, GitHub tag creation, GitHub release creation or publish, PyPI package upload, SNS/blog announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+### Current Verified State
+
+- `origin/main` was `179ec1b2a2c7f5ddc913d33277d9224320bb4293` at the start of this preflight planning pass.
+- Open Issues/PRs were 0/0 before Issue #142 was opened for this planning work.
+- GitHub release `v0.1.4` is published as a prerelease and points to `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- PyPI latest is `0.1.4`; PyPI `0.1.5` is not present.
+- The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
+- GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
+- PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
+- Latest `main` GitHub Actions `test` and CodeQL runs succeeded at commit `179ec1b2a2c7f5ddc913d33277d9224320bb4293`.
+- Open CodeQL, Dependabot, and secret-scanning alerts were 0 during this preflight planning pass.
+
+### Target Version And Version Bump
+
+Do not use Trusted Publishing to republish `0.1.4`. PyPI versions are immutable, and the workflow should stop if the target version already exists on PyPI.
+
+If the first OIDC publish is approved, use a future version such as `0.1.5` only after a dedicated Issue/PR updates:
+
+- `pyproject.toml` version;
+- `CHANGELOG.md`;
+- release/package dry-run evidence;
+- any release-note text that must mention the publishing-lane change.
+
+The first OIDC publish may be an infrastructure-validation patch release if no runtime change is needed, but it still needs the same version, changelog, artifact, CI, and security checks as any package publish.
+
+### Fresh Artifact Preflight
+
+Before asking to run the OIDC workflow, rebuild artifacts from the approved tag or target commit and record:
+
+- wheel and sdist filenames;
+- file sizes;
+- archive entry counts;
+- SHA-256 hashes;
+- `twine check` result;
+- Project-URL metadata;
+- strict forbidden-file scan result;
+- PyPI absence for the exact target version.
+
+Do not reuse the `v0.1.4` local artifact hashes as authorization for an OIDC publish.
+
+### Approval Lanes
+
+Keep the first OIDC publish split into separate approvals:
+
+1. `v0.1.5` or later version-bump PR, including `CHANGELOG.md` and fresh artifact dry-run evidence.
+2. GitHub tag creation for the approved commit.
+3. GitHub prerelease draft and publish for the approved tag, if still desired before package upload.
+4. First OIDC publish workflow dispatch using the approved tag and exact confirmation phrase.
+5. Post-publish verification of PyPI page, install, console scripts, Project-URL metadata, Actions logs, security alerts, and open Issue/PR state.
+6. Any SNS/blog/community announcement as a separate optional lane.
+
+### Stop Conditions
+
+Stop before the first OIDC publish if any of these are true:
+
+- The target version already exists on PyPI.
+- The workflow filename, repository, owner, or environment no longer matches the PyPI Trusted Publisher settings.
+- The `publish` job lacks `id-token: write` or does not use the protected `pypi` environment.
+- The workflow can publish from a branch or unapproved ref instead of the approved tag.
+- GitHub environment approval is missing, bypassed unexpectedly, or changed without a separate repository-settings approval.
+- CI, CodeQL, Dependabot, secret scanning, local release-check, `twine check`, or strict artifact scan fails.
+- Artifacts, docs, workflow logs, Issues, PRs, or release text contain raw personal data, secrets, private local paths, vault files, consent files, audit files, generated databases, or private support details.
+- The requested action also includes repository setting changes, branch deletion, SNS/blog announcement, Claude Desktop app UI operation, API-billed validation, or manual token fallback without separate explicit approval.
+
+### Rollback
+
+Trusted Publishing upload rollback cannot rely on deleting an already published package version.
+
+Prepared rollback actions:
+
+- stop announcements and external promotion;
+- open a corrective Issue and PR;
+- publish a patch release through the approved lane if the package is wrong but not unsafe;
+- yank the PyPI release only if the package is unsafe and yanking is separately approved;
+- correct GitHub release notes if the release text is wrong;
+- disable or revert the publish workflow through PR if workflow behavior is wrong;
+- remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
+- keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
 ## Scope
 
@@ -263,7 +349,7 @@ Post-publish status:
 
 - `v0.1.4` has since been tagged, published as a GitHub prerelease, and uploaded to PyPI through the separately approved release/package lanes.
 - The uploaded PyPI files were regenerated from tag `v0.1.4` at `ce0abbef2c899e9d0d227080da4b969f9cfde560`; their hashes are listed below.
-- Trusted Publishing remains disabled and should be handled as a separate settings/workflow lane.
+- `v0.1.4` itself used the manual token fallback lane. Trusted Publishing setup was handled later and still requires a separately approved first OIDC publish before it becomes the verified recurring publish path.
 
 Candidate scope:
 

@@ -4,7 +4,7 @@
 
 status: public-alpha-ready
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 
 ## Current Summary
 
@@ -14,13 +14,14 @@ Current distribution snapshot:
 
 - Latest GitHub prerelease: `v0.1.4`.
 - Latest PyPI package: `0.1.4`.
-- Latest post-v0.1.4 status-refresh main checkpoint: `f10c5ee12130e780eb1ff093cb3cb39747a53279`.
+- Latest Trusted Publisher documentation checkpoint before the first-OIDC preflight plan: `179ec1b2a2c7f5ddc913d33277d9224320bb4293`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
-- Trusted Publishing is still not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
+- Trusted Publishing setup is prepared, but it has not been used for a package publish. Package publishes through `v0.1.4` used the manual token fallback lane.
 - A manual `publish-package` workflow exists as Lane 1 preparation, but it has not been used for a publish.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
 - No package publish has used the Trusted Publisher yet.
+- First OIDC publish preflight planning is tracked in Issue #142 and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 - The v0.1.4 GitHub prerelease and PyPI package now include the boundary cleanup plus consent/local-file hardening.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
@@ -166,7 +167,7 @@ The current v0.1.1 candidate should stay small.
 
 Do not include these in v0.1.1 by default:
 
-- PyPI Trusted Publishing activation. The plan is documented in `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`, but PyPI publisher settings, GitHub environment protection, and an active publishing workflow remain separate approval lanes.
+- PyPI Trusted Publishing activation. At the v0.1.1 historical checkpoint, PyPI publisher settings, GitHub environment protection, and an active publishing workflow were still future separate approval lanes.
 - Branch deletion. Candidate evidence is documented in `docs/BRANCH_CLEANUP_CANDIDATES.md`, but local or remote branch deletion remains a separate explicit approval.
 - Public announcement. The checklist is documented in `docs/LAUNCH_MESSAGING.md`, but SNS/blog/community posting remains a separate explicit approval per channel and text.
 - New MCP raw-value tools, broader raw retrieval, or bulk raw export.
@@ -464,7 +465,7 @@ This still does not create a new GitHub release, tag, package publish, repositor
 
 ## Trusted Publishing Approval Packet
 
-Status date: 2026-07-03.
+Status date: 2026-07-04.
 
 Current state:
 
@@ -473,10 +474,13 @@ Current state:
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
 - PyPI public JSON does not expose this publisher configuration; confirm again in the PyPI management UI or through the first OIDC workflow result before treating the lane as operational.
+- PyPI `0.1.5` was not published when Issue #142 preflight planning started.
+- The first OIDC publish requires a future version such as `0.1.5` or later; do not attempt to republish `0.1.4`.
 
 Recommended sequencing:
 
-1. Attempt the first OIDC publish only for a future separately approved version after fresh artifact, CI, security, PyPI availability, and release-note checks.
+1. Attempt the first OIDC publish only for a future separately approved version after a dedicated version-bump PR, fresh artifact, CI, security, PyPI availability, and release-note checks.
 2. Consider disabling admin bypass before the first OIDC publish as a separate repository-settings approval.
+3. Keep manual token publishing as an emergency fallback until the first OIDC publish succeeds and the new path is verified.
 
 Stop before any Trusted Publishing activation if the workflow can publish from an unapproved branch, the environment lacks human approval, PyPI settings do not exactly match the workflow identity, artifacts contain forbidden files, the package version already exists on PyPI, or any real personal data, secrets, private paths, or private support details appear in logs or artifacts.
