@@ -30,8 +30,8 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 - Latest GitHub prerelease: `v0.1.4`.
 - Latest PyPI package: `0.1.4`.
 - Package publishes through `v0.1.4` used the manual token fallback lane.
-- The repository currently has `test`, `Dependency Graph`, and `CodeQL` workflows, but no active package-publishing workflow.
-- There is no active package-publishing GitHub Actions workflow.
+- The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
+- `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for a future OIDC publish lane. It does not authorize a publish by itself.
 - GitHub environments check on 2026-07-03 returned `total_count: 0`; the `pypi` environment has not been created.
 - No PyPI publisher setup has been performed as part of this repository workflow. Treat the PyPI project publisher as not configured until the project owner confirms it in PyPI.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
@@ -59,11 +59,11 @@ PyPI-side setup is a separate external account action. Before changing it, confi
 - no broad API token or account-wide credential is added as a workaround;
 - a rollback path is known: remove the Trusted Publisher entry and return to manual project-scoped token fallback for the next approved publish.
 
-## GitHub Actions Workflow Candidate
+## GitHub Actions Workflow
 
-Do not add this workflow until the repository setting and PyPI publisher lanes are separately approved.
+The workflow file exists as the Lane 1 code preparation step. Do not run it for a real publish until GitHub environment setup, PyPI publisher setup, and first OIDC publish are separately approved.
 
-Candidate workflow shape:
+Workflow shape:
 
 ```yaml
 name: publish-package
@@ -72,7 +72,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish, for example v0.1.1"
+        description: "Approved tag to publish, for example v0.1.5"
+        required: true
+        type: string
+      confirm_publish:
+        description: "Type exactly: publish <tag>"
         required: true
         type: string
 
@@ -81,6 +85,7 @@ permissions:
 
 jobs:
   build:
+    if: startsWith(inputs.tag, 'v') && inputs.confirm_publish == format('publish {0}', inputs.tag)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -89,11 +94,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - name: Verify checkout is the approved tag
+        run: |
+          head_sha="$(git rev-parse HEAD)"
+          tag_sha="$(git rev-parse "refs/tags/${APV_TAG}^{commit}")"
+          test "$head_sha" = "$tag_sha"
       - name: Build distributions
         run: |
           python -m pip install --upgrade pip build twine
           python -m build
           twine check dist/*
+      - name: Strict forbidden-file scan
+        run: python <inline artifact scan>
       - name: Upload distributions for approval
         uses: actions/upload-artifact@v5
         with:
@@ -102,6 +114,7 @@ jobs:
 
   publish:
     needs: build
+    if: startsWith(inputs.tag, 'v') && inputs.confirm_publish == format('publish {0}', inputs.tag)
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -124,9 +137,11 @@ Design notes:
 - `id-token: write` belongs on the publishing job, not globally.
 - The publishing job should use a protected environment named `pypi`.
 - The workflow should be manual by default for alpha releases.
-- The workflow should publish from an approved tag, not from arbitrary branch state.
+- The workflow verifies that the checkout matches `refs/tags/<tag>`, so a branch with a matching name is not enough.
+- The workflow requires a confirmation input matching `publish <tag>` to reduce accidental dispatch risk.
+- The workflow checks that the package version is not already present on PyPI before building.
 - The build job uploads artifacts for the protected publish job to consume.
-- A future implementation PR should pin action versions or record the accepted tag policy before activation.
+- The build job runs `twine check` and a strict artifact forbidden-file scan before upload.
 
 Workflow addition is a repository code change, not a publish by itself. It still needs a dedicated Issue/PR because it introduces a path that can publish once the external settings exist.
 
