@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 
 ## Purpose
 
@@ -37,11 +37,12 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 - PyPI public JSON does not expose Trusted Publisher configuration, so re-check the PyPI management UI or first OIDC workflow result before treating the lane as operational.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
 - No package publish has used Trusted Publishing yet.
+- First OIDC publish preflight planning is tracked in Issue #142 and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 - Future publish actions remain separately approval-gated.
 
 ## PyPI Publisher Settings
 
-For the existing PyPI project `agent-personal-vault`, the PyPI trusted publisher should be configured only after separate explicit approval.
+For the existing PyPI project `agent-personal-vault`, the PyPI trusted publisher has been configured after separate explicit approval. Changing or deleting it remains a separate PyPI account-settings approval.
 
 Configured settings:
 
