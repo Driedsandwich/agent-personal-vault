@@ -14,6 +14,20 @@ This file is a draft planning document for a possible future release candidate. 
 
 No unreleased changes.
 
+## 0.1.6 - 2026-07-04
+
+### Security And Privacy Changes
+
+- Added a CLI `set` warning that values are stored locally and are not encrypted at rest by default.
+- Added a GUI manual-save confirmation for alpha, non-encrypted-by-default, dummy/local-only storage boundaries.
+
+### Documentation And Release Hygiene
+
+- Clarified the default storage location, one-key `unset` cleanup, and safe manual lifecycle for deleting a disposable test vault file.
+- Tightened prerelease graduation criteria around warning coverage, cleanup documentation, raw-free audit/MCP/error behavior, and CI/security checks.
+- Refreshed Trusted Publishing, manual token fallback, and announcement approval packet status after the `v0.1.5` OIDC publish.
+- Updated README install examples so the PyPI long description for this patch points to `agent-personal-vault==0.1.6`.
+
 ## 0.1.5 - 2026-07-04
 
 ### Documentation And Release Hygiene

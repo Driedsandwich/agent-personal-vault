@@ -110,6 +110,48 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.6 Safety Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.6` safety patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, Claude Desktop app UI operation, PyPI token change/deletion, or API-billed validation.
+
+Candidate scope:
+
+- bump package version from `0.1.5` to `0.1.6`;
+- move post-`v0.1.5` safety and release-hygiene changes into the `0.1.6` changelog entry;
+- include CLI `set` non-encrypted/local real-data warning and GUI manual-save alpha/non-encrypted/dummy-data warning;
+- include README storage location, one-key `unset`, and disposable test-vault deletion lifecycle clarification;
+- include prerelease graduation criteria tightening and Trusted Publishing/manual fallback status synchronization;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.6`.
+
+External state during this dry-run:
+
+- PyPI latest remains `0.1.5`.
+- PyPI `0.1.6` is absent.
+- GitHub release `v0.1.5` remains the latest GitHub prerelease.
+- No `v0.1.6` tag, GitHub release, package publish, or Trusted Publishing publish has been run.
+
+Local dry-run checks:
+
+- Fresh isolated artifact build path: `/tmp/apv-v016-dry-run`.
+- Temporary build/twine environment: `/tmp/apv-v016-build-venv`.
+- `twine check dist/*`: passed.
+- Project URL metadata is present in both artifacts:
+  - `Homepage`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues`: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation`: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file scan: passed for both artifacts.
+- Wheel metadata contains `agent-personal-vault==0.1.6`, contains the storage/deletion lifecycle text, and does not contain the old `agent-personal-vault==0.1.5` install example.
+
+Artifact evidence:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.6-py3-none-any.whl` | 35,045 bytes | 15 | `7956c06d0570fb5eb17d1be2d9355f3af6d98eb55843a084ca3d66fcbf12143f` |
+| `agent_personal_vault-0.1.6.tar.gz` | 45,569 bytes | 26 | `2e61571362c42b23c759883f282f227a9f751cf0181ba226b9a5a2028d57ac1a` |
+
 ## v0.1.5 Infrastructure Validation Patch Dry-Run
 
 Status date: 2026-07-04.
