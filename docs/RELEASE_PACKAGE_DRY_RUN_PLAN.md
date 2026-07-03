@@ -14,17 +14,17 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.7`.
-- Latest PyPI package: `0.1.7`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `fd3d0f82bb95c2bcc235da4604279177e7c185ca`.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6` and `v0.1.7` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.7` is tagged, published as a GitHub prerelease, and published to PyPI.
+- Latest GitHub prerelease: `v0.1.8`.
+- Latest PyPI package: `0.1.8`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `bb0756ab7afdebe6f09aa827963022ea2872ad45`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, and `v0.1.8` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.8` is tagged, published as a GitHub prerelease, and published to PyPI.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, and `v0.1.7` PyPI publishes.
+- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
-- The `v0.1.7` patch release was published after `v0.1.6` for post-release status docs sync and raw-looking purpose redaction coverage.
+- The `v0.1.8` patch release was published after `v0.1.7` for raw-looking task redaction, CLI negative-path hardening, and private temp write improvements.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -35,13 +35,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.7` is published as a GitHub prerelease and points to `fd3d0f82bb95c2bcc235da4604279177e7c185ca`.
-- PyPI latest is `0.1.7`.
+- `v0.1.8` is published as a GitHub prerelease and points to `bb0756ab7afdebe6f09aa827963022ea2872ad45`.
+- PyPI latest is `0.1.8`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.7` OIDC publish workflow completed successfully.
-- The `v0.1.7` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
+- The `v0.1.8` OIDC publish workflow completed successfully.
+- The `v0.1.8` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
@@ -115,7 +115,7 @@ Prepared rollback actions:
 
 Status date: 2026-07-04.
 
-This section records the package dry-run for the `v0.1.8` boundary-hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+This section records the package dry-run and later approved publish status for the `v0.1.8` boundary-hardening patch. The original dry-run did not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. The later tag, GitHub prerelease publish, and Trusted Publishing OIDC publish were handled through separate approval lanes.
 
 Candidate scope:
 
@@ -126,12 +126,13 @@ Candidate scope:
 - include private-mode temporary file creation before atomic vault and consent state replacement;
 - refresh README install examples so the package long description points to `agent-personal-vault==0.1.8`.
 
-External state during this dry-run:
+Current post-publish state:
 
-- PyPI latest is `0.1.7`.
-- PyPI `0.1.8` is absent.
-- GitHub release `v0.1.7` is published as a prerelease.
-- No `v0.1.8` tag, GitHub release, package publish, or Trusted Publishing publish has been run.
+- PyPI latest is `0.1.8`.
+- PyPI `0.1.8` is published.
+- GitHub release `v0.1.8` is published as a prerelease and points to `bb0756ab7afdebe6f09aa827963022ea2872ad45`.
+- Trusted Publishing OIDC publish has completed successfully for `v0.1.8`.
+- The `publish-package` Actions run generated DSSE/in-toto attestations for the wheel and sdist.
 
 Local dry-run checks:
 
@@ -151,6 +152,13 @@ Artifact evidence:
 | --- | ---: | ---: | --- |
 | `agent_personal_vault-0.1.8-py3-none-any.whl` | 35,689 bytes | 15 | `4983ad573351fc3ef76c033f76f00105d0009102b565b48c75290225cd52603f` |
 | `agent_personal_vault-0.1.8.tar.gz` | 46,997 bytes | 26 | `cc450bbccb96d95959ab553ecaf9a746d6f5e0b1bc6f5991d409150e70108051` |
+
+Uploaded PyPI artifacts from the approved Trusted Publishing OIDC run:
+
+| file | size | SHA-256 |
+| --- | ---: | --- |
+| `agent_personal_vault-0.1.8-py3-none-any.whl` | 35,689 bytes | `c1f6946f5db5a48e0ba589cc69a7017827b40fa40880f7a581e962049f0e2338` |
+| `agent_personal_vault-0.1.8.tar.gz` | 46,770 bytes | `6ccba7aa2784c84257b894cf6312b6068df4465b51e0a9f6a043de04d7bc0e19` |
 
 ## v0.1.7 Purpose Redaction Patch Candidate Dry-Run
 
