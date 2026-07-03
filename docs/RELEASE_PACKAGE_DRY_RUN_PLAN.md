@@ -16,9 +16,11 @@ Current package state:
 
 - Latest GitHub prerelease: `v0.1.4`.
 - Latest PyPI package: `0.1.4`.
-- Latest main commit: `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- Latest post-v0.1.4 status-refresh main checkpoint: `f10c5ee12130e780eb1ff093cb3cb39747a53279`.
 - Trusted Publishing is not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
 - `v0.1.4` is tagged, published as a GitHub prerelease, and published to PyPI.
+- No package-publishing workflow or GitHub `pypi` environment exists yet.
+- PyPI Trusted Publisher configuration should be treated as not configured until it is explicitly confirmed in PyPI.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Scope
@@ -135,10 +137,18 @@ Detailed plan: `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 Do not enable it without separate explicit approval for:
 
+- the package-publish workflow PR;
+- the GitHub `pypi` environment and protection rules;
 - the PyPI project publisher configuration;
-- any GitHub Actions workflow that can publish to PyPI;
-- any GitHub environment or reviewer protection used by that workflow;
 - the first publish attempt through that workflow.
+
+Before the first OIDC publish dry-run, confirm:
+
+- workflow identity exactly matches the PyPI publisher settings;
+- `id-token: write` is granted only to the publishing job;
+- the publish job uses the protected `pypi` environment;
+- artifacts are built from the approved tag and downloaded into the publish job;
+- manual token fallback remains available only for separately approved emergency maintenance.
 
 ## v0.1.2 Candidate Planning
 
@@ -280,3 +290,9 @@ Artifacts:
 | `agent_personal_vault-0.1.4.tar.gz` | 44,619 bytes | 26 | `d62d2a4c2e8699d1a80fce7c21385bd8d7a057a33a6dfa3103c0d2c81f4c4572` |
 
 Before any future separately approved package publish, regenerate artifacts from the approved tag or target commit and compare the filename, version, metadata, forbidden-file scan, and SHA-256 values. Do not upload dry-run artifacts unless that exact upload is separately approved.
+
+Trusted Publishing note:
+
+- `v0.1.4` was published through the manual token fallback lane.
+- A future OIDC publish must not reuse these artifact hashes as authorization.
+- The first Trusted Publishing run needs fresh artifacts, a matching GitHub `pypi` environment, matching PyPI publisher settings, and a separate first-OIDC-publish approval.

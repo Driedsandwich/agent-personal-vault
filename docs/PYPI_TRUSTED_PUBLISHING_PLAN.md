@@ -27,8 +27,13 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 
 ## Current Repository State
 
-- The repository currently has a test workflow only.
+- Latest GitHub prerelease: `v0.1.4`.
+- Latest PyPI package: `0.1.4`.
+- Package publishes through `v0.1.4` used the manual token fallback lane.
+- The repository currently has `test`, `Dependency Graph`, and `CodeQL` workflows, but no active package-publishing workflow.
 - There is no active package-publishing GitHub Actions workflow.
+- GitHub environments check on 2026-07-03 returned `total_count: 0`; the `pypi` environment has not been created.
+- No PyPI publisher setup has been performed as part of this repository workflow. Treat the PyPI project publisher as not configured until the project owner confirms it in PyPI.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
 - No package publish has used Trusted Publishing yet.
 - Future publish actions remain separately approval-gated.
@@ -45,6 +50,14 @@ Candidate settings:
 - Environment name: `pypi`
 
 The PyPI project setting must match the future GitHub Actions workflow identity exactly. If the workflow filename or environment name changes, the PyPI publisher configuration must be reviewed again.
+
+PyPI-side setup is a separate external account action. Before changing it, confirm:
+
+- the logged-in PyPI account owns or administers `agent-personal-vault`;
+- the publisher form is for the existing PyPI project, not a new project;
+- owner, repository, workflow name, and environment name match the workflow candidate exactly;
+- no broad API token or account-wide credential is added as a workaround;
+- a rollback path is known: remove the Trusted Publisher entry and return to manual project-scoped token fallback for the next approved publish.
 
 ## GitHub Actions Workflow Candidate
 
@@ -115,6 +128,23 @@ Design notes:
 - The build job uploads artifacts for the protected publish job to consume.
 - A future implementation PR should pin action versions or record the accepted tag policy before activation.
 
+Workflow addition is a repository code change, not a publish by itself. It still needs a dedicated Issue/PR because it introduces a path that can publish once the external settings exist.
+
+Stop before merging the workflow PR if:
+
+- the workflow can publish from an unreviewed branch or unapproved tag;
+- `id-token: write` is granted globally instead of only on the publish job;
+- the publish job omits the `pypi` environment;
+- artifacts are built and published in the same privileged job;
+- the workflow uses PyPI username/password/token secrets as the normal path;
+- local `scripts/check_release.py`, PR CI, or CodeQL fails.
+
+Rollback if the workflow is wrong:
+
+- revert or amend the workflow PR before merge;
+- if already merged but unused, open a rollback PR removing or disabling the workflow;
+- if the workflow has been used to publish, stop announcements and prepare a corrective patch/yank decision through the package-publish rollback lane.
+
 ## GitHub Environment Protection
 
 Candidate environment: `pypi`.
@@ -128,6 +158,22 @@ Recommended protection before any active publish workflow:
 - do not store PyPI API tokens in the environment unless using the manual fallback lane.
 
 Creating or changing this environment is a repository setting change and requires separate explicit approval.
+
+GitHub environment setup is separate from the workflow PR.
+
+Recommended approval packet:
+
+- create environment `pypi`;
+- require at least one reviewer;
+- use narrow branch/tag deployment policy where available;
+- avoid storing PyPI tokens in the environment when Trusted Publishing is the normal path;
+- record how to remove or disable the environment if it blocks CI or permits an unintended publish path.
+
+Rollback if the environment is wrong:
+
+- remove or tighten the `pypi` environment protection rules;
+- disable the package-publish workflow until the environment is corrected;
+- do not bypass environment approval for the first OIDC publish.
 
 ## Manual Token Fallback
 
@@ -156,14 +202,34 @@ Stop before upload if any of these occur:
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
 
+First OIDC publish approval should be a separate release lane for a future version, not a background migration step.
+
+Required preflight before the first OIDC publish:
+
+- latest `main` is clean and matches `origin/main`;
+- target tag, package version, CHANGELOG, GitHub release state, and PyPI availability all agree;
+- the GitHub `pypi` environment is protected and pending human approval before publish;
+- PyPI publisher settings exactly match owner `Driedsandwich`, repository `agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`;
+- workflow run builds fresh artifacts from the approved tag;
+- artifact filenames, sizes, entry counts, SHA-256 hashes, Project-URL metadata, and forbidden-file scan are recorded;
+- no SNS/blog/community announcement is bundled into the publish approval.
+
+Rollback after a bad OIDC publish:
+
+- stop or cancel any announcement lane;
+- open an Issue documenting the package impact without raw personal data or secrets;
+- prepare a corrective patch release through normal Issue/PR/release lanes;
+- yank the PyPI release only if the package is unsafe and yanking is separately approved;
+- remove or disable the Trusted Publisher and workflow only if the failure came from the publishing path itself.
+
 ## Decision
 
 Trusted Publishing is suitable for Agent Personal Vault, but only as a future explicitly approved publish-lane hardening step.
 
 Next safe step, if approved later:
 
-1. Create a dedicated Issue for the inactive workflow implementation.
-2. Add the workflow only if it cannot publish without a separately configured PyPI publisher and protected environment.
+1. Create a dedicated Issue/PR for an inactive `pypi-publish.yml` workflow implementation.
+2. Separately approve GitHub environment `pypi` creation and protection.
 3. Separately approve PyPI publisher configuration.
-4. Separately approve GitHub environment protection.
-5. Separately approve the first OIDC publish attempt.
+4. Separately approve the first OIDC publish attempt for a future version.
+5. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
