@@ -141,6 +141,24 @@ Rationale:
 - Remaining P1 risks still affect distribution confidence and must stay visible during RC preparation: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, limited support-load observation, and full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment.
 - Package build artifacts were validated locally, but no externally distributed release, tag, package index upload, or public support cycle has been exercised.
 
+## Prerelease Graduation Criteria
+
+日本語要約: stable/GA扱いへ進む前の最低条件。
+
+The project should remain a public alpha / prerelease until all criteria below are explicitly rechecked in a dedicated Issue/PR.
+
+- README, PyPI long description, GUI, and CLI help continue to state that stored data is not encrypted by default.
+- First-use and save-time UX actively warns users to use dummy data or values they are comfortable storing locally.
+- `audit summary`, `audit tail`, GUI audit view, MCP responses, and error responses are covered by tests that prevent raw personal values, full active consent ids, local private paths, or secrets from leaking.
+- `get` remains one-key, consent-gated, and warning-bearing; `env` remains human-only, bulk-acknowledged, and outside agent/MCP normal flow.
+- MCP continues to expose raw-free planning/status/consent-request tools only, with no raw-value or external-action tools.
+- consent tokens remain one-time, short-lived, and protected against double consume under concurrent access.
+- Issue templates, support guidance, and docs continue to reject real personal data, screenshots with raw values, vault files, consent files, audit logs, local private paths, and tokens in public support.
+- CodeQL, Dependabot/security alerts, local release-check, and main CI are green at the time of any graduation decision.
+- At-rest encryption remains either optional with clear limitations or is promoted only after a separate design, migration, and rollback review.
+
+Stop before stable/GA wording if any criterion is unknown, stale, or failing.
+
 ## v0.1.1 Readiness Snapshot
 
 Status date: 2026-07-02.

@@ -232,6 +232,10 @@ function scheduleSave() {{ clearTimeout(timer); timer = setTimeout(() => save(fa
 async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); await loadConsentRequests(); await loadAudit(); dirty=false; setState("保存済み"); }}
 async function save(show=true) {{
   clearTimeout(timer);
+  if (show) {{
+    const ok = window.confirm("保存前の確認: Agent Personal Vaultはalpha版で、既定では保存データを暗号化しません。dummy dataか、この端末に保存してよい値だけを保存してください。続行しますか？");
+    if (!ok) {{ setState("保存を中止しました"); return; }}
+  }}
   fields = collect();
   setState("保存中");
   await api("/api/profile", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{fields}})}});

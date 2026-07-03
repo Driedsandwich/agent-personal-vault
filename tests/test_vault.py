@@ -601,6 +601,15 @@ class VaultTests(unittest.TestCase):
         self.assertIn("一括raw export", html)
         self.assertIn('req.action === "env" || req.key === "*"', html)
 
+    def test_gui_manual_save_requires_alpha_storage_confirmation(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn("保存前の確認", html)
+        self.assertIn("既定では保存データを暗号化しません", html)
+        self.assertIn("dummy data", html)
+        self.assertIn('if (show) {', html)
+        self.assertIn('window.confirm', html)
+
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
