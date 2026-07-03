@@ -14,9 +14,12 @@ Current distribution snapshot:
 
 - Latest GitHub prerelease: `v0.1.4`.
 - Latest PyPI package: `0.1.4`.
-- Latest main commit: `ce0abbef2c899e9d0d227080da4b969f9cfde560`.
+- Latest post-v0.1.4 status-refresh main checkpoint: `f10c5ee12130e780eb1ff093cb3cb39747a53279`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
 - Trusted Publishing is still not enabled. Package publishes through `v0.1.4` used the manual token fallback lane.
+- No package-publishing GitHub Actions workflow exists yet.
+- GitHub environment `pypi` has not been created.
+- PyPI Trusted Publisher configuration should be treated as not configured until the project owner confirms it in PyPI.
 - The v0.1.4 GitHub prerelease and PyPI package now include the boundary cleanup plus consent/local-file hardening.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
@@ -430,6 +433,7 @@ Current v0.1.4 candidate decision:
 - Scope stayed narrow: version bump to `0.1.4`, CHANGELOG finalization, fresh isolated artifact build from the target commit, hash recording, GitHub tag/release lanes, and PyPI publish lane.
 - Do not bundle Trusted Publishing activation into this patch by default. It remains a separate repository/PyPI settings lane.
 - Stop if local release-check, PR CI, CodeQL, Dependabot/security alerts, PyPI version availability, or artifact forbidden-file scan fails.
+- Trusted Publishing introduction should be split into separate future approvals: workflow PR, GitHub environment setup, PyPI publisher setup, and first OIDC publish.
 
 Latest v0.1.4 publish checks:
 
@@ -456,3 +460,23 @@ Run the post-v0.1.4 lightweight observation cycle: confirm the GitHub prerelease
 ```
 
 This still does not create a new GitHub release, tag, package publish, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, or public announcement. Future release creation, tag creation, package publish, repository setting changes, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.
+
+## Trusted Publishing Approval Packet
+
+Status date: 2026-07-03.
+
+Current state:
+
+- Package publishes through `v0.1.4` used the manual token fallback lane.
+- No `pypi-publish.yml` workflow exists.
+- GitHub environments API returned no environments; environment `pypi` has not been created.
+- PyPI Trusted Publisher setup has not been performed through this repository workflow and should be treated as not configured until the project owner confirms it in PyPI.
+
+Recommended sequencing:
+
+1. Add an inactive/manual package-publish workflow through Issue/PR.
+2. Configure GitHub environment `pypi` with human review through a separate repository-setting approval.
+3. Configure the PyPI Trusted Publisher for owner `Driedsandwich`, repository `agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi` through a separate PyPI account approval.
+4. Attempt the first OIDC publish only for a future separately approved version after fresh artifact, CI, security, PyPI availability, and release-note checks.
+
+Stop before any Trusted Publishing activation if the workflow can publish from an unapproved branch, the environment lacks human approval, PyPI settings do not exactly match the workflow identity, artifacts contain forbidden files, the package version already exists on PyPI, or any real personal data, secrets, private paths, or private support details appear in logs or artifacts.
