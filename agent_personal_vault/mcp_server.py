@@ -179,7 +179,9 @@ class MCPServer:
                 return self.error(request_id, -32601, "Unknown tool")
             except ValueError as exc:
                 message = str(exc)
-                if message.startswith("Unknown key: ") or message in VALIDATION_ERROR_MESSAGES:
+                if message.startswith("Unknown key: "):
+                    return self.error(request_id, -32602, "Unknown key")
+                if message in VALIDATION_ERROR_MESSAGES:
                     return self.error(request_id, -32602, message)
                 return self.error(request_id, -32602, "Invalid request")
             except Exception:
