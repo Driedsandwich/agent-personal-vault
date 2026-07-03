@@ -33,7 +33,8 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 - The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
 - `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for a future OIDC publish lane. It does not authorize a publish by itself.
 - GitHub environment `pypi` exists. It requires reviewer `Driedsandwich`, has `prevent_self_review: false`, uses protected-branches-only deployment policy, stores no environment secrets or PyPI token, and currently has `can_admins_bypass: true`.
-- No PyPI publisher setup has been performed as part of this repository workflow. Treat the PyPI project publisher as not configured until the project owner confirms it in PyPI.
+- PyPI Trusted Publisher setup is complete according to the PyPI project management UI confirmed by the project owner. The configured publisher is GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
+- PyPI public JSON does not expose Trusted Publisher configuration, so re-check the PyPI management UI or first OIDC workflow result before treating the lane as operational.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
 - No package publish has used Trusted Publishing yet.
 - Future publish actions remain separately approval-gated.
@@ -42,7 +43,7 @@ Manual token publishing can remain an emergency fallback, but it should not be t
 
 For the existing PyPI project `agent-personal-vault`, the PyPI trusted publisher should be configured only after separate explicit approval.
 
-Candidate settings:
+Configured settings:
 
 - Owner: `Driedsandwich`
 - Repository name: `agent-personal-vault`
@@ -251,7 +252,6 @@ Trusted Publishing is suitable for Agent Personal Vault, but only as a future ex
 
 Next safe step, if approved later:
 
-1. Separately approve PyPI publisher configuration.
-2. Separately approve the first OIDC publish attempt for a future version.
-3. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
-4. Consider admin-bypass hardening as a separate repository-settings lane before the first OIDC publish.
+1. Separately approve the first OIDC publish attempt for a future version.
+2. Keep manual project-scoped token publishing as a documented emergency fallback until the first OIDC publish succeeds.
+3. Consider admin-bypass hardening as a separate repository-settings lane before the first OIDC publish.
