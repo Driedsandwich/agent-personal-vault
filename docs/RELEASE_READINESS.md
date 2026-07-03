@@ -14,8 +14,10 @@ Current distribution snapshot:
 
 - Latest GitHub prerelease: `v0.1.3`.
 - Latest PyPI package: `0.1.3`.
+- Latest main commit: `4d81a2b fix: harden consent state access`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
 - Trusted Publishing is still not enabled. All package publishes through `v0.1.3` used the manual token fallback lane.
+- Changes after `v0.1.3` are not on PyPI yet. They include boundary cleanup plus consent/local-file hardening.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
@@ -421,10 +423,36 @@ The following actions remain stopped:
 
 ## Recommended Next Approval
 
+Current v0.1.4 candidate decision:
+
+- Recommendation: prepare a small `v0.1.4` patch release next, rather than waiting for additional hardening.
+- Reason: main now contains user-facing safety-boundary docs and consent-state hardening that are not present in the PyPI `0.1.3` package.
+- Scope should stay narrow: version bump to `0.1.4`, CHANGELOG finalization, fresh isolated artifact build from the target commit, hash recording, GitHub tag/release lanes, and PyPI publish lane.
+- Do not bundle Trusted Publishing activation into this patch by default. It remains a separate repository/PyPI settings lane.
+- Stop if local release-check, PR CI, CodeQL, Dependabot/security alerts, PyPI version availability, or artifact forbidden-file scan fails.
+
+Latest pre-version-bump checks:
+
+- Local `python3 scripts/check_release.py`: pass on `4d81a2b`.
+- Main `test` workflow: success on `4d81a2b`.
+- Main `CodeQL` workflow: success on `4d81a2b`.
+- Open GitHub Issues/PRs: `0 / 0` at the checkpoint.
+- Open CodeQL alerts: `0`.
+- Open Dependabot alerts: `0`.
+- PyPI latest: `0.1.3`; `0.1.4` is not published.
+- GitHub release `v0.1.4`: not present.
+
+Current-main artifact dry-run evidence, before any version bump:
+
+- Built from `HEAD` with current package version `0.1.3`; these hashes are not v0.1.4 release hashes.
+- `agent_personal_vault-0.1.3-py3-none-any.whl`: 34,724 bytes, 15 entries, SHA-256 `45d7608915fab5ea3df5540db00fd9a6570a4d92277642dd5a2a5ec8ed8e318d`, no forbidden artifact name hits.
+- `agent_personal_vault-0.1.3.tar.gz`: 44,647 bytes, 26 entries, SHA-256 `90194a23a9daf0d45b2c55cb8ba2e3acea6dbc0d248fed7a2ea1d60e42421c2a`, no forbidden artifact name hits.
+- Regenerate fresh artifact hashes after any separately approved version bump to `0.1.4`.
+
 If the user wants to proceed, the next bounded action is:
 
 ```text
-Continue public-alpha lightweight observation for one cycle. Confirm open Issues/PRs, Actions, Security alerts, release/tag absence, README display, support-load signals, and external feedback. If no blocker appears, prepare a release-candidate checklist draft through Issue/PR without creating a release, tag, package publish, or announcement.
+Prepare the v0.1.4 patch release candidate through Issue/PR by bumping the package version to 0.1.4, finalizing the CHANGELOG entry from Unreleased, rebuilding fresh isolated artifacts from the target commit, recording hashes, running release-check and CI, and then stopping for separate tag/release/package-publish approvals.
 ```
 
 This still does not create a GitHub release, tag, publish a package, change repository settings, delete branches, operate Claude Desktop app UI, use API-billed validation, or announce the project publicly. Release creation, tag creation, package publish, repository setting changes, branch deletion, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.

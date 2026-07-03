@@ -12,7 +12,17 @@ This file is a draft planning document for a possible future release candidate. 
 
 ## Unreleased
 
-No unreleased changes yet.
+### Security And Privacy Changes
+
+- Hardened local consent state updates with a lock file so one-time consent tokens cannot be consumed twice under concurrent access.
+- Made MCP unknown-key errors return a generic raw-free message instead of echoing invalid keys or allowed-key details back to an agent-facing client.
+
+### Documentation And Release Hygiene
+
+- Clarified that existing custom store parent directories are not automatically chmodded.
+- Refreshed announcement and release-readiness docs for the current `v0.1.3` / PyPI `0.1.3` state.
+- Marked CLI `env` as a human-only bulk raw export path, outside the normal public-alpha agent/MCP flow.
+- Clarified that CLI `check` is local-facing and may show a store path, while agent-facing status should use `context` or MCP raw-free tools.
 
 ## 0.1.3 - 2026-07-03
 
