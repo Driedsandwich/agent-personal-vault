@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from agent_personal_vault import __version__
-from agent_personal_vault.audit import audit_path, read_audit_events
+from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import audit_view_payload, page_html, save_profile_fields
@@ -319,6 +319,23 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("山田", result.stdout)
             self.assertNotIn("private.person@example.test", result.stdout)
             self.assertNotIn("03-1234-5678", result.stdout)
+
+    def test_raw_like_task_and_purpose_redaction_covers_common_local_pii_shapes(self) -> None:
+        local_path = "/" + "Users/example/private/vault.json"
+        raw_like_values = [
+            "raw purpose 山田 太郎",
+            "東京都千代田区千代田1-1",
+            "1999-04-01 born",
+            "09012345678",
+            local_path,
+            "student id 12345678",
+            "100-0001",
+        ]
+        for value in raw_like_values:
+            with self.subTest(value=value):
+                self.assertEqual(_clean_text(value), "[redacted]")
+
+        self.assertNotEqual(_clean_text("応募フォームの氏名とメール連絡先を下書きする"), "[redacted]")
 
     def test_cli_list_does_not_return_raw_fragments(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1476,7 +1493,8 @@ class VaultTests(unittest.TestCase):
             store["fields"]["FAMILY_NAME"] = "山田"
             store["fields"]["EMAIL"] = "private.person@example.test"
             write_store(store, path)
-            raw_looking_purpose = "draft for 山田 private.person@example.test"
+            local_path = "/" + "Users/example/private/vault.json"
+            raw_looking_purpose = f"draft for 山田 太郎 {local_path} 09012345678"
             messages = [
                 {
                     "jsonrpc": "2.0",
@@ -1503,10 +1521,14 @@ class VaultTests(unittest.TestCase):
             encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
 
             self.assertNotIn("山田", result.stdout)
-            self.assertNotIn("private.person@example.test", result.stdout)
+            self.assertNotIn("太郎", result.stdout)
+            self.assertNotIn(local_path, result.stdout)
+            self.assertNotIn("09012345678", result.stdout)
             self.assertNotIn(raw_looking_purpose, result.stdout)
             self.assertNotIn("山田", encoded_events)
-            self.assertNotIn("private.person@example.test", encoded_events)
+            self.assertNotIn("太郎", encoded_events)
+            self.assertNotIn(local_path, encoded_events)
+            self.assertNotIn("09012345678", encoded_events)
             self.assertNotIn(raw_looking_purpose, encoded_events)
             responses = [json.loads(line) for line in result.stdout.splitlines()]
             payload = json.loads(responses[0]["result"]["content"][0]["text"])
