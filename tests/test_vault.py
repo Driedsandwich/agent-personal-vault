@@ -883,6 +883,49 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(sum(1 for event in events if event["action"] == "consent_consume" and event["outcome"] == "allowed"), 1)
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
 
+    def test_cli_consent_token_cross_process_consume_allows_one_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            purpose = "cross process one time access"
+            consent_id = self.grant_consent(path, "get", "FAMILY_NAME", purpose)
+            command = [
+                sys.executable,
+                "-m",
+                "agent_personal_vault.cli",
+                "--store",
+                str(path),
+                "get",
+                "FAMILY_NAME",
+                "--purpose",
+                purpose,
+                "--consent-id",
+                consent_id,
+            ]
+            processes = [
+                subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                for _ in range(6)
+            ]
+            results = [process.communicate(timeout=10) + (process.returncode,) for process in processes]
+
+            successes = [result for result in results if result[2] == 0]
+            failures = [result for result in results if result[2] != 0]
+            self.assertEqual(len(successes), 1)
+            self.assertEqual(successes[0][0].strip(), "山田")
+            self.assertEqual(len(failures), 5)
+            self.assertTrue(all("already been used" in stderr for _, stderr, _ in failures))
+            self.assertTrue(all("Traceback" not in stdout + stderr for stdout, stderr, _ in results))
+            self.assertTrue(all(consent_id not in stdout + stderr for stdout, stderr, _ in failures))
+
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            used = [grant for grant in state["grants"] if grant["id"] == consent_id and grant["used_at"]]
+            self.assertEqual(len(used), 1)
+            events = read_audit_events(path, limit=30)
+            self.assertEqual(sum(1 for event in events if event["action"] == "consent_consume" and event["outcome"] == "allowed"), 1)
+            self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
+
     def test_cli_consent_list_is_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
