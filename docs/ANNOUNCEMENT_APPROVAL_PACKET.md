@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Use the GitHub README as the primary announcement link. PyPI latest is `0.1.10`, the `v0.1.10` GitHub prerelease is published, and Trusted Publishing OIDC publish has succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, and `v0.1.10`. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.11`, the `v0.1.11` GitHub prerelease is published, and Trusted Publishing OIDC publish has succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11`. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
@@ -242,7 +242,7 @@ https://github.com/Driedsandwich/agent-personal-vault
 Link handling:
 
 - Primary link: GitHub README.
-- Optional secondary link after the main text: GitHub release `v0.1.10` if the post is explicitly about the current alpha release.
+- Optional secondary link after the main text: GitHub release `v0.1.11` if the post is explicitly about the current alpha release.
 - Avoid PyPI-first routing unless the post is specifically about installation and the PyPI page has been rechecked immediately before publishing.
 
 24-hour monitoring:
@@ -319,7 +319,7 @@ Issue #146 is closed. It tracked the post-`v0.1.5` status sync after the first T
 
 Issue #149 tracked the announcement packet refresh after the `v0.1.5` GitHub prerelease and PyPI `0.1.5` package were published.
 
-Issue #161 tracked the post-`v0.1.6` status sync after the `v0.1.6` GitHub prerelease and PyPI `0.1.6` package were published through the Trusted Publishing OIDC lane. Issue #167 tracked the post-`v0.1.7` status sync after the `v0.1.7` GitHub prerelease and PyPI `0.1.7` package were published through the Trusted Publishing OIDC lane. Issue #173 tracked the post-`v0.1.8` status sync after the `v0.1.8` GitHub prerelease and PyPI `0.1.8` package were published through the Trusted Publishing OIDC lane. Issue #191 tracked the post-`v0.1.9` status sync after the `v0.1.9` GitHub prerelease and PyPI `0.1.9` package were published through the Trusted Publishing OIDC lane. Issue #199 tracks the post-`v0.1.10` status sync after the `v0.1.10` GitHub prerelease and PyPI `0.1.10` package were published through the Trusted Publishing OIDC lane. Announcements should continue to point readers to the GitHub README for the current installation path.
+Issue #161 tracked the post-`v0.1.6` status sync after the `v0.1.6` GitHub prerelease and PyPI `0.1.6` package were published through the Trusted Publishing OIDC lane. Issue #167 tracked the post-`v0.1.7` status sync after the `v0.1.7` GitHub prerelease and PyPI `0.1.7` package were published through the Trusted Publishing OIDC lane. Issue #173 tracked the post-`v0.1.8` status sync after the `v0.1.8` GitHub prerelease and PyPI `0.1.8` package were published through the Trusted Publishing OIDC lane. Issue #191 tracked the post-`v0.1.9` status sync after the `v0.1.9` GitHub prerelease and PyPI `0.1.9` package were published through the Trusted Publishing OIDC lane. Issue #199 tracked the post-`v0.1.10` status sync after the `v0.1.10` GitHub prerelease and PyPI `0.1.10` package were published through the Trusted Publishing OIDC lane. Issue #205 tracks the post-`v0.1.11` status sync after the `v0.1.11` GitHub prerelease and PyPI `0.1.11` package were published through the Trusted Publishing OIDC lane. Announcements should continue to point readers to the GitHub README for the current installation path.
 
 Announcement handling:
 
