@@ -14,6 +14,22 @@ This file is a draft planning document for a possible future release candidate. 
 
 No unreleased changes.
 
+## 0.1.9 - 2026-07-04
+
+### Security And Privacy Changes
+
+- Treat invalid consent expiry metadata as a sanitized consent error without raw values, private store paths, full consent tokens, or Python tracebacks.
+- Clarify and test that MCP consent-token-looking inputs are not authentication or authorization boundaries and are not echoed back to agent-facing clients.
+- Clarify that the MCP stdio server trusts the local process/client boundary and does not provide built-in authentication.
+- Document that plaintext JSON stores can persist through backups, cloud sync, snapshots, manual copies, and terminal history around raw commands.
+- Clarify that audit logs are raw-free metadata records, not immutable, signed, append-only, tamper-evident forensic logs.
+- Add cross-process one-time consent consume regression coverage so concurrent clients cannot reuse the same consent.
+
+### Documentation And Release Hygiene
+
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.9`.
+- Recorded the fresh v0.1.9 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
 ## 0.1.8 - 2026-07-04
 
 ### Security And Privacy Changes
