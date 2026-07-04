@@ -98,6 +98,16 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
     write_json_private(path, state)
 
 
+def _parse_expires_at(value: Any) -> datetime:
+    try:
+        expires_at = datetime.fromisoformat(str(value))
+    except ValueError as exc:
+        raise ConsentError("consent token expiry is invalid") from exc
+    if expires_at.tzinfo is None:
+        raise ConsentError("consent token expiry is invalid")
+    return expires_at
+
+
 def issue_consent(
     *,
     vault_path: Path,
@@ -283,7 +293,7 @@ def validate_and_consume_consent(
                 raise ConsentError("consent token key mismatch")
             if grant.get("purpose") != _clean_text(purpose):
                 raise ConsentError("consent token purpose mismatch")
-            expires_at = datetime.fromisoformat(str(grant.get("expires_at")))
+            expires_at = _parse_expires_at(grant.get("expires_at"))
             if datetime.now(timezone.utc).replace(microsecond=0) > expires_at:
                 raise ConsentError("consent token has expired")
             grant["used_at"] = now_iso()
