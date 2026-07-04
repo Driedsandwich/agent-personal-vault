@@ -52,10 +52,10 @@ def _clean_text(value: str | None) -> str:
 
 
 def redact_consent_id(value: str | None) -> str:
-    text = _clean_text(value)
+    text = "" if value is None else " ".join(str(value).split())
     if text.startswith("c_"):
         return "c_[redacted]"
-    return text
+    return _clean_text(text)
 
 
 def write_audit_event(
