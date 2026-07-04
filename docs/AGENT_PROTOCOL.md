@@ -117,6 +117,8 @@ Tools:
 
 The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.context` accepts an optional raw-free `task` argument and may return conservative minimum-key planning hints. `apv.list_masked` does not return raw value fragments; it returns field status metadata only. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
 
+MCP clients must not treat consent tokens as MCP authentication or authorization credentials. A consent token is a local, one-time workflow token for the later human-operated CLI `get` step only. Passing a token-like argument to MCP tools does not grant raw access, and MCP responses must not echo full consent tokens.
+
 ## Raw Commands
 
 After a human-operated approval, this command can print one raw personal value:
@@ -127,6 +129,8 @@ agent-personal-vault get <KEY> --purpose "<raw-free purpose>" --consent-id "<pri
 ```
 
 Use it only after the agent has a concrete local purpose and the single key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied by a human in the GUI or a separate human-operated CLI session. Consent tokens are one-time tokens and must match action, key, and purpose.
+
+Consent tokens are not a substitute for OS permissions, process isolation, or MCP client authorization. Do not pass them to subagents, logs, issue reports, or MCP prompts; keep the full token in the human-operated handoff path only.
 
 `env` is an advanced/manual human-only bulk raw export command. It is not part of the public-alpha agent protocol, MCP integration path, Quickstart, or release validation path. Prefer one-key `get <KEY>` retrieval. `env` and `consent grant/request --action env` require the explicit `--i-understand-bulk-raw-export` acknowledgement and write `env_bulk_export` audit events.
 
