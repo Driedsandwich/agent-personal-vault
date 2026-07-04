@@ -111,6 +111,44 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.9 Consent And Local Trust Boundary Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.9` consent and local-trust boundary patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
+Candidate scope:
+
+- bump package version from `0.1.8` to `0.1.9`;
+- move post-`v0.1.8` safety changes into the `0.1.9` changelog entry;
+- include invalid consent expiry hardening that returns sanitized consent errors without raw values, private store paths, full consent tokens, or Python tracebacks;
+- include MCP consent-token boundary coverage so token-looking MCP inputs are not treated as authentication or authorization and are not echoed;
+- clarify the MCP local process/client trust boundary and the absence of built-in MCP authentication;
+- document plaintext JSON backup, sync, snapshot, manual-copy, and terminal-history residual risks;
+- clarify that audit logs are raw-free metadata but not immutable, signed, append-only, or tamper-evident forensic logs;
+- include cross-process one-time consent consume regression coverage;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.9`.
+
+Local dry-run checks:
+
+- Fresh isolated artifact build source: temporary worktree copy with generated outputs, `.git`, and local metadata excluded.
+- `twine check dist/*`: passed.
+- Project URL metadata is present in the wheel artifact:
+  - `Homepage`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source`: `https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues`: `https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation`: `https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file scan: passed for both artifacts.
+- Wheel metadata reports version `0.1.9`.
+- PyPI `0.1.9` absence check returned HTTP 404.
+
+Artifact evidence:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.9-py3-none-any.whl` | 36,080 bytes | 15 | `2c0c899056cd691fdd17874ea59fdf9881949fa3f5346d250246a00a99f17d04` |
+| `agent_personal_vault-0.1.9.tar.gz` | 48,465 bytes | 26 | `b2e6cfb1dcebc2b12b914f92bf1b40570282cc868a4545c9bde952a2258d1971` |
+
 ## v0.1.8 Boundary Hardening Patch Candidate Dry-Run
 
 Status date: 2026-07-04.
