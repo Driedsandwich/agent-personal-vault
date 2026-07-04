@@ -82,6 +82,7 @@ def page_html(token: str, schema_name: str) -> str:
       <button id="mask">マスク切替</button>
       <span id="state">保存済み</span>
       <p class="danger">alpha版です。既定では暗号化しません。共有端末、侵害済み端末、公開Issue、スクリーンショットでは使わないでください。</p>
+      <p class="danger">平文JSONはbackup、cloud sync、snapshot、手動コピーに残る可能性があります。同期・共有される保存先は避けてください。</p>
       <p class="danger">外部送信はしません。応募、登録、メール送信、アップロードは別途人間確認してください。</p>
     </div>
     <form id="form"></form>
@@ -100,11 +101,13 @@ def page_html(token: str, schema_name: str) -> str:
     </section>
     <section class="panel">
       <h2>同意リクエスト</h2>
+      <p class="hint">consent tokenは人間承認の受け渡し用であり、認証・認可境界ではありません。同じOSユーザー権限のローカルprocessを信頼できる範囲で使ってください。</p>
       <div id="consentResult" class="hint"></div>
       <div id="consentRequests">読み込み中</div>
     </section>
     <section class="panel">
       <h2>監査ログ</h2>
+      <p class="hint">監査ログはraw-free metadataです。改ざん不能・署名済み・外部保全済みの証跡ではありません。</p>
       <div id="auditSummary">読み込み中</div>
       <div id="auditEvents"></div>
     </section>
@@ -233,7 +236,7 @@ async function load() {{ const data = await api("/api/profile"); fields = data.f
 async function save(show=true) {{
   clearTimeout(timer);
   if (show) {{
-    const ok = window.confirm("保存前の確認: Agent Personal Vaultはalpha版で、既定では保存データを暗号化しません。dummy dataか、この端末に保存してよい値だけを保存してください。続行しますか？");
+    const ok = window.confirm("保存前の確認: Agent Personal Vaultはalpha版で、既定では保存データを暗号化しません。平文JSONはbackup、cloud sync、snapshot、手動コピーに残る可能性があります。dummy dataか、この端末に保存してよい値だけを保存してください。続行しますか？");
     if (!ok) {{ setState("保存を中止しました"); return; }}
   }}
   fields = collect();

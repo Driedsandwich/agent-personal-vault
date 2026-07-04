@@ -602,6 +602,7 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("WARNING", result.stderr)
             self.assertIn("not encrypted at rest by default", result.stderr)
+            self.assertIn("backups, sync targets, snapshots, or manual copies", result.stderr)
             self.assertIn("dummy data", result.stderr)
             self.assertNotIn("山田", result.stderr)
 
@@ -673,6 +674,8 @@ class VaultTests(unittest.TestCase):
         html = page_html("dummy-token", "job_hunting_profile")
 
         self.assertIn('id="consentResult"', html)
+        self.assertIn("consent tokenは人間承認の受け渡し用", html)
+        self.assertIn("認証・認可境界ではありません", html)
         self.assertIn("data.result.grant.id", html)
         self.assertIn("--consent-id", html)
         self.assertIn("CLI get", html)
@@ -689,9 +692,36 @@ class VaultTests(unittest.TestCase):
 
         self.assertIn("保存前の確認", html)
         self.assertIn("既定では保存データを暗号化しません", html)
+        self.assertIn("backup、cloud sync、snapshot、手動コピー", html)
         self.assertIn("dummy data", html)
         self.assertIn('if (show) {', html)
         self.assertIn('window.confirm', html)
+
+    def test_gui_page_warns_audit_is_not_tamper_evident(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn("監査ログはraw-free metadata", html)
+        self.assertIn("改ざん不能", html)
+        self.assertIn("外部保全済みの証跡ではありません", html)
+
+    def test_cli_boundary_help_mentions_non_auth_and_non_tamper_evident(self) -> None:
+        audit_result = subprocess.run(
+            [sys.executable, "-m", "agent_personal_vault.cli", "audit", "--help"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        consent_result = subprocess.run(
+            [sys.executable, "-m", "agent_personal_vault.cli", "consent", "--help"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        self.assertEqual(audit_result.returncode, 0, audit_result.stderr)
+        self.assertEqual(consent_result.returncode, 0, consent_result.stderr)
+        self.assertIn("Not tamper-evident", audit_result.stdout)
+        self.assertIn("Not an authentication boundary", consent_result.stdout)
 
     def test_cli_get_requires_consent_and_logs_denial_without_raw_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

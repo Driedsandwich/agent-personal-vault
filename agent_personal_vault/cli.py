@@ -135,7 +135,7 @@ def command_set(args: argparse.Namespace) -> None:
     if key in DERIVED_FIELDS:
         raise SystemExit(f"{key} is derived. Set component fields instead.")
     print(
-        "# WARNING: this stores one personal value locally. Data is not encrypted at rest by default; use dummy data or values you are comfortable storing on this device.",
+        "# WARNING: this stores one personal value locally. Data is not encrypted at rest by default and can remain in backups, sync targets, snapshots, or manual copies; use dummy data or values you are comfortable storing on this device.",
         file=sys.stderr,
     )
     value = sys.stdin.read().rstrip("\n") if args.stdin else getpass(f"{key} value: ")
@@ -326,7 +326,11 @@ def build_parser() -> argparse.ArgumentParser:
     unset.add_argument("key")
     unset.add_argument("--purpose", required=True, help="Change purpose. Stored in audit log without raw values.")
     unset.set_defaults(func=command_unset)
-    audit = sub.add_parser("audit", help="Inspect raw-free local audit metadata.")
+    audit = sub.add_parser(
+        "audit",
+        help="Inspect raw-free local audit metadata. Not tamper-evident.",
+        description="Inspect raw-free local audit metadata. Not tamper-evident.",
+    )
     audit_sub = audit.add_subparsers(dest="audit_command", required=True)
     audit_tail = audit_sub.add_parser("tail", help="Print recent audit events as JSON lines.")
     audit_tail.add_argument("--limit", type=int, default=20)
@@ -343,7 +347,11 @@ def build_parser() -> argparse.ArgumentParser:
     encryption_decrypt = encryption_sub.add_parser("decrypt", help="Decrypt the local vault back to plain JSON.")
     encryption_decrypt.add_argument("--purpose", required=True, help="Raw-free migration purpose. Stored in audit log.")
     encryption_decrypt.set_defaults(func=command_encryption)
-    consent = sub.add_parser("consent", help="Create or inspect raw-free consent tokens.")
+    consent = sub.add_parser(
+        "consent",
+        help="Create or inspect raw-free consent tokens. Not an authentication boundary.",
+        description="Create or inspect raw-free consent tokens. Not an authentication boundary.",
+    )
     consent_sub = consent.add_subparsers(dest="consent_command", required=True)
     consent_grant = consent_sub.add_parser("grant", help="Grant a one-time raw access consent token.")
     consent_grant.add_argument("--action", choices=["get", "env"], required=True)
