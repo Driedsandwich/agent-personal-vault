@@ -798,6 +798,49 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"outcome": "denied"', encoded_events)
             self.assertNotIn("山田", encoded_events)
 
+    def test_cli_invalid_consent_expiry_is_traceback_free_and_raw_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            purpose = "invalid expiry one-key access"
+            consent_id = self.grant_consent(path, "get", "FAMILY_NAME", purpose)
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            state["grants"][0]["expires_at"] = "not-a-date"
+            consent_path(path).write_text(json.dumps(state), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "get",
+                    "FAMILY_NAME",
+                    "--purpose",
+                    purpose,
+                    "--consent-id",
+                    consent_id,
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("consent token expiry is invalid", result.stderr)
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
+            self.assertNotIn(consent_id, combined)
+            self.assertNotIn("山田", combined)
+            encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+            self.assertIn('"action": "get"', encoded_events)
+            self.assertIn('"outcome": "denied"', encoded_events)
+            self.assertNotIn("山田", encoded_events)
+
     def test_cli_consent_token_concurrent_consume_allows_one_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
