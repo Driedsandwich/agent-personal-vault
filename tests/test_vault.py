@@ -990,6 +990,40 @@ class VaultTests(unittest.TestCase):
             self.assertIn("error: consent request not found", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
 
+    def test_cli_get_with_forged_consent_token_is_traceback_free_and_raw_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            forged_consent_id = "c_forged-private-token-1234567890"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "get",
+                    "FAMILY_NAME",
+                    "--purpose",
+                    "forged token negative path",
+                    "--consent-id",
+                    forged_consent_id,
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("consent required: consent token not found", result.stderr)
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
+            self.assertNotIn("山田", combined)
+            self.assertNotIn(forged_consent_id, combined)
+
     def test_cli_unknown_key_error_is_traceback_free_and_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
