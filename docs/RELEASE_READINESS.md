@@ -12,17 +12,17 @@ last_updated: 2026-07-04
 
 Current distribution snapshot:
 
-- Latest GitHub prerelease: `v0.1.8`.
-- Latest PyPI package: `0.1.8`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `bb0756ab7afdebe6f09aa827963022ea2872ad45`.
+- Latest GitHub prerelease: `v0.1.9`.
+- Latest PyPI package: `0.1.9`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `88f16fb5b7afb367655208e842e305f858d991fe`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, and `v0.1.8` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8` PyPI publishes.
-- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, and post-`v0.1.8` status synchronization is tracked in Issue #173.
-- The v0.1.8 GitHub prerelease and PyPI package include raw-looking task redaction, CLI negative-path hardening, and private temp write improvements.
+- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` PyPI publishes.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, and post-`v0.1.9` status synchronization is tracked in Issue #191.
+- The v0.1.9 GitHub prerelease and PyPI package include invalid consent expiry hardening, MCP consent-token boundary clarification, MCP local-trust boundary documentation, plaintext JSON residual-risk documentation, audit non-tamper-evidence clarification, and cross-process consent consume regression coverage.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
@@ -490,12 +490,12 @@ Status date: 2026-07-04.
 Current state:
 
 - Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8` were published to PyPI through the Trusted Publishing OIDC lane.
+- `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` were published to PyPI through the Trusted Publishing OIDC lane.
 - `.github/workflows/pypi-publish.yml` exists as the manual workflow-dispatch path for the OIDC publish lane.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully for `v0.1.6`, `v0.1.7`, and `v0.1.8`.
-- PyPI `0.1.8` is published.
+- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully for `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9`.
+- PyPI `0.1.9` is published.
 - Do not attempt to republish an existing PyPI version.
 
 Recommended sequencing:
