@@ -120,6 +120,12 @@ args:
 
 MCPには `get`、`env`、`set`、`unset`、外部送信、フォーム送信、メール送信、repository操作のtoolはありません。`apv.request_consent` もraw値を返しません。
 
+MCP stdio server自体は認証layerを持ちません。ローカルのMCP client / process境界を信頼する設計です。consent tokenは人間承認の受け渡し用であり、MCPの認証・認可credentialではありません。
+
+保存storeは既定では平文JSONです。backup、cloud sync、snapshot、手動コピーに残る可能性があるため、同期・共有されるstore pathは避け、実データを扱う場合はoptional encryptionや端末側の保護を検討してください。
+
+`audit summary` と `audit tail` はraw-free metadataの確認用です。改ざん不能・署名済み・外部保全済みの監査証跡ではなく、同じOSユーザー権限や侵害済み端末では編集・削除され得ます。
+
 ## Troubleshooting
 
 | Symptom | Check |
