@@ -31,6 +31,7 @@ from agent_personal_vault.vault import (
     planning_hints,
     schema_context,
     store_path,
+    store_path_warnings,
     write_store,
 )
 
@@ -106,6 +107,14 @@ class VaultTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             expected = Path(tmp).resolve() / "vault.json"
             self.assertEqual(local_user_path(Path(tmp) / "." / "vault.json"), expected)
+
+    def test_store_path_warnings_detect_common_sync_folders(self) -> None:
+        warning = "\n".join(store_path_warnings(Path("/tmp/OneDrive/apv/vault.json")))
+
+        self.assertIn("common synced/cloud-backed folder", warning)
+        self.assertIn("OneDrive", warning)
+        self.assertIn("Plaintext JSON", warning)
+        self.assertEqual(store_path_warnings(Path("/tmp/local-only/apv/vault.json")), [])
 
     def test_store_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -606,6 +615,34 @@ class VaultTests(unittest.TestCase):
             self.assertIn("dummy data", result.stderr)
             self.assertNotIn("山田", result.stderr)
 
+    def test_cli_set_warns_when_store_path_looks_synced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "OneDrive" / "vault.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "set",
+                    "FAMILY_NAME",
+                    "--stdin",
+                    "--purpose",
+                    "test input",
+                ],
+                input="山田\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("common synced/cloud-backed folder", result.stderr)
+            self.assertIn("OneDrive", result.stderr)
+            self.assertNotIn(str(path), result.stderr)
+            self.assertNotIn("山田", result.stderr)
+
     def test_gui_profile_save_writes_raw_free_audit_event(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -696,6 +733,13 @@ class VaultTests(unittest.TestCase):
         self.assertIn("dummy data", html)
         self.assertIn('if (show) {', html)
         self.assertIn('window.confirm', html)
+
+    def test_gui_page_shows_synced_store_warning_when_provided(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile", store_path_warnings(Path("/tmp/Dropbox/apv/vault.json")))
+
+        self.assertIn("common synced/cloud-backed folder", html)
+        self.assertIn("Dropbox", html)
+        self.assertNotIn("/tmp/Dropbox", html)
 
     def test_gui_page_warns_audit_is_not_tamper_evident(self) -> None:
         html = page_html("dummy-token", "job_hunting_profile")
