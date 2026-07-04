@@ -23,6 +23,7 @@ Current distribution snapshot:
 - The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, and `v0.1.10` PyPI publishes.
 - First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, post-`v0.1.9` status synchronization is tracked in Issue #191, and post-`v0.1.10` status synchronization is tracked in Issue #199.
 - The v0.1.10 GitHub prerelease and PyPI package include synced or cloud-backed store path detection and advisory CLI/GUI warnings without echoing the full local store path.
+- A `v0.1.11` patch candidate is being prepared in Issue #203 to package the post-`v0.1.10` Oracle Pro review follow-up for broader raw-like task and purpose redaction. It is not tagged, released, or published.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:

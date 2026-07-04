@@ -25,6 +25,7 @@ Current package state:
 - The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, and `v0.1.10` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
 - The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
+- A `v0.1.11` patch candidate is being prepared after the Oracle Pro review follow-up for broader raw-like task and purpose redaction. It is not tagged, released, or published.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -110,6 +111,53 @@ Prepared rollback actions:
 - disable or revert the publish workflow through PR if workflow behavior is wrong;
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
+
+## v0.1.11 Raw-Like Task/Purpose Redaction Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+Tracking Issue: #203.
+
+This section records the package dry-run for the `v0.1.11` raw-like task and purpose redaction patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.10` to `0.1.11`;
+- move the post-`v0.1.10` Oracle Pro review follow-up into the `0.1.11` changelog entry;
+- broaden raw-looking task and purpose redaction for common local/Japanese PII-like shapes, including Japanese name pairs, Japanese address markers, DOB-like dates, ungrouped phone numbers, local path prefixes, postal codes, and long numeric IDs;
+- extend MCP consent and audit regression coverage so raw-looking purpose text stays out of agent-facing outputs and audit events;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.11`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build source: temporary local source copy with `.git`, generated outputs, and local package metadata excluded.
+- Temporary build/twine environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> <temp-src>`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.11`.
+- PyPI `0.1.11` absence check returned HTTP 404 before the candidate preparation work.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+- PII scan found no obvious private data patterns.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.11-py3-none-any.whl` | 38,210 bytes | 15 | `db5a3d131e34e80456c5d7d4b0cdec8638d5943d814940d1f3e941480a9b38f1` |
+| `agent_personal_vault-0.1.11.tar.gz` | 51,365 bytes | 26 | `9cbe09154e3f39e936561a0cf521278f09ba5c498c5d3bdfb2de27c56db60d50` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.11` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.11`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
 ## v0.1.10 Synced Store Path Warning Patch Candidate Dry-Run
 
