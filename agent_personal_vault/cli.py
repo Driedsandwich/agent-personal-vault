@@ -34,6 +34,7 @@ from .vault import (
     normalize_value,
     schema_context,
     store_path,
+    store_path_warnings,
     validate_key,
     write_store,
 )
@@ -50,12 +51,18 @@ def read_passphrase(prompt: str = "Vault passphrase: ") -> str:
     return getpass(prompt)
 
 
+def print_store_path_warnings(path: Path) -> None:
+    for warning in store_path_warnings(path):
+        print(f"# WARNING: {warning}", file=sys.stderr)
+
+
 def command_init(args: argparse.Namespace) -> None:
     path = resolve_path(args)
     store = load_store(create=True, path=path, schema_name=args.schema)
     print(f"created_or_exists: {path}")
     print(f"schema: {store['schema']}")
     print("security: local file permissions only; data is not encrypted at rest by default")
+    print_store_path_warnings(path)
 
 
 def command_check(args: argparse.Namespace) -> None:
@@ -66,6 +73,7 @@ def command_check(args: argparse.Namespace) -> None:
     print(f"mode: {summary['mode']}")
     print(f"schema: {summary['schema']}")
     print(f"registered: {summary['registered']}/{summary['total']}")
+    print_store_path_warnings(path)
     if summary["required_missing"]:
         print("required_missing:")
         schema = get_schema(store["schema"])
@@ -138,6 +146,7 @@ def command_set(args: argparse.Namespace) -> None:
         "# WARNING: this stores one personal value locally. Data is not encrypted at rest by default and can remain in backups, sync targets, snapshots, or manual copies; use dummy data or values you are comfortable storing on this device.",
         file=sys.stderr,
     )
+    print_store_path_warnings(path)
     value = sys.stdin.read().rstrip("\n") if args.stdin else getpass(f"{key} value: ")
     store["fields"][key] = normalize_value(key, value)
     write_store(store, path)

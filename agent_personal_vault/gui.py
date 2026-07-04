@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlparse
 from .audit import audit_summary, read_audit_events, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .schemas import DERIVED_FIELDS
-from .vault import check_summary, derived_fields, get_schema, load_store, local_user_path, normalize_value, store_path, write_store
+from .vault import check_summary, derived_fields, get_schema, load_store, local_user_path, normalize_value, store_path, store_path_warnings, write_store
 
 
 def schema_payload(schema_name: str) -> dict:
@@ -34,7 +34,8 @@ def schema_payload(schema_name: str) -> dict:
     }
 
 
-def page_html(token: str, schema_name: str) -> str:
+def page_html(token: str, schema_name: str, store_warnings: list[str] | None = None) -> str:
+    warning_html = "".join(f'<p class="danger">{html.escape(warning)}</p>' for warning in (store_warnings or []))
     return f"""<!doctype html>
 <html lang="ja">
 <head>
@@ -83,6 +84,7 @@ def page_html(token: str, schema_name: str) -> str:
       <span id="state">保存済み</span>
       <p class="danger">alpha版です。既定では暗号化しません。共有端末、侵害済み端末、公開Issue、スクリーンショットでは使わないでください。</p>
       <p class="danger">平文JSONはbackup、cloud sync、snapshot、手動コピーに残る可能性があります。同期・共有される保存先は避けてください。</p>
+      {warning_html}
       <p class="danger">外部送信はしません。応募、登録、メール送信、アップロードは別途人間確認してください。</p>
     </div>
     <form id="form"></form>
@@ -316,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(HTTPStatus.FORBIDDEN)
                 self.end_headers()
                 return
-            body = page_html(self.server.gui_token, self.server.schema_name).encode("utf-8")
+            body = page_html(self.server.gui_token, self.server.schema_name, store_path_warnings(self.server.store_path)).encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))

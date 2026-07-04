@@ -16,6 +16,24 @@ from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
 APP_NAME = "agent-personal-vault"
 DEFAULT_SCHEMA = "job_hunting_profile"
 
+SYNC_PATH_MARKERS = {
+    "dropbox": "Dropbox",
+    "onedrive": "OneDrive",
+    "google drive": "Google Drive",
+    "googledrive": "Google Drive",
+    "icloud drive": "iCloud Drive",
+    "mobile documents": "iCloud Drive",
+    "clouddocs": "iCloud Drive",
+    "box drive": "Box",
+    "box sync": "Box",
+    "creative cloud files": "Adobe Creative Cloud",
+    "nextcloud": "Nextcloud",
+    "synologydrive": "Synology Drive",
+    "synology drive": "Synology Drive",
+    "mega": "MEGA",
+    "resilio sync": "Resilio Sync",
+}
+
 TASK_HINTS = [
     {
         "name": "identity",
@@ -91,6 +109,30 @@ def default_data_dir() -> Path:
 
 def store_path(data_dir: Path | None = None) -> Path:
     return (data_dir or default_data_dir()) / "vault.json"
+
+
+def likely_synced_path_labels(path: Path) -> list[str]:
+    """Return best-effort labels for common cloud/sync folder path markers."""
+
+    labels: list[str] = []
+    for part in path.expanduser().parts:
+        normalized = part.lower().replace("_", " ").replace("-", " ")
+        for marker, label in SYNC_PATH_MARKERS.items():
+            if marker in normalized and label not in labels:
+                labels.append(label)
+    return labels
+
+
+def store_path_warnings(path: Path) -> list[str]:
+    labels = likely_synced_path_labels(path)
+    if not labels:
+        return []
+    joined = ", ".join(labels)
+    return [
+        "store path appears to be under a common synced/cloud-backed folder "
+        f"({joined}). Plaintext JSON can persist in backups, sync targets, snapshots, or manual copies; "
+        "use dummy data, move the store, or enable optional encryption before storing real data."
+    ]
 
 
 def default_passphrase() -> str | None:
