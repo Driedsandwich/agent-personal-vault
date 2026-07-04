@@ -14,7 +14,7 @@ This is a planning and status document only. It does not authorize PyPI publishe
 
 ## Recommendation
 
-Use PyPI Trusted Publishing as the normal package publish path after successful `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8` OIDC publishes.
+Use PyPI Trusted Publishing as the normal package publish path after successful `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` OIDC publishes.
 
 Reason:
 
@@ -27,18 +27,18 @@ Manual token publishing remains an emergency fallback only. It should not be the
 
 ## Current Repository State
 
-- Latest GitHub prerelease: `v0.1.8`.
-- Latest PyPI package: `0.1.8`.
+- Latest GitHub prerelease: `v0.1.9`.
+- Latest PyPI package: `0.1.9`.
 - Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8` were published to PyPI through the Trusted Publishing OIDC lane.
+- `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` were published to PyPI through the Trusted Publishing OIDC lane.
 - The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
 - `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for the OIDC publish lane. It does not authorize a publish by itself.
 - GitHub environment `pypi` exists. It requires reviewer `Driedsandwich`, has `prevent_self_review: false`, uses protected-branches-only deployment policy, stores no environment secrets or PyPI token, and currently has `can_admins_bypass: true`.
 - PyPI Trusted Publisher setup is complete according to the PyPI project management UI confirmed by the project owner. The configured publisher is GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully for `v0.1.6`, `v0.1.7`, and `v0.1.8`.
+- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully for `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9`.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
-- Trusted Publishing has been used successfully for `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8`.
-- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, and post-`v0.1.8` status synchronization is tracked in Issue #173.
+- Trusted Publishing has been used successfully for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9`.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, and post-`v0.1.9` status synchronization is tracked in Issue #191.
 - Future publish actions remain separately approval-gated.
 
 ## PyPI Publisher Settings
@@ -64,7 +64,7 @@ PyPI-side setup is a separate external account action. Before changing it, confi
 
 ## GitHub Actions Workflow
 
-The workflow file exists and OIDC publishes succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, and `v0.1.8`. Do not run it for another real publish until the next version, tag, release, package availability, artifact, CI, security, and human approval gates are complete.
+The workflow file exists and OIDC publishes succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9`. Do not run it for another real publish until the next version, tag, release, package availability, artifact, CI, security, and human approval gates are complete.
 
 Workflow shape:
 
