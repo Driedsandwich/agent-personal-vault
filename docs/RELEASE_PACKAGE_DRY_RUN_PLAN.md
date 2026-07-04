@@ -111,6 +111,50 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.10 Synced Store Path Warning Patch Candidate Dry-Run
+
+Status date: 2026-07-04.
+
+This section records the package dry-run for the `v0.1.10` synced or cloud-backed store path warning patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.9` to `0.1.10`;
+- move the post-`v0.1.9` synced-store warning change into the `0.1.10` changelog entry;
+- keep current public-alpha safety boundaries unchanged;
+- include CLI `init`, CLI `check`, CLI `set`, and GUI warnings when the vault store path appears to be under a known synced or cloud-backed folder;
+- keep warning text advisory and avoid echoing the full local store path in CLI/GUI warning output;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.10`.
+
+Local dry-run results:
+
+- Isolated build environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> .`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.10`.
+- PyPI `0.1.10` absence check returned HTTP 404.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, or `/Users/` path in artifact entries.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.10-py3-none-any.whl` | 37,110 bytes | 15 | `8fc46acbeadedc796e186d8d43914f87bad9862baed46793caaaa04e5bbec263` |
+| `agent_personal_vault-0.1.10.tar.gz` | 50,102 bytes | 26 | `db0e199e3fc1568574d8de7e47b07dbe57e29755982504161d6af2e765bd1a6d` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.10` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, or `/Users/` path entries;
+- the package metadata does not report version `0.1.10`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## v0.1.9 Consent And Local Trust Boundary Patch Candidate Dry-Run
 
 Status date: 2026-07-04.

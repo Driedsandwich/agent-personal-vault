@@ -14,6 +14,18 @@ This file is a draft planning document for a possible future release candidate. 
 
 No unreleased changes.
 
+## 0.1.10 - 2026-07-04
+
+### Security And Privacy Changes
+
+- Add advisory detection for likely synced or cloud-backed vault store paths and warn in CLI `init`, CLI `check`, CLI `set`, and the GUI banner without echoing the full local store path.
+- Add regression tests for the synced-store warning helper, CLI warning output, and GUI warning visibility while keeping raw values and full store paths out of warning text.
+
+### Documentation And Release Hygiene
+
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.10`.
+- Recorded the fresh v0.1.10 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
 ## 0.1.9 - 2026-07-04
 
 ### Security And Privacy Changes
