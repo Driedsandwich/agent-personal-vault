@@ -14,17 +14,17 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.9`.
-- Latest PyPI package: `0.1.9`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `88f16fb5b7afb367655208e842e305f858d991fe`.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.9` is tagged, published as a GitHub prerelease, and published to PyPI.
+- Latest GitHub prerelease: `v0.1.10`.
+- Latest PyPI package: `0.1.10`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `23420930877fc13abf9cd8826cdb9c7ae5c3b29f`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, and `v0.1.10` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.10` is tagged, published as a GitHub prerelease, and published to PyPI.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, and `v0.1.9` PyPI publishes.
+- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, and `v0.1.10` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
-- The `v0.1.9` patch release was published after `v0.1.8` for consent and local-trust boundary hardening.
+- The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -35,13 +35,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.9` is published as a GitHub prerelease and points to `88f16fb5b7afb367655208e842e305f858d991fe`.
-- PyPI latest is `0.1.9`.
+- `v0.1.10` is published as a GitHub prerelease and points to `23420930877fc13abf9cd8826cdb9c7ae5c3b29f`.
+- PyPI latest is `0.1.10`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.9` OIDC publish workflow completed successfully.
-- The `v0.1.9` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
+- The `v0.1.10` OIDC publish workflow completed successfully.
+- The `v0.1.10` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
