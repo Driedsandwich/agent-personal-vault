@@ -25,6 +25,7 @@ Current distribution snapshot:
 - The v0.1.10 GitHub prerelease and PyPI package include synced or cloud-backed store path detection and advisory CLI/GUI warnings without echoing the full local store path.
 - The v0.1.11 GitHub prerelease and PyPI package include the post-`v0.1.10` Oracle Pro review follow-up for broader raw-like task and purpose redaction.
 - The v0.1.12 GitHub prerelease and PyPI package include the post-`v0.1.11` Fable 5 P1 hardening follow-up for sanitized invalid-state negative paths, encrypted payload iteration compatibility, PyPI publish workflow SHA pinning, and historical local-Git documentation.
+- A v0.1.13 patch candidate is in preparation on `main` after `v0.1.12` for GUI profile-view audit boundary metadata, consent source metadata, and README install example refresh. It is not tagged, released, or published yet.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.4` checkpoints, zero-release snapshots, or manual-token publish states as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:

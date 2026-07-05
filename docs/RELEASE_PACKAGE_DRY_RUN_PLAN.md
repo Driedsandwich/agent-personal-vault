@@ -27,6 +27,7 @@ Current package state:
 - The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
 - The `v0.1.11` patch release was published after `v0.1.10` for broader raw-like task and purpose redaction.
 - The `v0.1.12` patch release was published after `v0.1.11` for invalid-state negative-path hardening, encrypted payload iteration compatibility, publish workflow SHA pinning, and historical local-Git documentation.
+- A `v0.1.13` patch candidate is being prepared after `v0.1.12` for GUI profile-view audit boundary metadata, consent source metadata, and README install example refresh. It is not tagged, released, or published yet.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -112,6 +113,51 @@ Prepared rollback actions:
 - disable or revert the publish workflow through PR if workflow behavior is wrong;
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
+
+## v0.1.13 GUI And Consent Audit Boundary Patch Candidate Dry-Run
+
+Status date: 2026-07-05.
+
+Tracking Issue: #223.
+
+This section records the package dry-run for the `v0.1.13` GUI and consent audit-boundary patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.12` to `0.1.13`;
+- move the post-`v0.1.12` Fable 5 P1 follow-up into the `0.1.13` changelog entry;
+- include GUI profile-view raw-access audit metadata without raw values, full paths, or tokens;
+- include consent direct-grant and request-approval source metadata for audit distinction;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.13`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build source: temporary local source copy with `.git`, generated outputs, and local package metadata excluded.
+- Temporary build/twine environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> <temp-src>`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.13`.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.13-py3-none-any.whl` | 38,672 bytes | 15 | `296b79ff3f117f0a12b5bbc91dbf46fbaafea1b784cd98a8b90303e72f8cd97e` |
+| `agent_personal_vault-0.1.13.tar.gz` | 52,511 bytes | 26 | `b12e8505276e19461523ceb3fa1db745b145c83cef307e11328514dec3c29fba` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.13` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.13`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
 ## v0.1.12 Fable P1 Hardening Patch Candidate Dry-Run
 

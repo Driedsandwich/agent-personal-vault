@@ -14,6 +14,20 @@ This changelog records released and unreleased project changes. It does not auth
 
 No unreleased changes.
 
+## 0.1.13 - 2026-07-05
+
+### Security And Privacy Changes
+
+- Audit localhost GUI profile views as human-operated raw access metadata without storing raw values, full local paths, or full consent tokens in audit events.
+- Add consent source metadata so direct human-operated grants and request approvals/denials can be distinguished in local consent and audit evidence.
+- Extend regression coverage for GUI profile-view audit events and consent source metadata while keeping raw values and full consent ids out of audit output.
+
+### Documentation And Release Hygiene
+
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.13`.
+- Synced publication and release-readiness documents after the post-`v0.1.12` Fable 5 audit-boundary hardening.
+- Recorded the fresh v0.1.13 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
+
 ## 0.1.12 - 2026-07-05
 
 ### Security And Privacy Changes
