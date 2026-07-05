@@ -152,6 +152,18 @@ def blank_store(schema_name: str = DEFAULT_SCHEMA) -> dict:
     }
 
 
+def validate_store_shape(store: object) -> dict:
+    if not isinstance(store, dict):
+        raise ValueError("vault store is invalid")
+    schema = store.get("schema")
+    if schema is not None and not isinstance(schema, str):
+        raise ValueError("vault store is invalid")
+    fields = store.get("fields")
+    if fields is not None and not isinstance(fields, dict):
+        raise ValueError("vault store is invalid")
+    return store
+
+
 def get_schema(schema_name: str) -> dict[str, FieldSpec]:
     try:
         return SCHEMAS[schema_name]
@@ -213,9 +225,9 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
     if encrypted_payload:
         if not effective_passphrase:
             raise ValueError("Encrypted vault requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
-        store = decrypt_store_payload(payload, effective_passphrase)
+        store = validate_store_shape(decrypt_store_payload(payload, effective_passphrase))
     else:
-        store = payload
+        store = validate_store_shape(payload)
 
     schema = get_schema(str(store.get("schema") or schema_name))
     fields = store.setdefault("fields", {})
