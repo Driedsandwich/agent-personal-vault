@@ -35,7 +35,7 @@
     "HIGH_SCHOOL_NAME": "サンプル高等学校",
     "HIGH_SCHOOL_GRADUATION_DATE": "2022-03",
     "QUALIFICATIONS": "2024年6月 サンプル資格",
-    "FACE_PHOTO_PATH": "assets/sample-photo.jpg",
+    "FACE_PHOTO_PATH": "",
     "NOTES": "これは完全なダミーデータです。"
   }
 }

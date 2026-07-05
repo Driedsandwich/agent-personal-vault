@@ -2,9 +2,9 @@
 
 日本語タイトル: PyPI Trusted Publishing 導入検討
 
-status: draft-plan
+status: active-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 
 ## Purpose
 
@@ -241,7 +241,7 @@ Stop before upload if any of these occur:
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
 
-The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully for `v0.1.6`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
+The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully through `v0.1.11`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
 
 Required preflight before any future OIDC publish:
 

@@ -2,8 +2,9 @@
 
 日本語タイトル: セキュリティ機能とAIエージェント連携ロードマップ
 
-status: draft
+status: active
 classification: SAFE_CANDIDATE
+last_updated: 2026-07-05
 
 ## 結論
 
@@ -463,16 +464,16 @@ Status: raw-free MCP stdio server is implemented. It exposes raw-free planning/s
 - audit必須。
 - bulk raw exportなし。
 
-## First Implementation Target
+## Current Implementation Target
 
-現時点でreleaseやpackage publishをまだ行わない前提では、既知のP0実装ブロッカーはない。次に実装するなら、P1として最小で次を検討する。
+2026-07-05時点では、`v0.1.11` のGitHub prerelease、PyPI package、Trusted Publishing OIDC publish、Fable 5 stale-docs follow-upは完了している。既知のP0実装ブロッカーはない。次に実装するなら、P1として最小で次を検討する。
 
 1. consent tokenの有効期限、使用済み状態、拒否履歴をGUIで表示する。
 2. OS key store integrationとpassphrase recovery UXを検討する。
 3. MCP raw-value toolsを追加する場合のconsent token設計、client表示差、監査ログ、test fixtureをレビューする。
 4. 複数エージェント/複数client識別が必要になった場合のactor permission manifestを設計する。
 
-当面は、GitHub Issues/PRs、Actions、Security alerts、README表示、release/tag absence、外部フィードバックを軽量観測し、実利用で迷いが出た箇所だけIssue化する。監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、GUI audit viewer、optional encryption backend、raw-free MCP serverは実装済み。
+当面は、GitHub Issues/PRs、Actions、Security alerts、README/PyPI表示、release/package状態、外部フィードバックを軽量観測し、実利用で迷いが出た箇所だけIssue化する。監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、GUI audit viewer、optional encryption backend、raw-free MCP serverは実装済み。
 
 ## References
 
