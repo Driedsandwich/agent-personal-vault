@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 ## Purpose
 
@@ -28,6 +28,7 @@ Current package state:
 - The `v0.1.11` patch release was published after `v0.1.10` for broader raw-like task and purpose redaction.
 - The `v0.1.12` patch release was published after `v0.1.11` for invalid-state negative-path hardening, encrypted payload iteration compatibility, publish workflow SHA pinning, and historical local-Git documentation.
 - The `v0.1.13` patch release was published after `v0.1.12` for GUI profile-view audit boundary metadata, consent source metadata, and README install example refresh.
+- The `v0.1.14` patch candidate is prepared after `v0.1.13` for GUI token access-log redaction, sanitized malformed GUI POST responses, `human_operated` metadata clarification, and Windows permission/locking caveats. It is not tagged, released, or published.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -113,6 +114,54 @@ Prepared rollback actions:
 - disable or revert the publish workflow through PR if workflow behavior is wrong;
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
+
+## v0.1.14 GUI Boundary Hardening Patch Candidate Dry-Run
+
+Status date: 2026-07-06.
+
+Tracking Issue: #229.
+
+This section records the package dry-run for the `v0.1.14` GUI boundary hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.13` to `0.1.14`;
+- move the post-`v0.1.13` Fable 5 GUI boundary follow-up into the `0.1.14` changelog entry;
+- include GUI localhost access-log token redaction;
+- include sanitized JSON `400` responses for malformed GUI POST bodies;
+- clarify that `human_operated` audit metadata records the local approval path and is not proof of physical human presence;
+- document Windows permission and consent-locking caveats;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.14`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build source: temporary local source copy with `.git`, generated outputs, and local package metadata excluded.
+- Temporary build/twine environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> <temp-src>`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.14`.
+- PyPI `0.1.14` absence check returned HTTP 404 before the candidate preparation work.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.14-py3-none-any.whl` | 39,117 bytes | 15 | `b744f5fd77e736967a078b0430f937d331855a586e7850f0ac8d22ebe4fb9359` |
+| `agent_personal_vault-0.1.14.tar.gz` | 53,743 bytes | 22 | `ebcd5f7eeb058e05926656745938ebbf7fe0fbb3c138ee694cae3c0a62355986` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.14` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.14`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
 ## v0.1.13 GUI And Consent Audit Boundary Patch Candidate Dry-Run
 
