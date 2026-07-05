@@ -14,21 +14,21 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.13`.
-- Latest PyPI package: `0.1.13`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `7bd91600c6be1741c73f6b73abafc4f697347901`.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.13` is tagged, published as a GitHub prerelease, and published to PyPI.
+- Latest GitHub prerelease: `v0.1.14`.
+- Latest PyPI package: `0.1.14`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `43ca9aa768c7453fb34846655bb4539086fb7582`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for each PyPI publish through `v0.1.14`. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.14` is tagged, published as a GitHub prerelease, and published to PyPI.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13` PyPI publishes.
+- The Trusted Publisher was used successfully for PyPI publishes from `v0.1.5` through `v0.1.14`.
 - Manual token publishing is now an emergency fallback only.
 - The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
 - The `v0.1.11` patch release was published after `v0.1.10` for broader raw-like task and purpose redaction.
 - The `v0.1.12` patch release was published after `v0.1.11` for invalid-state negative-path hardening, encrypted payload iteration compatibility, publish workflow SHA pinning, and historical local-Git documentation.
 - The `v0.1.13` patch release was published after `v0.1.12` for GUI profile-view audit boundary metadata, consent source metadata, and README install example refresh.
-- The `v0.1.14` patch candidate is prepared after `v0.1.13` for GUI token access-log redaction, sanitized malformed GUI POST responses, `human_operated` metadata clarification, and Windows permission/locking caveats. It is not tagged, released, or published.
+- The `v0.1.14` patch release was published after `v0.1.13` for GUI token access-log redaction, sanitized malformed GUI POST responses, `human_operated` metadata clarification, and Windows permission/locking caveats.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -39,13 +39,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.13` is published as a GitHub prerelease and points to `7bd91600c6be1741c73f6b73abafc4f697347901`.
-- PyPI latest is `0.1.13`.
+- `v0.1.14` is published as a GitHub prerelease and points to `43ca9aa768c7453fb34846655bb4539086fb7582`.
+- PyPI latest is `0.1.14`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.13` OIDC publish workflow completed successfully.
-- The `v0.1.13` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
+- The `v0.1.14` OIDC publish workflow completed successfully.
+- The `v0.1.14` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
@@ -121,7 +121,7 @@ Status date: 2026-07-06.
 
 Tracking Issue: #229.
 
-This section records the package dry-run for the `v0.1.14` GUI boundary hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+This section records the package dry-run and later approved publish status for the `v0.1.14` GUI boundary hardening patch. The original dry-run did not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. The later tag, GitHub prerelease publish, and Trusted Publishing OIDC publish were handled through separate approval lanes.
 
 Candidate scope:
 
@@ -162,6 +162,23 @@ Stop conditions before any later publish lane:
 - the package metadata does not report version `0.1.14`;
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
+Current post-publish state:
+
+- PyPI latest is `0.1.14`.
+- PyPI `0.1.14` is published.
+- GitHub release `v0.1.14` is published as a prerelease and points to `43ca9aa768c7453fb34846655bb4539086fb7582`.
+- Trusted Publishing OIDC publish has completed successfully for `v0.1.14`.
+- The `publish-package` run `28749262081` completed successfully and PyPI integrity endpoints expose provenance/attestation data for the wheel and sdist.
+- Fresh post-publish install check confirmed installed metadata version `0.1.14`, console script availability, Project-URL metadata, and a PyPI long description containing `agent-personal-vault==0.1.14` without `agent-personal-vault==0.1.13`.
+- Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish status sync. Open GitHub state was Issue #231 only and no open PRs.
+
+Published artifact records:
+
+| Artifact | Size | SHA-256 |
+| --- | ---: | --- |
+| `agent_personal_vault-0.1.14-py3-none-any.whl` | 39,117 bytes | `3f8db34f339b98f830ac8cda6f193d4465a6f4a3d56577c043edba3e0bfd56b8` |
+| `agent_personal_vault-0.1.14.tar.gz` | 53,535 bytes | `3b7f659cba32b69ee789ac54aa60dae1c0501ddb8769629876e2b327cab78aa8` |
 
 ## v0.1.13 GUI And Consent Audit Boundary Patch Candidate Dry-Run
 
@@ -208,10 +225,10 @@ Stop conditions before any later publish lane:
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
-Current post-publish state:
+Historical post-publish state recorded during the `v0.1.13` sync:
 
-- PyPI latest is `0.1.13`.
-- PyPI `0.1.13` is published.
+- PyPI latest was `0.1.13`.
+- PyPI `0.1.13` was published.
 - GitHub release `v0.1.13` is published as a prerelease and points to `7bd91600c6be1741c73f6b73abafc4f697347901`.
 - Trusted Publishing OIDC publish has completed successfully for `v0.1.13`.
 - The `publish-package` run for `v0.1.13` completed successfully and PyPI integrity endpoints expose provenance/attestation data for the wheel and sdist.
