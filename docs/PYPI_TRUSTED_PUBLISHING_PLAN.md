@@ -14,7 +14,7 @@ This is a planning and status document only. It does not authorize PyPI publishe
 
 ## Recommendation
 
-Use PyPI Trusted Publishing as the normal package publish path after successful `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13` OIDC publishes.
+Use PyPI Trusted Publishing as the normal package publish path after successful OIDC publishes from `v0.1.5` through `v0.1.14`.
 
 Reason:
 
@@ -27,18 +27,18 @@ Manual token publishing remains an emergency fallback only. It should not be the
 
 ## Current Repository State
 
-- Latest GitHub prerelease: `v0.1.13`.
-- Latest PyPI package: `0.1.13`.
+- Latest GitHub prerelease: `v0.1.14`.
+- Latest PyPI package: `0.1.14`.
 - Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13` were published to PyPI through the Trusted Publishing OIDC lane.
+- `v0.1.5` through `v0.1.14` were published to PyPI through the Trusted Publishing OIDC lane.
 - The repository currently has `test`, `Dependency Graph`, `CodeQL`, and manual `publish-package` workflows.
 - `.github/workflows/pypi-publish.yml` is a manual `workflow_dispatch` workflow for the OIDC publish lane. It does not authorize a publish by itself.
 - GitHub environment `pypi` exists. It requires reviewer `Driedsandwich`, has `prevent_self_review: false`, uses protected-branches-only deployment policy, stores no environment secrets or PyPI token, and currently has `can_admins_bypass: true`.
 - PyPI Trusted Publisher setup is complete according to the PyPI project management UI confirmed by the project owner. The configured publisher is GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully for `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13`.
+- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully through `v0.1.14`.
 - Package publish has already been performed manually for `v0.1.0`, `v0.1.1`, `v0.1.2`, `v0.1.3`, and `v0.1.4`.
-- Trusted Publishing has been used successfully for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13`.
-- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` through post-`v0.1.13` status synchronization is tracked in Issues #161, #167, #173, #191, #199, #205, #217, and #225.
+- Trusted Publishing has been used successfully for `v0.1.5` through `v0.1.14`.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` through post-`v0.1.14` status synchronization is tracked in Issues #161, #167, #173, #191, #199, #205, #217, #225, and #231.
 - Future publish actions remain separately approval-gated.
 
 ## PyPI Publisher Settings
@@ -64,7 +64,7 @@ PyPI-side setup is a separate external account action. Before changing it, confi
 
 ## GitHub Actions Workflow
 
-The workflow file exists and OIDC publishes succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, `v0.1.12`, and `v0.1.13`. Do not run it for another real publish until the next version, tag, release, package availability, artifact, CI, security, and human approval gates are complete.
+The workflow file exists and OIDC publishes succeeded for `v0.1.5` through `v0.1.14`. Do not run it for another real publish until the next version, tag, release, package availability, artifact, CI, security, and human approval gates are complete.
 
 Workflow shape:
 
@@ -242,7 +242,7 @@ Stop before upload if any of these occur:
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
 
-The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully through `v0.1.13`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
+The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully through `v0.1.14`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
 
 Required preflight before any future OIDC publish:
 
