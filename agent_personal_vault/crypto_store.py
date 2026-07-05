@@ -49,10 +49,10 @@ def is_encrypted_payload(payload: object) -> bool:
     return isinstance(payload, dict) and payload.get("storage") == ENCRYPTED_STORAGE
 
 
-def _derive_key(passphrase: str, salt: bytes) -> bytes:
+def _derive_key(passphrase: str, salt: bytes, iterations: int = KDF_ITERATIONS) -> bytes:
     AESGCM, PBKDF2HMAC, crypto = _require_crypto()
     hashes, _invalid_tag = crypto
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=KDF_ITERATIONS)
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=iterations)
     return kdf.derive(passphrase.encode("utf-8"))
 
 
@@ -85,13 +85,16 @@ def decrypt_store_payload(payload: dict, passphrase: str) -> dict:
         raise DecryptionError("store payload is not encrypted")
     if payload.get("kdf") != KDF_NAME or payload.get("cipher") != "AES-256-GCM":
         raise DecryptionError("unsupported encrypted store format")
+    iterations = payload.get("iterations")
+    if not isinstance(iterations, int) or iterations <= 0:
+        raise DecryptionError("unsupported encrypted store format")
     AESGCM, _PBKDF2HMAC, crypto = _require_crypto()
     _hashes, invalid_tag = crypto
     try:
         salt = base64.b64decode(str(payload["salt"]))
         nonce = base64.b64decode(str(payload["nonce"]))
         ciphertext = base64.b64decode(str(payload["ciphertext"]))
-        key = _derive_key(passphrase, salt)
+        key = _derive_key(passphrase, salt, iterations=iterations)
         plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
     except invalid_tag as exc:
         raise DecryptionError("invalid passphrase or corrupted encrypted store") from exc

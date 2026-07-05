@@ -12,7 +12,7 @@ from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from agent_personal_vault import __version__
+from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
@@ -123,6 +123,50 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
             self.assertEqual(store["schema"], "job_hunting_profile")
+
+    def test_cli_invalid_store_shape_is_traceback_free_and_path_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            path.write_text("[]", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "check"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("error: vault store is invalid", result.stderr)
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
+
+    def test_mcp_invalid_store_shape_returns_sanitized_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            path.write_text("[]", encoding="utf-8")
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "apv.check", "arguments": {}},
+            }
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            combined = result.stdout + result.stderr
+            self.assertEqual(result.returncode, 0)
+            response = json.loads(result.stdout)
+            self.assertEqual(response["error"]["message"], "Invalid request")
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
 
     def test_existing_store_parent_permissions_are_not_changed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -932,6 +976,25 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"outcome": "denied"', encoded_events)
             self.assertNotIn("山田", encoded_events)
 
+    def test_cli_invalid_consent_state_shape_is_traceback_free_and_path_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            consent_path(path).write_text("[]", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "consent", "list"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("error: consent state is invalid", result.stderr)
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
+
     def test_cli_consent_token_concurrent_consume_allows_one_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1328,6 +1391,20 @@ class VaultTests(unittest.TestCase):
             self.assertTrue(is_encrypted_payload(encrypted_payload))
             self.assertNotIn("山田", path.read_text(encoding="utf-8"))
             loaded = load_store(path=path, passphrase="test passphrase")
+            self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
+
+    def test_encrypted_store_decrypt_uses_payload_iterations(self) -> None:
+        if not cryptography_available():
+            self.skipTest("cryptography is not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path, passphrase="test passphrase", encrypted=True)
+
+            with mock.patch.object(crypto_store, "KDF_ITERATIONS", crypto_store.KDF_ITERATIONS + 1):
+                loaded = load_store(path=path, passphrase="test passphrase")
+
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
 
     def test_mcp_server_exposes_only_raw_free_read_tools(self) -> None:

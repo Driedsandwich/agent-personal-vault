@@ -426,6 +426,9 @@ def main(argv: list[str] | None = None) -> None:
     except (ConsentError, ValueError, FileNotFoundError, NotADirectoryError, PermissionError, json.JSONDecodeError) as exc:
         print(f"error: {safe_cli_error(exc)}", file=sys.stderr)
         raise SystemExit(1) from None
+    except Exception:
+        print("error: operation failed", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

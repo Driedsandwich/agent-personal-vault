@@ -91,10 +91,10 @@ jobs:
     if: startsWith(inputs.tag, 'v') && inputs.confirm_publish == format('publish {0}', inputs.tag)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           ref: ${{ inputs.tag }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
       - name: Verify checkout is the approved tag
@@ -110,7 +110,7 @@ jobs:
       - name: Strict forbidden-file scan
         run: python <inline artifact scan>
       - name: Upload distributions for approval
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: dist
           path: dist/*
@@ -127,12 +127,12 @@ jobs:
       id-token: write
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: dist
           path: dist
       - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
 ```
 
 Design notes:
@@ -145,6 +145,7 @@ Design notes:
 - The workflow checks that the package version is not already present on PyPI before building.
 - The build job uploads artifacts for the protected publish job to consume.
 - The build job runs `twine check` and a strict artifact forbidden-file scan before upload.
+- Action references are pinned to full commit SHAs. Updating those actions is a normal dependency-maintenance PR, not an implicit publish approval.
 
 Workflow addition is a repository code change, not a publish by itself. It still needs a dedicated Issue/PR because it introduces a path that can publish once the external settings exist.
 

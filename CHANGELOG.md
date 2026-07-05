@@ -12,7 +12,15 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-No unreleased changes.
+### Security And Privacy Changes
+
+- Harden CLI and MCP negative paths for valid JSON with invalid vault or consent state shapes so they do not emit tracebacks or local private paths.
+- Use the encrypted store payload's recorded PBKDF2 iteration count during decryption, preserving compatibility if the default iteration constant changes later.
+- Pin GitHub Actions used by the PyPI publish workflow to full commit SHAs.
+
+### Documentation And Release Hygiene
+
+- Mark `docs/LOCAL_GIT_PREP.md` as a historical pre-initialization checklist instead of current repository state.
 
 ## 0.1.11 - 2026-07-04
 

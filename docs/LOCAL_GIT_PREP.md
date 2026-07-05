@@ -2,14 +2,14 @@
 
 日本語タイトル: ローカルGit準備手順
 
-status: approval-required
+status: historical-snapshot
 classification: SAFE_CANDIDATE
 
 ## Boundary
 
-This project is not initialized as a Git repository yet.
+This is a historical pre-initialization checklist. The project is now an initialized public Git repository with published public-alpha releases. Do not treat the commands below as current-state instructions unless this directory is recreated from scratch or moved outside Git.
 
-The following are separate approval steps:
+The following were separate approval steps at the historical pre-initialization checkpoint:
 
 1. `git init`
 2. first local commit
