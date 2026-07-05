@@ -4,7 +4,7 @@
 
 status: public-alpha-gate
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 ## Current Position
 
@@ -13,8 +13,8 @@ This project is now a public-alpha OSS repository.
 Current distribution state:
 
 - Repository visibility: public.
-- Latest GitHub prerelease: `v0.1.13`.
-- Latest PyPI package: `0.1.13`.
+- Latest GitHub prerelease: `v0.1.14`.
+- Latest PyPI package: `0.1.14`.
 - Normal package publish path: PyPI Trusted Publishing OIDC.
 - Manual token publish path: emergency fallback only.
 
@@ -117,7 +117,7 @@ Confirm the printed URL binds to `127.0.0.1`, then stop with `Ctrl-C`.
 Current posture:
 
 1. Keep the project in public alpha.
-2. Treat `v0.1.13` as the latest published prerelease and PyPI package.
+2. Treat `v0.1.14` as the latest published prerelease and PyPI package.
 3. Use Trusted Publishing OIDC as the normal package publish lane for future separately approved versions.
 4. Stop before any new release, tag, package publish, public announcement, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation and request explicit approval.
 

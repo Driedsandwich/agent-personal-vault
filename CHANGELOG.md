@@ -4,7 +4,7 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 All notable changes to Agent Personal Vault are documented here.
 
@@ -12,7 +12,9 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-No unreleased changes.
+### Documentation And Governance
+
+- Sync remaining v0.1.14 publication-gate, RC packet/plan, roadmap, and historical public-review wording so current-state pointers use the published `v0.1.14` GitHub prerelease and PyPI `0.1.14` package while older snapshots are clearly historical.
 
 ## 0.1.14 - 2026-07-06
 
@@ -24,7 +26,7 @@ No unreleased changes.
 
 ### Documentation And Release Hygiene
 
-- Sync publication-gate and historical RC packet current-state pointers to the published `v0.1.13` GitHub prerelease and PyPI `0.1.13` package, with `docs/RELEASE_READINESS.md` as the current-state source of truth.
+- Sync publication-gate and historical RC packet current-state pointers to the then-published `v0.1.13` GitHub prerelease and PyPI `0.1.13` package, with `docs/RELEASE_READINESS.md` as the current-state source of truth.
 
 ## 0.1.13 - 2026-07-05
 

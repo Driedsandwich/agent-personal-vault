@@ -466,12 +466,13 @@ Status: raw-free MCP stdio server is implemented. It exposes raw-free planning/s
 
 ## Current Implementation Target
 
-2026-07-05時点では、`v0.1.11` のGitHub prerelease、PyPI package、Trusted Publishing OIDC publish、Fable 5 stale-docs follow-upは完了している。既知のP0実装ブロッカーはない。次に実装するなら、P1として最小で次を検討する。
+2026-07-06時点では、`v0.1.14` のGitHub prerelease、PyPI package、Trusted Publishing OIDC publish、post-`v0.1.14` status docs sync、branch cleanupは完了している。Fable 5 v0.1.14 reviewではpublic alpha継続可、P0/P1 blockerなしと整理された。次に実装するなら、P2として最小で次を検討する。
 
-1. consent tokenの有効期限、使用済み状態、拒否履歴をGUIで表示する。
-2. OS key store integrationとpassphrase recovery UXを検討する。
-3. MCP raw-value toolsを追加する場合のconsent token設計、client表示差、監査ログ、test fixtureをレビューする。
-4. 複数エージェント/複数client識別が必要になった場合のactor permission manifestを設計する。
+1. fullwidth `＠` など、raw-looking purpose/task redactionの既知バイパスを追加で正規化する。
+2. GUI read endpointの予期しない例外をsanitized responseへ寄せる。
+3. public forbidden-text scanに残る実名断片をhash照合へ移すか、現在の断片方式を維持するかを比較検討する。
+4. MCP raw-value toolsを追加する場合のconsent token設計、client表示差、監査ログ、test fixtureをレビューする。
+5. 複数エージェント/複数client識別が必要になった場合のactor permission manifestを設計する。
 
 当面は、GitHub Issues/PRs、Actions、Security alerts、README/PyPI表示、release/package状態、外部フィードバックを軽量観測し、実利用で迷いが出た箇所だけIssue化する。監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、GUI audit viewer、optional encryption backend、raw-free MCP serverは実装済み。
 

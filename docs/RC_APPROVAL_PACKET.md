@@ -4,13 +4,13 @@
 
 status: historical-snapshot
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 ## Purpose
 
 This packet preserves the historical pre-`v0.1.0` release-candidate evidence and approval text that were used before the first public-alpha release.
 
-It is no longer the current execution packet. The project is now public alpha, with latest GitHub prerelease `v0.1.13` and latest PyPI package `0.1.13`. Current release and package-publish state is tracked in `docs/RELEASE_READINESS.md`, `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
+It is no longer the current execution packet. The project is now public alpha, with latest GitHub prerelease `v0.1.14` and latest PyPI package `0.1.14`. Current release and package-publish state is tracked in `docs/RELEASE_READINESS.md`, `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 It remains for audit history only. It does not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
@@ -18,8 +18,8 @@ Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy if a future version r
 
 ## Current Distribution Notice
 
-- Latest GitHub prerelease: `v0.1.13`.
-- Latest PyPI package: `0.1.13`.
+- Latest GitHub prerelease: `v0.1.14`.
+- Latest PyPI package: `0.1.14`.
 - Normal package publish path: PyPI Trusted Publishing OIDC.
 - Manual token publish path: emergency fallback only.
 - Future tag, release, package publish, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, API-billed validation, or public announcement still requires a separate explicit approval lane.

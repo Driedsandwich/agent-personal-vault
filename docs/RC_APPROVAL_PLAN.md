@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-02
+last_updated: 2026-07-06
 
 ## Purpose
 
@@ -14,7 +14,7 @@ It is a planning document only. It does not authorize GitHub release creation, t
 
 Each lane below requires a separate explicit approval before execution.
 
-Use `docs/RC_APPROVAL_PACKET.md` as the compact review packet for the current target commit, version, release note draft, security snapshot, and lane-specific approval text.
+Use `docs/RELEASE_READINESS.md` as the source of truth for current published state. Use `docs/RC_APPROVAL_PACKET.md` only as a historical compact packet example unless a future release candidate gets a fresh packet through a dedicated Issue/PR.
 
 ## Shared Preflight
 
@@ -36,13 +36,13 @@ Stop if any shared preflight item fails.
 
 ## Version Candidate
 
-Current candidate:
+Current standing candidate:
 
 ```text
-0.1.0
+none
 ```
 
-The version remains an alpha-line candidate unless a dedicated Issue/PR changes `pyproject.toml` and passes CI.
+The historical first release-candidate packet targeted `0.1.0`; do not reuse that value. Future release candidates must take their version from `pyproject.toml` after a dedicated Issue/PR changes it and passes CI.
 
 Do not bundle a version bump into release execution unless that exact bump was separately approved.
 
