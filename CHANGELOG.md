@@ -12,6 +12,10 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.1.12 - 2026-07-05
+
 ### Security And Privacy Changes
 
 - Harden CLI and MCP negative paths for valid JSON with invalid vault or consent state shapes so they do not emit tracebacks or local private paths.
@@ -21,6 +25,8 @@ This changelog records released and unreleased project changes. It does not auth
 ### Documentation And Release Hygiene
 
 - Mark `docs/LOCAL_GIT_PREP.md` as a historical pre-initialization checklist instead of current repository state.
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.12`.
+- Recorded the fresh v0.1.12 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ## 0.1.11 - 2026-07-04
 

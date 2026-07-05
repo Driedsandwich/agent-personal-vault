@@ -112,6 +112,53 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.12 Fable P1 Hardening Patch Candidate Dry-Run
+
+Status date: 2026-07-05.
+
+Tracking Issue: #215.
+
+This section records the package dry-run for the `v0.1.12` Fable 5 P1 hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.11` to `0.1.12`;
+- move the post-`v0.1.11` Fable 5 P1 hardening follow-up into the `0.1.12` changelog entry;
+- include the CLI/MCP negative-path final defense for invalid vault or consent state shapes;
+- include encrypted payload decryption compatibility with the stored PBKDF2 iteration count;
+- include PyPI publish workflow action SHA pinning and `docs/LOCAL_GIT_PREP.md` historicalization;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.12`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build source: temporary local source copy with `.git`, generated outputs, and local package metadata excluded.
+- Temporary build/twine environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> <temp-src>`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.12`.
+- PyPI `0.1.12` absence check returned HTTP 404 before the candidate preparation work.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.12-py3-none-any.whl` | 38,369 bytes | 15 | `8fbc616d3c9554c132dce8e54f024d023fb38896d829f1d0bf174d0ba5f7bca3` |
+| `agent_personal_vault-0.1.12.tar.gz` | 51,903 bytes | 26 | `66b2ae570946cde4e76a0563189f0275b446ce4954ca94ff33c3caeb7ee36dde` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.12` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.12`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## v0.1.11 Raw-Like Task/Purpose Redaction Patch Candidate Dry-Run
 
 Status date: 2026-07-04.
