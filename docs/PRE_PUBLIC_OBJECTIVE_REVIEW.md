@@ -4,11 +4,13 @@
 
 status: reviewed-with-fix
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-01
+last_updated: 2026-07-06
+
+Historical note: this review was written before public visibility. It remains as audit evidence; current public-alpha state is tracked in `docs/RELEASE_READINESS.md`.
 
 ## 結論
 
-public化を止める致命的な問題は見つからなかった。
+public化を止める致命的な問題は見つからなかった。現在はpublic alphaとして運用中。
 
 ただし、レビュー中に1件、公開前に直すべき問題を確認したため修正済み。
 

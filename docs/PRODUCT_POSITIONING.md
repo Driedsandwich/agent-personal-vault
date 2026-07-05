@@ -4,7 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 ## One Sentence
 
@@ -71,7 +71,9 @@ MVP does not include:
 
 ## Feature Priority
 
-### P0: Before First Public Release
+This priority list is a historical positioning snapshot plus current follow-up guidance. Current release/package state is tracked in `docs/RELEASE_READINESS.md`.
+
+### P0: Completed Before First Public Release
 
 - Keep no-real-data invariant.
 - Keep `context` and `schema` raw-free.
@@ -80,23 +82,23 @@ MVP does not include:
 - Complete private GitHub dry-run.
 - Complete public release review.
 
-### P1: After Public Visibility, Before Announcement
+### P1: Completed Or Reviewed After Public Visibility
 
 - Add more CLI docs and examples.
 - Add a small architecture diagram or data-flow section.
 - Add a `CHANGELOG.md`.
 - Re-run prior-art review before public announcement.
-- Add GUI audit viewer before any MCP raw-value tool is exposed.
+- Keep GUI audit-view coverage in place before any MCP raw-value tool is exposed.
 
-### P2: After Initial Public Release
+### P2: Future Public-Alpha Follow-Up
 
 - Add additional schema templates.
 - Add import/export with redaction checks.
 
-### P3: After Audit, Consent, And Encryption Design
+### P3: Later Design Work
 
 - Add MCP raw-value tools with consent tokens.
-- Add GUI audit viewer.
+- Expand GUI audit viewer only if future raw-value or multi-actor workflows need it.
 - Add stricter permission manifests for agent integrations.
 
 ## Messaging Rules

@@ -4,7 +4,7 @@
 
 status: public-alpha-ready
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 
 ## Current Summary
 
@@ -27,6 +27,7 @@ Current distribution snapshot:
 - The v0.1.12 GitHub prerelease and PyPI package include the post-`v0.1.11` Fable 5 P1 hardening follow-up for sanitized invalid-state negative paths, encrypted payload iteration compatibility, PyPI publish workflow SHA pinning, and historical local-Git documentation.
 - The v0.1.13 GitHub prerelease and PyPI package include the post-`v0.1.12` Fable 5 audit-boundary follow-up for GUI profile-view audit metadata and consent source metadata.
 - The v0.1.14 GitHub prerelease and PyPI package include the post-`v0.1.13` Fable 5 GUI-boundary follow-up for GUI access-log token redaction, sanitized malformed GUI POST responses, `human_operated` metadata clarification, and Windows permission/locking caveats.
+- Issue #233 tracks the post-`v0.1.14` docs freshness cleanup for remaining publication-gate and historical RC/current-state wording.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.4` checkpoints, zero-release snapshots, or manual-token publish states as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:

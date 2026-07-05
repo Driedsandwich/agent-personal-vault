@@ -289,7 +289,7 @@ Stop conditions before any later publish lane:
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
-Current post-publish state:
+Historical post-publish state recorded during the `v0.1.12` sync:
 
 - PyPI latest was `0.1.12` at the time of this post-publish check.
 - PyPI `0.1.12` is published.
@@ -351,7 +351,7 @@ Stop conditions before any later publish lane:
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
-Current post-publish state:
+Historical post-publish state recorded during the `v0.1.11` sync:
 
 - PyPI latest is `0.1.11`.
 - PyPI `0.1.11` is published.
@@ -441,7 +441,7 @@ Local dry-run checks:
 - Wheel metadata reports version `0.1.9`.
 - PyPI `0.1.9` absence check returned HTTP 404.
 
-Current post-publish state:
+Historical post-publish state recorded during the `v0.1.9` sync:
 
 - PyPI latest is `0.1.9`.
 - PyPI `0.1.9` is published.
@@ -479,7 +479,7 @@ Candidate scope:
 - include private-mode temporary file creation before atomic vault and consent state replacement;
 - refresh README install examples so the package long description points to `agent-personal-vault==0.1.8`.
 
-Current post-publish state:
+Historical post-publish state recorded during the `v0.1.8` sync:
 
 - PyPI latest is `0.1.8`.
 - PyPI `0.1.8` is published.
