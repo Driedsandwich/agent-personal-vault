@@ -1,14 +1,24 @@
 # Publication Gate
 
-日本語タイトル: 公開前承認ゲート
+日本語タイトル: 公開・配布承認ゲート
 
-status: draft
+status: public-alpha-gate
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-01
+last_updated: 2026-07-05
 
 ## Current Position
 
-This directory is an OSS candidate extracted from a private local project. It is already pushed to a private GitHub repository for dry-run review. It must not be made public, released, package-published, announced, deployed, or shared further until a human explicitly approves that final action.
+This project is now a public-alpha OSS repository.
+
+Current distribution state:
+
+- Repository visibility: public.
+- Latest GitHub prerelease: `v0.1.11`.
+- Latest PyPI package: `0.1.11`.
+- Normal package publish path: PyPI Trusted Publishing OIDC.
+- Manual token publish path: emergency fallback only.
+
+This gate now applies to future irreversible or external actions. Do not create another release, tag, package publish, public announcement, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation unless a human explicitly approves that specific action.
 
 ## Scope
 
@@ -24,7 +34,7 @@ Core purpose:
 Local-first personal data vault for AI agents with a bundled profile schema.
 ```
 
-## Must Pass Before Publication
+## Must Pass Before Future External Actions
 
 - No real `vault.json` exists in this tree.
 - No `private/`, backup, screenshot, local log, or machine-specific absolute path is included.
@@ -67,8 +77,8 @@ Local-first personal data vault for AI agents with a bundled profile schema.
 - CONTRIBUTING.md exists.
 - LICENSE exists.
 - `.gitignore` excludes real vault data, images, local secrets, and build artifacts.
-- Public visibility change, release creation, package publish, and public announcement remain stopped until separately approved.
-- `main` branch protection requires PR-based changes and CI status checks before public visibility.
+- Additional release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, PyPI token changes/deletion, Claude Desktop app UI operation, and API-billed validation remain stopped until separately approved.
+- `main` branch protection requires PR-based changes and CI status checks for ongoing public-alpha operations.
 
 ## Current Verification Commands
 
@@ -100,13 +110,13 @@ python3 -m agent_personal_vault.gui --port 0 --store "$tmpdir/vault.json"
 
 Confirm the printed URL binds to `127.0.0.1`, then stop with `Ctrl-C`.
 
-## Release Decision
+## Current Release Decision
 
-Recommended next step:
+Current posture:
 
-1. Review this directory as a standalone OSS candidate.
-2. Rerun the verification commands.
-3. Review [FINAL_PUBLICATION_AUDIT.md](FINAL_PUBLICATION_AUDIT.md), [EXTERNAL_PUBLICATION_DECISION.md](EXTERNAL_PUBLICATION_DECISION.md), [PRIVATE_DRY_RUN_REPORT.md](PRIVATE_DRY_RUN_REPORT.md), [PUBLIC_RELEASE_REVIEW.md](PUBLIC_RELEASE_REVIEW.md), [REPUTATION_RISK_REVIEW.md](REPUTATION_RISK_REVIEW.md), and [LAUNCH_MESSAGING.md](LAUNCH_MESSAGING.md).
-4. Stop before public visibility change, release, package publish, or public announcement and request explicit approval.
+1. Keep the project in public alpha.
+2. Treat `v0.1.11` as the latest published prerelease and PyPI package.
+3. Use Trusted Publishing OIDC as the normal package publish lane for future separately approved versions.
+4. Stop before any new release, tag, package publish, public announcement, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation and request explicit approval.
 
 Local Git initialization and the first local commit are complete. See [LOCAL_GIT_PREP.md](LOCAL_GIT_PREP.md) only if this directory is recreated or moved.
