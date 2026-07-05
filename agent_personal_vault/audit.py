@@ -165,6 +165,9 @@ def write_audit_event(
     purpose: str | None = None,
     outcome: str = "allowed",
     consent_id: str | None = None,
+    source: str | None = None,
+    human_operated: bool | None = None,
+    request_id: str | None = None,
 ) -> dict[str, Any]:
     path = audit_path(vault_path)
     ensure_private_dir(path.parent)
@@ -178,6 +181,12 @@ def write_audit_event(
         "consent_id": redact_consent_id(consent_id),
         "outcome": outcome,
     }
+    if source is not None:
+        event["source"] = _clean_text(source)
+    if human_operated is not None:
+        event["human_operated"] = bool(human_operated)
+    if request_id is not None:
+        event["request_id"] = _clean_text(request_id)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True))
         handle.write("\n")

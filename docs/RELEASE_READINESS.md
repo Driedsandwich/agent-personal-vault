@@ -78,7 +78,7 @@ Recommendation: keep the current checks until a dedicated PR can compare hash-ba
 - CLI supports `consent request`, `consent approve`, `consent deny`, `consent requests`, direct `consent grant`, and `consent list`.
 - GUI supports pending consent request approval and denial.
 - GUI displays the issued consent id after approval so the user can pass it to CLI `get`.
-- GUI profile saves write raw-free audit events.
+- GUI profile views and saves write raw-free audit events.
 - Optional encrypted store backend exists and uses `cryptography` when installed.
 - CLI supports `encryption status`, `encryption encrypt`, and `encryption decrypt`.
 - Raw-free MCP stdio server exists.
@@ -88,7 +88,7 @@ Recommendation: keep the current checks until a dedicated PR can compare hash-ba
 - GUI usability smoke checks cover dummy data entry, save status, masked preview toggling, consent approval, and audit visibility.
 - Unit tests include raw-free context checks.
 - Unit tests cover raw-output CLI warnings.
-- Unit tests cover raw-free audit logging, GUI profile-save audit logging, GUI audit viewer raw-free behavior, one-time consent tokens, consent request approval/denial, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
+- Unit tests cover raw-free audit logging, GUI profile-view/save audit logging, GUI audit viewer raw-free behavior, one-time consent tokens, consent request approval/denial source metadata, encryption status, optional encryption dependency behavior, raw-free planning hints, and MCP raw-free behavior.
 - Unit tests cover the GUI consent-id handoff and the Claude Code MCP tool approval documentation guard.
 - PII scan script exists.
 - Release check script exists.

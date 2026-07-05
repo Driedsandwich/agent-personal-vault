@@ -143,7 +143,7 @@ agent-personal-vault set <KEY> --purpose "<raw-free purpose>"
 agent-personal-vault unset <KEY> --purpose "<raw-free purpose>"
 ```
 
-GUI profile saves also write raw-free audit events with actor `gui`.
+GUI profile views and saves also write raw-free audit events with actor `gui`.
 
 ## Audit Commands
 
