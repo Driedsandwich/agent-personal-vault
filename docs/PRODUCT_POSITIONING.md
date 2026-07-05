@@ -4,6 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
+last_updated: 2026-07-05
 
 ## One Sentence
 
@@ -123,12 +124,12 @@ enterprise-grade
 solves personal data for all agents
 ```
 
-## Next Decision
+## Current Bounded Decisions
 
-The next bounded decision is whether to change the private GitHub repository visibility to public.
+The repository is already in public-alpha operation. Future irreversible actions remain separate approval lanes.
 
 ```text
-Public visibility: approval required
+Repository settings changes: separate approval required
 Release creation: separate approval required
 Package publish: separate approval required
 Announcement: separate approval required
