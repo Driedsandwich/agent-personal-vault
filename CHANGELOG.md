@@ -12,6 +12,10 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.1.14 - 2026-07-06
+
 ### Security And Privacy Changes
 
 - Redact GUI localhost access logs so token query strings are not reprinted to stderr after the initial human handoff URL.
