@@ -13,10 +13,12 @@ This project is now a public-alpha OSS repository.
 Current distribution state:
 
 - Repository visibility: public.
-- Latest GitHub prerelease: `v0.1.12`.
-- Latest PyPI package: `0.1.12`.
+- Latest GitHub prerelease: `v0.1.13`.
+- Latest PyPI package: `0.1.13`.
 - Normal package publish path: PyPI Trusted Publishing OIDC.
 - Manual token publish path: emergency fallback only.
+
+Treat this as a short gate snapshot. The source of truth for current release/package state is `docs/RELEASE_READINESS.md`, with package-publish details in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md` and Trusted Publishing details in `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`. Update those current-state records first after every separately approved publish, then keep this gate aligned.
 
 This gate now applies to future irreversible or external actions. Do not create another release, tag, package publish, public announcement, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation unless a human explicitly approves that specific action.
 
@@ -115,7 +117,7 @@ Confirm the printed URL binds to `127.0.0.1`, then stop with `Ctrl-C`.
 Current posture:
 
 1. Keep the project in public alpha.
-2. Treat `v0.1.12` as the latest published prerelease and PyPI package.
+2. Treat `v0.1.13` as the latest published prerelease and PyPI package.
 3. Use Trusted Publishing OIDC as the normal package publish lane for future separately approved versions.
 4. Stop before any new release, tag, package publish, public announcement, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation and request explicit approval.
 

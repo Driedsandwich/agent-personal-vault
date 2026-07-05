@@ -33,11 +33,13 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 - Do not store the encryption passphrase in logs, public issues, shell history, or repository files.
 - Plaintext vault files can be copied outside their file-permission boundary by backups, cloud sync, snapshots, archives, or manual copies. Keep real vaults out of shared/synced/public paths, and consider optional encryption when those copies cannot be controlled.
 - Consent tokens and audit logs are workflow controls, not a hard security boundary against an agent or process that already has shell access as the same OS user.
+- Audit metadata such as `human_operated` records the local approval path, for example CLI or GUI, and is not proof that a physical human rather than same-user automation performed the action.
 - The MCP stdio server has no built-in authentication layer. It trusts the local process and MCP client connected to its stdin/stdout; do not expose it to untrusted agents, shared-user sessions, or unintended local processes.
 - Localhost GUI returns all fields to a browser tab with the valid token.
 - CLI `get` intentionally prints one raw value only after a matching one-time consent token is supplied and raw-free audit metadata is written. CLI `env` is a human-only bulk raw export escape hatch and is not part of the public-alpha agent or MCP path. Recommended agent flow is request, human approve or deny, then one-key raw retrieval with the approved token.
 - Audit logs record action, key, purpose, outcome, and whether raw data was returned. They do not intentionally record raw values, but user-provided purpose text must still be kept raw-free. They are not immutable, append-only, signed, or tamper-evident forensic logs.
 - Consent files record action, key, purpose, expiry, request resolution, and used status. They do not intentionally record raw values, but they are still local private metadata.
+- On Windows, Unix-style `0600` permissions and `fcntl` locks do not apply as-is. A Windows locking fallback exists, but live Windows concurrency and permission behavior are not yet covered by this project's test suite.
 - This tool cannot protect data on an already compromised machine.
 - This project does not claim GDPR, APPI, HIPAA, SOC 2, or enterprise compliance.
 - Treat it as an alpha local utility, not as a complete secure personal-data platform.
