@@ -24,7 +24,7 @@ Current distribution snapshot:
 - First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, post-`v0.1.9` status synchronization is tracked in Issue #191, post-`v0.1.10` status synchronization is tracked in Issue #199, and post-`v0.1.11` status synchronization is tracked in Issue #205.
 - The v0.1.10 GitHub prerelease and PyPI package include synced or cloud-backed store path detection and advisory CLI/GUI warnings without echoing the full local store path.
 - The v0.1.11 GitHub prerelease and PyPI package include the post-`v0.1.10` Oracle Pro review follow-up for broader raw-like task and purpose redaction.
-- Historical sections below may mention earlier `v0.1.0` to `v0.1.2` checkpoints as evidence records. Do not treat those historical checkpoints as the current package state.
+- Historical sections below may mention earlier `v0.1.0` to `v0.1.4` checkpoints, zero-release snapshots, or manual-token publish states as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
 
@@ -34,6 +34,26 @@ Core product boundary:
 - explicit final-action boundary before external submission, upload, push, publish, or sharing
 
 `job_hunting_profile` is the first bundled schema.
+
+## Public Forbidden-Text Scan Privacy Note
+
+The release checks include public forbidden-text scans to keep private paths, local project names, and personal-data artifacts out of source distributions, wheels, release candidates, and publish logs.
+
+Current state:
+
+- `scripts/check_release.py` and `.github/workflows/pypi-publish.yml` contain public scan patterns.
+- Some scan patterns are intentionally split into fragments so the checks can catch private path/name regressions.
+- These fragments are part of the public repository and may still create a privacy-linkage signal even when they are not raw secrets.
+
+Do not print the fragment values in Issues, PRs, release notes, or support replies.
+
+Decision options:
+
+1. Keep the current literal/fragments because they provide direct local-release safety coverage.
+2. Replace sensitive fragments with hash-based checks and document how to regenerate the hashes locally.
+3. Generalize the scan patterns to broader path/name classes, accepting less precise coverage.
+
+Recommendation: keep the current checks until a dedicated PR can compare hash-based or generalized coverage against the current release-check behavior. This is a privacy/maintainability decision, not a current P0 release blocker.
 
 ## Completed
 
@@ -346,11 +366,13 @@ Stop before any v0.1.1 release, tag, package publish, or announcement request if
 - two or more independent support signals show the same consent, raw retrieval, MCP setup, install, or safety-boundary confusion;
 - the requested action would require repository settings, PyPI publisher settings, branch deletion, public announcement, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
-## RC Preparation Checklist
+## Historical RC Preparation Checklist
 
-RC preparation is allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This historical checklist records pre-`v0.1.0` release-candidate preparation. It is not the current package state. Current state is `v0.1.11` GitHub prerelease and PyPI `0.1.11`, with Trusted Publishing OIDC validated.
 
-- Version candidate: keep `0.1.0` as the current alpha package version unless a dedicated versioning Issue/PR proposes a different pre-release or patch version. Any actual version change requires explicit approval for that change and still does not authorize release/tag/publish.
+RC preparation was allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It did not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+
+- Historical version candidate: this section used `0.1.0` as the then-current alpha package version. Do not treat that as current; latest PyPI is `0.1.11`.
 - CHANGELOG: keep `CHANGELOG.md` as the source for the future release note draft. Before any release approval request, review the Unreleased section for user-visible changes, security/privacy changes, docs/governance changes, package prep, and known limitations.
 - Artifact hash confirmation: rerun the clean-copy-equivalent local build immediately before any release approval request and compare the generated filenames, SHA-256 hashes, entry counts, and forbidden-name scan with the latest recorded dry-run.
 - Rollback preparation: prepare a short rollback note before any release approval request. It should cover withdrawing announcements, opening corrective Issues/advisories, reverting docs/code through PR, and publishing a corrective patch only if separately approved.
@@ -359,16 +381,16 @@ RC preparation is allowed only as checklist, documentation, and local dry-run wo
 - MCP host differences: keep generic stdio, Codex, and Claude Code as validated paths. Do not claim full Claude Desktop app restart or in-app live tool-call UX support unless separately approved and tested in a non-interfering environment.
 - Approval boundary: after this checklist is complete, ask separately before GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
-## RC Candidate Final Dry-Run Snapshot
+## Historical RC Candidate Final Dry-Run Snapshot
 
-This is the final local dry-run snapshot for deciding whether to ask for a separate RC/release action. It still does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This is a historical local dry-run snapshot from before the first public-alpha release. It is retained as evidence only. It is not the current package state and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 - Tracking Issue: #67.
 - Target commit for this dry-run: `5209055 docs: add RC preparation checklist`.
-- Version candidate: keep `0.1.0` for the current alpha line. No version bump is included in this dry-run.
+- Historical version candidate: `0.1.0`. Latest PyPI package is now `0.1.11`.
 - CHANGELOG: `CHANGELOG.md` remains an Unreleased draft and is the current release-note source. It includes user-visible changes, security/privacy changes, docs/governance, package prep, and known limitations.
 - Security snapshot: latest `main` test and CodeQL are successful. Open CodeQL alerts, Dependabot alerts, and secret scanning alerts are 0. Vulnerability alerts endpoint returns `204 No Content`.
-- Repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run is the tracking Issue for this work. Stars, watchers/subscribers, and forks are 0. Traffic API reported 8 views and 47 clones.
+- Historical repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run was the tracking Issue for that work. This is no longer current; the project now has published prereleases and tags through `v0.1.11`.
 - Artifact dry-run: completed from a temporary clean-copy-equivalent source tree without upload. Artifacts were built into a temporary directory and were not committed.
   - `agent_personal_vault-0.1.0-py3-none-any.whl`: SHA-256 `fbf280d1f77cc6c81c4cbff1d297cdceb0d7c1b726eb3e443534a949ee124fcb`, 33121 bytes, 15 entries, no forbidden name hits.
   - `agent_personal_vault-0.1.0.tar.gz`: SHA-256 `265544a427176dcb468a16caeb70b870ce628b837db7c5ac88e18fb7d2e3b5d2`, 41448 bytes, 26 entries, no forbidden name hits.
@@ -378,11 +400,11 @@ This is the final local dry-run snapshot for deciding whether to ask for a separ
 - Stop conditions: do not proceed to any release action if CI fails, CodeQL/security alerts open, raw personal data or secrets appear, consent bypass is reported, audit raw leakage is suspected, artifacts include forbidden files, or repeated support signals show the same consent/raw retrieval/MCP setup confusion.
 - MCP host differences: generic stdio, Codex, and Claude Code remain the validated paths. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and must not be claimed as supported.
 
-## Pre-RC Draft Snapshot
+## Historical Pre-RC Draft Snapshot
 
-This section records the current draft inputs for a future release-candidate preparation decision. It is not a release-candidate approval and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+This section records historical draft inputs for the first release-candidate preparation decision. It is not current state, is not a release-candidate approval, and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
-- Target version: keep `pyproject.toml` at `0.1.0` for the current public-alpha line unless a later dedicated versioning Issue/PR chooses a different pre-release or patch version.
+- Historical target version: `0.1.0` for the first public-alpha line. Latest PyPI package is now `0.1.11`.
 - Version bump policy: do not bump the version in documentation-only readiness PRs. Any version bump must be a dedicated Issue/PR with CI and explicit user approval for that exact bump. A version bump still would not authorize release, tag, package publish, or announcement.
 - Changelog draft: `CHANGELOG.md` exists as an unreleased draft and separates user-visible changes, security/privacy changes, documentation/governance, package/release preparation, and known limitations.
 - Support expectation: public alpha support is best-effort only. No response-time, production support, data recovery, or compatibility guarantee should be promised before a separate support policy is approved.
@@ -396,11 +418,11 @@ Next release-candidate gate:
 - Release candidate checklist is prepared through Issue/PR and includes version bump policy, changelog draft, artifact hashes, rollback plan, Security alert snapshot, and support expectation.
 - The user separately approves release candidate preparation. This approval would still not authorize GitHub release creation, tag creation, package publish, or announcement.
 
-## RC Entry Exit Criteria
+## Historical RC Entry Exit Criteria
 
-Before proposing a release-candidate preparation cycle, the project must satisfy all criteria below through Issue/PR workflow:
+This section records the historical entry criteria used before the first release-candidate preparation cycle. It is retained as process evidence and is not the current package state.
 
-- Observation cycle: at least one post-PR #60 lightweight public-alpha observation cycle is complete, and the record covers open Issues/PRs, Actions, CodeQL, Dependabot/security alerts, release/tag absence, README display, and external feedback. Any security, consent, raw leakage, onboarding, or repeated support-load issue found in that cycle must be fixed or explicitly documented as an accepted alpha risk before RC preparation.
+- Observation cycle: at least one post-PR #60 lightweight public-alpha observation cycle is complete, and the record covers open Issues/PRs, Actions, CodeQL, Dependabot/security alerts, then-current release/tag state, README display, and external feedback. Any security, consent, raw leakage, onboarding, or repeated support-load issue found in that cycle must be fixed or explicitly documented as an accepted alpha risk before RC preparation.
 - Security snapshot: the RC proposal must record the target `main` commit SHA, latest successful `test` and CodeQL runs, open CodeQL alert count, Dependabot/vulnerability/secret-scanning status, and local `python3 scripts/check_release.py` result.
 - Changelog draft: a `CHANGELOG.md` draft or equivalent release-note draft must summarize merged changes since public alpha, separating user-visible changes, security/privacy changes, docs-only changes, and known limitations. It must not include raw personal data, local private paths, screenshots, vault files, or private support details.
 - Versioning: the proposal must state the intended `pyproject.toml` version, whether the change is alpha/patch/breaking, and whether a version bump PR is required. No version bump, tag, or release is implied by meeting this criterion.
@@ -412,12 +434,12 @@ Before proposing a release-candidate preparation cycle, the project must satisfy
 
 No known P0 issue currently blocks continued public-alpha repository availability.
 
-Remaining P1 risks before any release candidate, release, or package publish:
+Remaining P1 risks before stable/GA confidence or any future separately approved release/package publish:
 
 - Encryption is optional and passphrase-managed. OS key store integration and recovery UX remain pending.
 - MCP remains intentionally raw-free except for consent request creation. Raw-value MCP tools should not be added without a separate consent, audit, and client-behavior review.
 - GUI localhost access is an operator workflow convenience, not a hard multi-user security boundary.
-- Package publishing and release artifacts have not been exercised as a distribution channel and remain approval-gated. A dry-run plan exists in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, but no release, tag, package upload, or announcement has been authorized.
+- Package publishing and release artifacts are now exercised through GitHub prereleases and PyPI packages through `v0.1.11`. Future releases, tags, package uploads, and public announcements remain approval-gated, and each future version still needs fresh artifact, CI, security, PyPI availability, and approval checks.
 - Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
 - MCP host/client behavior differs. Generic stdio, Codex configuration, and Claude Code configuration were validated, but broader host UI behavior still depends on each client.
 - Claude Desktop was validated by configuration shape, generic stdio behavior, and terminal-only/Desktop-like local consent handoff. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and should not be run without explicit user approval and a non-interfering environment because it requires editing user-level Desktop config, restarting the app, and operating the user's active GUI.
@@ -435,21 +457,21 @@ git log --oneline -1
 Release creation, package publish, public announcement, and external sharing remain approval-gated.
 Distribution dry-run planning is tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 Individual approval lanes for release drafting/publishing, tag creation, package publish, and announcement are tracked in `docs/RC_APPROVAL_PLAN.md`.
-The current pre-execution review packet is tracked in `docs/RC_APPROVAL_PACKET.md`.
+The historical pre-`v0.1.0` pre-execution review packet is tracked in `docs/RC_APPROVAL_PACKET.md`. Do not reuse it as the current release packet.
 
 ## Not Done Without Explicit Approval
 
-The following actions remain stopped:
+The following future actions remain stopped:
 
-- release creation
-- tag creation
-- package publish
+- new release creation
+- new tag creation
+- new package publish
 - public announcement
 - external sharing
 
-## Recommended Next Approval
+## Historical v0.1.4 Approval Snapshot
 
-Current v0.1.4 candidate decision:
+This section records the historical `v0.1.4` candidate and publish decision. It is retained as release evidence only. It is not the current package state; latest GitHub prerelease and PyPI package are `v0.1.11`.
 
 - Outcome: `v0.1.4` was released as a GitHub prerelease and published to PyPI.
 - Reason: v0.1.4 carries the user-facing safety-boundary docs and consent-state hardening that were not present in the PyPI `0.1.3` package.
@@ -466,7 +488,7 @@ Latest v0.1.4 publish checks:
 - Open GitHub Issues/PRs: `0 / 0` at the checkpoint.
 - Open CodeQL alerts: `0`.
 - Open Dependabot alerts: `0`.
-- PyPI latest: `0.1.4`.
+- PyPI latest at that historical checkpoint: `0.1.4`.
 - GitHub release `v0.1.4`: published as a prerelease.
 - v0.1.4 candidate and publish evidence are tracked in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`.
 
@@ -476,13 +498,13 @@ v0.1.4 uploaded artifact evidence:
 - `agent_personal_vault-0.1.4-py3-none-any.whl`: 34,722 bytes, 15 entries, SHA-256 `08470b40a84f6efcde1661584bf1e647b0001bdecacc6a73925b2a069f8df16e`, no forbidden artifact name hits.
 - `agent_personal_vault-0.1.4.tar.gz`: 44,619 bytes, 26 entries, SHA-256 `d62d2a4c2e8699d1a80fce7c21385bd8d7a057a33a6dfa3103c0d2c81f4c4572`, no forbidden artifact name hits.
 
-If the user wants to proceed, the next bounded action is:
+At that historical checkpoint, the next bounded action was:
 
 ```text
 Run the post-v0.1.4 lightweight observation cycle: confirm the GitHub prerelease, PyPI page, clean install, console scripts, README/PyPI description, Actions, security alerts, open Issue/PR state, and external feedback. Issue or PR only small corrections discovered by that observation.
 ```
 
-This still does not create a new GitHub release, tag, package publish, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, or public announcement. Future release creation, tag creation, package publish, repository setting changes, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.
+This historical text did not create a new GitHub release, tag, package publish, repository setting change, branch deletion, Trusted Publishing activation, Claude Desktop app UI operation, API-billed validation, or public announcement. Future release creation, tag creation, package publish, repository setting changes, branch deletion, Trusted Publishing publish runs, Claude Desktop app UI operation, API-billed validation, and public announcement remain separate approvals.
 
 ## Trusted Publishing Approval Packet
 

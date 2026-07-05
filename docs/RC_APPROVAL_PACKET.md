@@ -1,20 +1,30 @@
-# RC Approval Packet
+# Historical RC Approval Packet
 
-日本語タイトル: RC実行前レビュー用承認パケット
+日本語タイトル: 過去のRC実行前レビュー用承認パケット
 
-status: draft-packet
+status: historical-snapshot
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-02
+last_updated: 2026-07-05
 
 ## Purpose
 
-This packet collects the current pre-RC evidence and the exact approval text that would be needed before any execution lane.
+This packet preserves the historical pre-`v0.1.0` release-candidate evidence and approval text that were used before the first public-alpha release.
 
-It is for human review only. It does not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
+It is no longer the current execution packet. The project is now public alpha, with latest GitHub prerelease `v0.1.11` and latest PyPI package `0.1.11`. Current release and package-publish state is tracked in `docs/RELEASE_READINESS.md`, `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
-Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy. Use this packet as the compact approval review surface.
+It remains for audit history only. It does not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
-## Target Snapshot
+Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy if a future version requires a new approval packet. Do not reuse this historical `0.1.0` packet for any future release.
+
+## Current Distribution Notice
+
+- Latest GitHub prerelease: `v0.1.11`.
+- Latest PyPI package: `0.1.11`.
+- Normal package publish path: PyPI Trusted Publishing OIDC.
+- Manual token publish path: emergency fallback only.
+- Future tag, release, package publish, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, API-billed validation, or public announcement still requires a separate explicit approval lane.
+
+## Historical Target Snapshot
 
 - Repository: `Driedsandwich/agent-personal-vault`
 - Repository visibility: public
@@ -22,22 +32,22 @@ Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy. Use this packet as t
 - Execution target commit: fill from `git rev-parse origin/main` immediately before a separate execution approval.
 - Execution target commit subject: fill from `git log -1 --pretty=%s origin/main` immediately before a separate execution approval.
 - Last reviewed baseline before this packet: `1bc53b9ba94c86830c367943ee139063b1688f2d` (`docs: add RC approval packet`).
-- Version candidate: `0.1.0`
+- Historical version candidate: `0.1.0`
 - Package name: `agent-personal-vault`
 - Python requirement: `>=3.11`
 - License: MIT
 - Release note source: `CHANGELOG.md` `Unreleased`
 
-Do not treat the baseline commit above as the execution target after additional documentation PRs are merged. Reconfirm the final execution target commit immediately before any separate execution approval.
+Do not treat the baseline commit above as the current execution target. Reconfirm the final execution target commit immediately before any separate future execution approval.
 
-## Current CI And Security Snapshot
+## Historical CI And Security Snapshot
 
-Latest checked `main` runs:
+Latest checked `main` runs at this historical checkpoint:
 
 - GitHub Actions `test`: success
 - CodeQL: success
 
-Repository state:
+Repository state at this historical checkpoint:
 
 - open PRs: 0
 - open Issues: 0
@@ -45,8 +55,8 @@ Repository state:
 - open Dependabot alerts: 0
 - open secret scanning alerts: 0
 - vulnerability alerts endpoint: `204 No Content`
-- GitHub releases: 0
-- Git tags: 0
+- GitHub releases: 0 at this historical checkpoint
+- Git tags: 0 at this historical checkpoint
 
 Local release gate to rerun before any execution approval:
 
@@ -54,16 +64,16 @@ Local release gate to rerun before any execution approval:
 python3 scripts/check_release.py
 ```
 
-Stop if these results change before execution.
+For current release work, use the current release-readiness documents instead of this historical snapshot.
 
-## Latest Preflight Snapshot
+## Historical Preflight Snapshot
 
 Recorded on 2026-07-02 before any release, tag, package publish, or announcement action.
 
 - Target source: `origin/main`
 - Target commit: `ae89c5d7cd9d953d395ac25daad495727c1d0c9f`
 - Target commit subject: `docs: make RC target approval-time filled`
-- Version candidate: `0.1.0`
+- Historical version candidate: `0.1.0`
 - GitHub Actions `test`: success
 - CodeQL: success
 - open PRs: 0
@@ -72,8 +82,8 @@ Recorded on 2026-07-02 before any release, tag, package publish, or announcement
 - open Dependabot alerts: 0
 - open secret scanning alerts: 0
 - vulnerability alerts endpoint: `204 No Content`
-- GitHub releases: 0
-- Git tags: 0
+- GitHub releases: 0 at this historical checkpoint
+- Git tags: 0 at this historical checkpoint
 - Release note check: the draft below was compared with `CHANGELOG.md`, `docs/LAUNCH_MESSAGING.md`, and `SECURITY.md`; no wording change was required for this preflight.
 
 Fresh local artifact dry-run:
@@ -95,9 +105,9 @@ Artifacts:
 
 Forbidden-name scan covered vault, consent, audit, private, backup, database, image, local `.venv`, `.codex`, and `.claude` style paths. These hashes are evidence for this exact generated-file set only and are not a cross-environment reproducible-build guarantee.
 
-Reconfirm this snapshot immediately before any separate execution approval.
+Do not use these artifact hashes or target commits for current release decisions.
 
-## Release Note Draft
+## Historical Release Note Draft
 
 Draft source: `CHANGELOG.md` `Unreleased`.
 
