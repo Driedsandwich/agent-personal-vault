@@ -4,7 +4,7 @@
 
 status: draft
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 
 ## Purpose
 
@@ -40,7 +40,7 @@ Use the GitHub README as the primary link:
 https://github.com/Driedsandwich/agent-personal-vault
 ```
 
-Use the GitHub README as the primary announcement link. PyPI latest is `0.1.11`, the `v0.1.11` GitHub prerelease is published, and Trusted Publishing OIDC publish has succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11`. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
+Use the GitHub README as the primary announcement link. PyPI latest is `0.1.12`, the `v0.1.12` GitHub prerelease is published, and Trusted Publishing OIDC publish has succeeded for `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, and `v0.1.12`. The PyPI long description reflects the current README install examples, but generic announcement text should still avoid quoting a pinned `pip install agent-personal-vault==...` command. If a channel requires install instructions, link to the current README instead of copying a version-pinned command into the post.
 
 ## English Short Draft
 
