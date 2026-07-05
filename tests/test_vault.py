@@ -6,8 +6,12 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import tomllib
+import urllib.error
+import urllib.request
 import unittest
+from http.server import ThreadingHTTPServer
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -16,7 +20,7 @@ from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
-from agent_personal_vault.gui import audit_view_payload, page_html, profile_view_payload, save_profile_fields
+from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
     blank_store,
@@ -756,6 +760,45 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("山田", encoded)
             self.assertNotIn("private.person@example.test", encoded)
             self.assertNotIn(str(path), encoded)
+
+    def test_gui_http_rejects_malformed_json_without_token_or_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            server.gui_token = token  # type: ignore[attr-defined]
+            server.store_path = path  # type: ignore[attr-defined]
+            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
+                request = urllib.request.Request(
+                    url,
+                    data=b"{",
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(request, timeout=5)
+                self.assertEqual(raised.exception.code, 400)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("invalid json", body)
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertNotIn(token, log_output)
+                self.assertNotIn("Traceback", log_output)
+                self.assertIn("token=[redacted]", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_request_target_redacts_token_query(self) -> None:
+        redacted = _redact_request_target("/api/profile?token=secret-token&x=1")
+        self.assertEqual(redacted, "/api/profile?token=[redacted]")
+        self.assertEqual(_redact_request_target("/api/profile?x=1"), "/api/profile?x=1")
 
     def test_gui_audit_view_payload_omits_raw_values_and_purpose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

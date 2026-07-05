@@ -310,8 +310,22 @@ def audit_view_payload(path: Path, limit: int = 10) -> dict:
     }
 
 
+def _redact_request_target(target: str) -> str:
+    parsed = urlparse(target)
+    if not parsed.query:
+        return target
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    if "token" not in query:
+        return target
+    return parsed._replace(query="token=[redacted]").geturl()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AgentPersonalVault/0.1"
+
+    def log_message(self, format: str, *args: object) -> None:
+        redacted_args = tuple(_redact_request_target(str(arg)) for arg in args)
+        super().log_message(format, *redacted_args)
 
     def token_ok(self) -> bool:
         query = parse_qs(urlparse(self.path).query)
@@ -325,6 +339,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def read_json_body(self) -> dict | None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid json"})
+            return None
+        if not isinstance(payload, dict):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "json body must be an object"})
+            return None
+        return payload
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -368,8 +394,9 @@ class Handler(BaseHTTPRequestHandler):
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            payload = self.read_json_body()
+            if payload is None:
+                return
             request_id = str(payload.get("id", ""))
             try:
                 result = resolve_consent_request(
@@ -389,8 +416,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self.token_ok():
             self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return
-        length = int(self.headers.get("Content-Length", "0"))
-        payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        payload = self.read_json_body()
+        if payload is None:
+            return
         incoming = payload.get("fields", {})
         if not isinstance(incoming, dict):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": "fields must be an object"})

@@ -12,7 +12,15 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-No unreleased changes.
+### Security And Privacy Changes
+
+- Redact GUI localhost access logs so token query strings are not reprinted to stderr after the initial human handoff URL.
+- Return sanitized JSON `400` responses for malformed GUI POST bodies instead of dropping the response or exposing Python tracebacks.
+- Clarify that `human_operated` audit metadata records the local approval path and is not proof of physical human presence, and document Windows permission/locking caveats.
+
+### Documentation And Release Hygiene
+
+- Sync publication-gate and historical RC packet current-state pointers to the published `v0.1.13` GitHub prerelease and PyPI `0.1.13` package, with `docs/RELEASE_READINESS.md` as the current-state source of truth.
 
 ## 0.1.13 - 2026-07-05
 
