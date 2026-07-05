@@ -4,7 +4,7 @@
 
 status: public-alpha-ready
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 
 ## Current Summary
 
@@ -12,18 +12,19 @@ last_updated: 2026-07-04
 
 Current distribution snapshot:
 
-- Latest GitHub prerelease: `v0.1.11`.
-- Latest PyPI package: `0.1.11`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `3b9207b5b4cb7446342ea3a2b12e1a3249be353b`.
+- Latest GitHub prerelease: `v0.1.12`.
+- Latest PyPI package: `0.1.12`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `aeb808a7112815eae687e42ac812417958b03ad7`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, and `v0.1.12` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11` PyPI publishes.
-- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, post-`v0.1.9` status synchronization is tracked in Issue #191, post-`v0.1.10` status synchronization is tracked in Issue #199, and post-`v0.1.11` status synchronization is tracked in Issue #205.
+- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, and `v0.1.12` PyPI publishes.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` status synchronization is tracked in Issue #161, post-`v0.1.7` status synchronization is tracked in Issue #167, post-`v0.1.8` status synchronization is tracked in Issue #173, post-`v0.1.9` status synchronization is tracked in Issue #191, post-`v0.1.10` status synchronization is tracked in Issue #199, post-`v0.1.11` status synchronization is tracked in Issue #205, and post-`v0.1.12` status synchronization is tracked in Issue #217.
 - The v0.1.10 GitHub prerelease and PyPI package include synced or cloud-backed store path detection and advisory CLI/GUI warnings without echoing the full local store path.
 - The v0.1.11 GitHub prerelease and PyPI package include the post-`v0.1.10` Oracle Pro review follow-up for broader raw-like task and purpose redaction.
+- The v0.1.12 GitHub prerelease and PyPI package include the post-`v0.1.11` Fable 5 P1 hardening follow-up for sanitized invalid-state negative paths, encrypted payload iteration compatibility, PyPI publish workflow SHA pinning, and historical local-Git documentation.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.4` checkpoints, zero-release snapshots, or manual-token publish states as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
@@ -152,13 +153,13 @@ Additional local checks:
 
 ## Current Release Decision
 
-Decision: keep the project in public alpha / prerelease status after the approved `v0.1.11` GitHub prerelease and Trusted Publishing OIDC PyPI publish. Do not create another release, tag, package publish, repository setting change, branch deletion, or announcement without a separate approval lane.
+Decision: keep the project in public alpha / prerelease status after the approved `v0.1.12` GitHub prerelease and Trusted Publishing OIDC PyPI publish. Do not create another release, tag, package publish, repository setting change, branch deletion, or announcement without a separate approval lane.
 
 Rationale:
 
 - Local release/package dry-run, artifact inspection, package metadata correction, release checks, CI, CodeQL, Security alert coverage, GitHub prerelease publish, and Trusted Publishing OIDC PyPI publish are in good shape for continued public-alpha repository availability.
 - No known P0 issue currently blocks public-alpha use.
-- Post-release checks for `v0.1.11` confirmed PyPI availability, installability, console script availability, Project-URL metadata, GitHub Actions publish success, and open security alert count 0.
+- Post-release checks for `v0.1.12` confirmed PyPI availability, installability, console script availability, Project-URL metadata, PyPI provenance/attestations, GitHub Actions publish success, and open security alert count 0.
 - Remaining P1 risks still affect stable/GA confidence and must stay visible: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, limited support-load observation, full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment, and the continuing public-alpha warning burden around default plaintext local storage.
 - The next likely gate is announcement-readiness or continued lightweight observation, not another package publish by default.
 
@@ -368,7 +369,7 @@ Stop before any v0.1.1 release, tag, package publish, or announcement request if
 
 ## Historical RC Preparation Checklist
 
-This historical checklist records pre-`v0.1.0` release-candidate preparation. It is not the current package state. Current state is `v0.1.11` GitHub prerelease and PyPI `0.1.11`, with Trusted Publishing OIDC validated.
+This historical checklist records pre-`v0.1.0` release-candidate preparation. It is not the current package state. Current state is `v0.1.12` GitHub prerelease and PyPI `0.1.12`, with Trusted Publishing OIDC validated.
 
 RC preparation was allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It did not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 

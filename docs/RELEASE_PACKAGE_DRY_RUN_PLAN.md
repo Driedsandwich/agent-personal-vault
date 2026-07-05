@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 
 ## Purpose
 
@@ -14,18 +14,19 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.11`.
-- Latest PyPI package: `0.1.11`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `3b9207b5b4cb7446342ea3a2b12e1a3249be353b`.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.11` is tagged, published as a GitHub prerelease, and published to PyPI.
+- Latest GitHub prerelease: `v0.1.12`.
+- Latest PyPI package: `0.1.12`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `aeb808a7112815eae687e42ac812417958b03ad7`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for the `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, and `v0.1.12` PyPI publishes through the OIDC lane. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.12` is tagged, published as a GitHub prerelease, and published to PyPI.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, and `v0.1.11` PyPI publishes.
+- The Trusted Publisher was used successfully for the `v0.1.5`, `v0.1.6`, `v0.1.7`, `v0.1.8`, `v0.1.9`, `v0.1.10`, `v0.1.11`, and `v0.1.12` PyPI publishes.
 - Manual token publishing is now an emergency fallback only.
 - The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
 - The `v0.1.11` patch release was published after `v0.1.10` for broader raw-like task and purpose redaction.
+- The `v0.1.12` patch release was published after `v0.1.11` for invalid-state negative-path hardening, encrypted payload iteration compatibility, publish workflow SHA pinning, and historical local-Git documentation.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -36,13 +37,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.11` is published as a GitHub prerelease and points to `3b9207b5b4cb7446342ea3a2b12e1a3249be353b`.
-- PyPI latest is `0.1.11`.
+- `v0.1.12` is published as a GitHub prerelease and points to `aeb808a7112815eae687e42ac812417958b03ad7`.
+- PyPI latest is `0.1.12`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.11` OIDC publish workflow completed successfully.
-- The `v0.1.11` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
+- The `v0.1.12` OIDC publish workflow completed successfully.
+- The `v0.1.12` publish logs include DSSE/in-toto attestation generation for the wheel and sdist.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
@@ -158,6 +159,21 @@ Stop conditions before any later publish lane:
 - the package metadata does not report version `0.1.12`;
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
+Current post-publish state:
+
+- PyPI latest is `0.1.12`.
+- PyPI `0.1.12` is published.
+- GitHub release `v0.1.12` is published as a prerelease and points to `aeb808a7112815eae687e42ac812417958b03ad7`.
+- Trusted Publishing OIDC publish has completed successfully for `v0.1.12`.
+- The `publish-package` run for `v0.1.12` completed successfully and produced provenance/attestations for the wheel and sdist.
+
+Uploaded PyPI artifacts from the approved Trusted Publishing OIDC run:
+
+| Artifact | Size | SHA-256 |
+| --- | ---: | --- |
+| `agent_personal_vault-0.1.12-py3-none-any.whl` | 38,369 bytes | `2b878e222d7139374807995f186dc92fddd7c9bb0af86d1369325220643da621` |
+| `agent_personal_vault-0.1.12.tar.gz` | 51,646 bytes | `37ae679aeb0e760ec94139d3f278209249c635419586f3b01eda308210ef6f81` |
 
 ## v0.1.11 Raw-Like Task/Purpose Redaction Patch Candidate Dry-Run
 
