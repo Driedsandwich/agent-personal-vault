@@ -275,6 +275,21 @@ def save_profile_fields(path: Path, schema_name: str, incoming: dict) -> dict:
     return store
 
 
+def profile_view_payload(path: Path, schema_name: str) -> dict:
+    store = load_store(create=True, path=path, schema_name=schema_name)
+    write_audit_event(
+        vault_path=path,
+        actor="gui",
+        action="profile_view",
+        key="*",
+        raw_returned=True,
+        purpose="gui profile view",
+        source="localhost_gui",
+        human_operated=True,
+    )
+    return {"fields": store.get("fields", {}), "summary": check_summary(store, path)}
+
+
 def audit_view_payload(path: Path, limit: int = 10) -> dict:
     events = []
     for event in read_audit_events(path, limit=limit):
@@ -330,8 +345,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            store = load_store(create=True, path=self.server.store_path, schema_name=self.server.schema_name)
-            self.send_json(HTTPStatus.OK, {"fields": store.get("fields", {}), "summary": check_summary(store, self.server.store_path)})
+            self.send_json(HTTPStatus.OK, profile_view_payload(self.server.store_path, self.server.schema_name))
             return
         if parsed.path == "/api/consent/requests":
             if not self.token_ok():

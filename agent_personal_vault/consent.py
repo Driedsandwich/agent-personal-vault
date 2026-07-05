@@ -66,6 +66,8 @@ def _build_grant(
     purpose: str,
     ttl_seconds: int,
     actor: str,
+    source: str,
+    human_operated: bool,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).replace(microsecond=0)
     expires_at = now + timedelta(seconds=max(1, ttl_seconds))
@@ -78,6 +80,8 @@ def _build_grant(
         "expires_at": expires_at.isoformat(),
         "used_at": "",
         "actor": actor,
+        "source": source,
+        "human_operated": bool(human_operated),
     }
 
 
@@ -116,8 +120,18 @@ def issue_consent(
     purpose: str,
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
     actor: str = "cli",
+    source: str = "direct_grant",
+    human_operated: bool = True,
 ) -> dict[str, Any]:
-    grant = _build_grant(action=action, key=key, purpose=purpose, ttl_seconds=ttl_seconds, actor=actor)
+    grant = _build_grant(
+        action=action,
+        key=key,
+        purpose=purpose,
+        ttl_seconds=ttl_seconds,
+        actor=actor,
+        source=source,
+        human_operated=human_operated,
+    )
     path = consent_path(vault_path)
     with _state_lock(path):
         state = _load_state(path)
@@ -135,6 +149,8 @@ def issue_consent(
         purpose=purpose,
         outcome="allowed",
         consent_id=grant["id"],
+        source=source,
+        human_operated=human_operated,
     )
     return grant
 
@@ -156,6 +172,7 @@ def create_consent_request(
         "resolved_at": "",
         "status": "pending",
         "actor": actor,
+        "source": "request",
         "consent_id": "",
     }
     path = consent_path(vault_path)
@@ -175,6 +192,9 @@ def create_consent_request(
         purpose=purpose,
         outcome="pending",
         consent_id=request["id"],
+        source="request",
+        human_operated=False,
+        request_id=request["id"],
     )
     return request
 
@@ -220,6 +240,8 @@ def resolve_consent_request(
             if request.get("status") != "pending":
                 raise ConsentError("consent request is already resolved")
             request["resolved_at"] = now_iso()
+            request["resolved_by"] = actor
+            request["resolution_source"] = "request_approval"
             if not approve:
                 request["status"] = "denied"
                 _write_state(path, state)
@@ -229,6 +251,9 @@ def resolve_consent_request(
                     "purpose": str(request.get("purpose") or ""),
                     "outcome": "denied",
                     "consent_id": request_id,
+                    "source": "request_denial",
+                    "human_operated": actor in {"cli", "gui"},
+                    "request_id": request_id,
                 }
                 result = {
                     key: request.get(key, "")
@@ -242,6 +267,8 @@ def resolve_consent_request(
                 purpose=str(request.get("purpose") or ""),
                 ttl_seconds=ttl_seconds,
                 actor=actor,
+                source="request_approval",
+                human_operated=actor in {"cli", "gui"},
             )
             grants = state.setdefault("grants", [])
             if not isinstance(grants, list):
@@ -256,6 +283,9 @@ def resolve_consent_request(
                 "purpose": str(request.get("purpose") or ""),
                 "outcome": "allowed",
                 "consent_id": grant["id"],
+                "source": "request_approval",
+                "human_operated": actor in {"cli", "gui"},
+                "request_id": request_id,
             }
             result = {"request_id": request_id, "grant": grant}
             break

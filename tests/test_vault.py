@@ -16,7 +16,7 @@ from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.consent import consent_path, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
-from agent_personal_vault.gui import audit_view_payload, page_html, save_profile_fields
+from agent_personal_vault.gui import audit_view_payload, page_html, profile_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
     agent_context,
     blank_store,
@@ -729,6 +729,34 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("山田", encoded)
             self.assertNotIn("private.person@example.test", encoded)
 
+    def test_gui_profile_view_writes_raw_access_audit_event_without_raw_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+
+            payload = profile_view_payload(path, "job_hunting_profile")
+
+            self.assertEqual(payload["fields"]["FAMILY_NAME"], "山田")
+            events = read_audit_events(path, limit=10)
+            encoded = json.dumps(events, ensure_ascii=False)
+            self.assertTrue(
+                any(
+                    event["actor"] == "gui"
+                    and event["action"] == "profile_view"
+                    and event["key"] == "*"
+                    and event["raw_returned"] is True
+                    and event.get("source") == "localhost_gui"
+                    and event.get("human_operated") is True
+                    for event in events
+                )
+            )
+            self.assertNotIn("山田", encoded)
+            self.assertNotIn("private.person@example.test", encoded)
+            self.assertNotIn(str(path), encoded)
+
     def test_gui_audit_view_payload_omits_raw_values_and_purpose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -888,7 +916,23 @@ class VaultTests(unittest.TestCase):
             self.assertNotEqual(second.returncode, 0)
             self.assertIn("already been used", second.stderr)
             consent_text = consent_path(path).read_text(encoding="utf-8")
+            consent_payload = json.loads(consent_text)
+            self.assertEqual(consent_payload["grants"][0]["source"], "direct_grant")
+            self.assertTrue(consent_payload["grants"][0]["human_operated"])
             self.assertNotIn("山田", consent_text)
+            events = read_audit_events(path, limit=10)
+            self.assertTrue(
+                any(
+                    event["action"] == "consent_grant"
+                    and event.get("source") == "direct_grant"
+                    and event.get("human_operated") is True
+                    and event["consent_id"] == "c_[redacted]"
+                    for event in events
+                )
+            )
+            encoded_events = json.dumps(events, ensure_ascii=False)
+            self.assertNotIn(consent_id, encoded_events)
+            self.assertNotIn("山田", encoded_events)
 
     def test_cli_expired_consent_token_is_traceback_free_and_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1146,8 +1190,29 @@ class VaultTests(unittest.TestCase):
             )
             self.assertEqual(result.stdout.strip(), "山田")
             consent_text = consent_path(path).read_text(encoding="utf-8")
+            consent_payload = json.loads(consent_text)
+            grant = consent_payload["grants"][0]
+            request = consent_payload["requests"][0]
+            self.assertEqual(grant["source"], "request_approval")
+            self.assertTrue(grant["human_operated"])
+            self.assertEqual(request["source"], "request")
+            self.assertEqual(request["resolution_source"], "request_approval")
+            self.assertEqual(request["resolved_by"], "cli")
             self.assertIn('"status": "approved"', consent_text)
             self.assertNotIn("山田", consent_text)
+            events = read_audit_events(path, limit=20)
+            self.assertTrue(
+                any(
+                    event["action"] == "consent_approve"
+                    and event.get("source") == "request_approval"
+                    and event.get("human_operated") is True
+                    and event["consent_id"] == "c_[redacted]"
+                    for event in events
+                )
+            )
+            encoded_events = json.dumps(events, ensure_ascii=False)
+            self.assertNotIn(consent_id, encoded_events)
+            self.assertNotIn("山田", encoded_events)
             request_listing = subprocess.run(
                 [
                     sys.executable,
