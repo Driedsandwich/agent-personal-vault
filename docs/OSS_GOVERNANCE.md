@@ -4,11 +4,11 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-01
+last_updated: 2026-07-05
 
 ## 結論
 
-Agent Personal Vault は、public化前から Issue / PR 前提で運用する。
+Agent Personal Vault は、public alpha公開後も Issue / PR 前提で運用する。
 
 `main` への直pushは使わない。変更はbranchを作り、Pull Requestを通し、GitHub Actionsのrelease-checkが通ってからmergeする。
 

@@ -2,13 +2,13 @@
 
 日本語タイトル: 変更履歴
 
-status: draft
+status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 
-All notable changes to Agent Personal Vault will be documented here.
+All notable changes to Agent Personal Vault are documented here.
 
-This file is a draft planning document for a possible future release candidate. It does not authorize a GitHub release, tag creation, package publish, announcement, repository setting change, branch deletion, Claude Desktop GUI operation, or API-billed validation.
+This changelog records released and unreleased project changes. It does not authorize a GitHub release, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing run, PyPI token change/deletion, Claude Desktop GUI operation, or API-billed validation.
 
 ## Unreleased
 
