@@ -242,7 +242,7 @@ Stop before upload if any of these occur:
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
 
-The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully through `v0.1.11`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
+The first OIDC publish was completed for `v0.1.5`, and the same lane was reused successfully through `v0.1.12`. Future OIDC publishes should remain separate release lanes for approved versions, not background migration steps.
 
 Required preflight before any future OIDC publish:
 
