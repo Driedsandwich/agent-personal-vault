@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -143,7 +144,8 @@ def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
     text = " ".join(str(value).split())
-    if _looks_raw_like(text):
+    detection_text = unicodedata.normalize("NFKC", text)
+    if _looks_raw_like(detection_text):
         return "[redacted]"
     return text[:240]
 
