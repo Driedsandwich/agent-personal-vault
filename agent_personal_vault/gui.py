@@ -340,6 +340,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_internal_error(self) -> None:
+        self.send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal error"})
+
     def read_json_body(self) -> dict | None:
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -371,19 +374,34 @@ class Handler(BaseHTTPRequestHandler):
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            self.send_json(HTTPStatus.OK, profile_view_payload(self.server.store_path, self.server.schema_name))
+            try:
+                payload = profile_view_payload(self.server.store_path, self.server.schema_name)
+            except Exception:
+                self.send_internal_error()
+                return
+            self.send_json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/consent/requests":
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            self.send_json(HTTPStatus.OK, {"requests": list_consent_requests(self.server.store_path)})
+            try:
+                payload = {"requests": list_consent_requests(self.server.store_path)}
+            except Exception:
+                self.send_internal_error()
+                return
+            self.send_json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/audit":
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            self.send_json(HTTPStatus.OK, audit_view_payload(self.server.store_path))
+            try:
+                payload = audit_view_payload(self.server.store_path)
+            except Exception:
+                self.send_internal_error()
+                return
+            self.send_json(HTTPStatus.OK, payload)
             return
         self.send_response(HTTPStatus.NOT_FOUND)
         self.end_headers()

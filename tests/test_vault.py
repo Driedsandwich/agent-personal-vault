@@ -18,7 +18,7 @@ from pathlib import Path
 
 from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
-from agent_personal_vault.consent import consent_path, list_consent_requests
+from agent_personal_vault.consent import consent_path, create_consent_request, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
@@ -378,6 +378,8 @@ class VaultTests(unittest.TestCase):
             local_path,
             "student id 12345678",
             "100-0001",
+            "contact private.person＠example.test",
+            "連絡先 private.person＠example.test",
         ]
         for value in raw_like_values:
             with self.subTest(value=value):
@@ -788,6 +790,36 @@ class VaultTests(unittest.TestCase):
                 self.assertIn("invalid json", body)
                 log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
                 self.assertNotIn(token, log_output)
+                self.assertNotIn("Traceback", log_output)
+                self.assertIn("token=[redacted]", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_http_get_store_shape_error_is_traceback_free_token_free_and_path_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            path.write_text(json.dumps({"schema": "job_hunting_profile", "fields": []}), encoding="utf-8")
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            server.gui_token = token  # type: ignore[attr-defined]
+            server.store_path = path  # type: ignore[attr-defined]
+            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(url, timeout=5)
+                self.assertEqual(raised.exception.code, 500)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("internal error", body)
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertNotIn(token, log_output)
+                self.assertNotIn(str(path), log_output)
                 self.assertNotIn("Traceback", log_output)
                 self.assertIn("token=[redacted]", log_output)
             finally:
@@ -1719,6 +1751,64 @@ class VaultTests(unittest.TestCase):
             payload = json.loads(responses[0]["result"]["content"][0]["text"])
             self.assertFalse(payload["raw_values_included"])
             self.assertEqual(payload["request"]["purpose"], "[redacted]")
+
+    def test_mcp_consent_request_redacts_compatibility_email_purpose_from_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["EMAIL"] = "private.person@example.test"
+            write_store(store, path)
+            raw_looking_purpose = "contact private.person＠example.test"
+            messages = [
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "apv.request_consent",
+                        "arguments": {
+                            "action": "get",
+                            "key": "EMAIL",
+                            "purpose": raw_looking_purpose,
+                        },
+                    },
+                },
+            ]
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+            listed_requests = json.dumps(list_consent_requests(path), ensure_ascii=False)
+
+            self.assertNotIn(raw_looking_purpose, result.stdout)
+            self.assertNotIn(raw_looking_purpose, encoded_events)
+            self.assertNotIn(raw_looking_purpose, listed_requests)
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            payload = json.loads(responses[0]["result"]["content"][0]["text"])
+            self.assertFalse(payload["raw_values_included"])
+            self.assertEqual(payload["request"]["purpose"], "[redacted]")
+            self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
+
+    def test_consent_request_list_redacts_compatibility_email_purpose(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose="contact private.person＠example.test",
+                actor="mcp",
+            )
+            self.assertEqual(request["purpose"], "[redacted]")
+            self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
+            encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+            self.assertNotIn("private.person＠example.test", encoded_events)
 
     def test_mcp_consent_request_rejects_env_bulk_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
