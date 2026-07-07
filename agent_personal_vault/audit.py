@@ -14,6 +14,15 @@ from .vault import ensure_private_dir, now_iso, store_path
 
 DEFAULT_LIMIT = 20
 EMAIL_TOKEN_STRIP = ".,;:()[]{}<>\"'"
+DOT_EQUIVALENTS = str.maketrans(
+    {
+        "。": ".",
+        "｡": ".",
+        "．": ".",
+        "﹒": ".",
+        "·": ".",
+    }
+)
 JAPANESE_PREFECTURES = (
     "北海道",
     "青森県",
@@ -76,6 +85,10 @@ DATE_LIKE_RE = re.compile(r"\b(?:19|20)\d{2}[-/.年](?:0?[1-9]|1[0-2])[-/.月](?
 POSTAL_CODE_RE = re.compile(r"\b\d{3}-?\d{4}\b")
 LONG_IDENTIFIER_RE = re.compile(r"\b\d{8,}\b")
 JAPANESE_NAME_PAIR_RE = re.compile(r"(?<![一-龯々])([一-龯々]{1,4})[\s　]+([一-龯々]{1,4})(?![一-龯々])")
+SPACED_EMAIL_RE = re.compile(
+    r"\b[A-Za-z0-9._%+\-]{1,64}\s*@\s*"
+    r"[A-Za-z0-9\-]+(?:\s*\.\s*[A-Za-z0-9\-]+)+\b"
+)
 
 
 def _looks_like_email_token(token: str) -> bool:
@@ -123,7 +136,8 @@ def _looks_like_japanese_name_pair(text: str) -> bool:
 
 def _looks_raw_like(text: str) -> bool:
     return (
-        any(_looks_like_email_token(token) for token in text.split())
+        bool(SPACED_EMAIL_RE.search(text))
+        or any(_looks_like_email_token(token) for token in text.split())
         or _looks_like_grouped_number(text)
         or _looks_like_ungrouped_phone(text)
         or bool(LOCAL_PATH_RE.search(text))
@@ -135,6 +149,12 @@ def _looks_raw_like(text: str) -> bool:
     )
 
 
+def _detection_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).translate(DOT_EQUIVALENTS)
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Cf")
+    return " ".join(normalized.split())
+
+
 def audit_path(vault_path: Path | None = None) -> Path:
     path = vault_path or store_path()
     return path.parent / "audit.jsonl"
@@ -144,7 +164,7 @@ def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
     text = " ".join(str(value).split())
-    detection_text = unicodedata.normalize("NFKC", text)
+    detection_text = _detection_text(text)
     if _looks_raw_like(detection_text):
         return "[redacted]"
     return text[:240]

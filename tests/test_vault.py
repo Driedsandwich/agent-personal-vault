@@ -1810,6 +1810,31 @@ class VaultTests(unittest.TestCase):
             encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
             self.assertNotIn("private.person＠example.test", encoded_events)
 
+    def test_consent_request_list_redacts_spaced_email_and_invisible_path_purpose(self) -> None:
+        cases = [
+            "contact private.person @ example.test for local draft",
+            "contact private.person@example。test for local draft",
+            "/" + "\u200b" + "Users/example/private/vault.json",
+        ]
+        for raw_looking_purpose in cases:
+            with self.subTest(raw_looking_purpose=raw_looking_purpose), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "vault.json"
+                load_store(create=True, path=path)
+                request = create_consent_request(
+                    vault_path=path,
+                    action="get",
+                    key="EMAIL",
+                    purpose=raw_looking_purpose,
+                    actor="mcp",
+                )
+                encoded_events = json.dumps(read_audit_events(path, limit=10), ensure_ascii=False)
+                listed_requests = json.dumps(list_consent_requests(path), ensure_ascii=False)
+
+                self.assertEqual(request["purpose"], "[redacted]")
+                self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
+                self.assertNotIn(raw_looking_purpose, encoded_events)
+                self.assertNotIn(raw_looking_purpose, listed_requests)
+
     def test_mcp_consent_request_rejects_env_bulk_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
