@@ -12,23 +12,24 @@ last_updated: 2026-07-07
 
 Current distribution snapshot:
 
-- Latest GitHub prerelease: `v0.1.15`.
-- Latest PyPI package: `0.1.15`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `436988542825cfddd19a4538e1354d37c7039b69`.
+- Latest GitHub prerelease: `v0.1.16`.
+- Latest PyPI package: `0.1.16`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `6bb9b66937ee558188bab0f7533d6d77142fe29a`.
 - Open Issue #108 was closed after the PyPI long description was refreshed by the `v0.1.3` package publish.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for each PyPI publish through `v0.1.15`. Package publishes through `v0.1.4` used the manual token fallback lane.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for each PyPI publish through `v0.1.16`. Package publishes through `v0.1.4` used the manual token fallback lane.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for PyPI publishes from `v0.1.5` through `v0.1.15`.
-- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` through post-`v0.1.15` status synchronization is tracked in Issues #161, #167, #173, #191, #199, #205, #217, #225, #231, and #239.
+- The Trusted Publisher was used successfully for PyPI publishes from `v0.1.5` through `v0.1.16`.
+- First OIDC publish preflight planning and follow-up evidence are tracked in Issue #142, Issue #146, and `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`. Post-`v0.1.6` through post-`v0.1.16` status synchronization is tracked in Issues #161, #167, #173, #191, #199, #205, #217, #225, #231, #239, and #245.
 - The v0.1.10 GitHub prerelease and PyPI package include synced or cloud-backed store path detection and advisory CLI/GUI warnings without echoing the full local store path.
 - The v0.1.11 GitHub prerelease and PyPI package include the post-`v0.1.10` Oracle Pro review follow-up for broader raw-like task and purpose redaction.
 - The v0.1.12 GitHub prerelease and PyPI package include the post-`v0.1.11` Fable 5 P1 hardening follow-up for sanitized invalid-state negative paths, encrypted payload iteration compatibility, PyPI publish workflow SHA pinning, and historical local-Git documentation.
 - The v0.1.13 GitHub prerelease and PyPI package include the post-`v0.1.12` Fable 5 audit-boundary follow-up for GUI profile-view audit metadata and consent source metadata.
 - The v0.1.14 GitHub prerelease and PyPI package include the post-`v0.1.13` Fable 5 GUI-boundary follow-up for GUI access-log token redaction, sanitized malformed GUI POST responses, `human_operated` metadata clarification, and Windows permission/locking caveats.
 - The v0.1.15 GitHub prerelease and PyPI package include the post-`v0.1.14` docs freshness sync and raw-free GUI/consent boundary hardening for Unicode compatibility-character redaction and sanitized GUI GET API errors.
-- Issue #239 tracks the post-`v0.1.15` status documentation synchronization.
+- The v0.1.16 GitHub prerelease and PyPI package include the post-`v0.1.15` purpose redaction hardening for split email forms, ideographic dot variants, and invisible-character local path forms.
+- Issue #245 tracks the post-`v0.1.16` status documentation synchronization.
 - Historical sections below may mention earlier `v0.1.0` to `v0.1.4` checkpoints, zero-release snapshots, or manual-token publish states as evidence records. Do not treat those historical checkpoints as the current package state.
 
 Core product boundary:
@@ -157,27 +158,27 @@ Additional local checks:
 
 ## Current Release Decision
 
-Decision: keep the project in public alpha / prerelease status after the approved `v0.1.15` GitHub prerelease and Trusted Publishing OIDC PyPI publish. Do not create another release, tag, package publish, repository setting change, branch deletion, or announcement without a separate approval lane.
+Decision: keep the project in public alpha / prerelease status after the approved `v0.1.16` GitHub prerelease and Trusted Publishing OIDC PyPI publish. Do not create another release, tag, package publish, repository setting change, branch deletion, or announcement without a separate approval lane.
 
 Rationale:
 
 - Local release/package dry-run, artifact inspection, package metadata correction, release checks, CI, CodeQL, Security alert coverage, GitHub prerelease publish, and Trusted Publishing OIDC PyPI publish are in good shape for continued public-alpha repository availability.
 - No known P0 issue currently blocks public-alpha use.
-- Post-release checks for `v0.1.15` confirmed PyPI availability, installability, console script availability, Project-URL metadata, PyPI provenance/attestations, GitHub Actions publish success, and open security alert count 0.
+- Post-release checks for `v0.1.16` confirmed PyPI availability, installability, console script availability, Project-URL metadata, PyPI provenance/attestations, GitHub Actions publish success, and open security alert count 0.
 - Remaining P1 risks still affect stable/GA confidence and must stay visible: optional/passphrase-managed encryption, GUI localhost boundary, MCP host/client differences, limited support-load observation, full Claude Desktop app restart plus in-app live tool-call UX remaining unvalidated without explicit approval and a non-interfering environment, and the continuing public-alpha warning burden around default plaintext local storage.
 - The next likely gate is announcement-readiness or continued lightweight observation, not another package publish by default.
 
-Post-`v0.1.15` status sync evidence:
+Post-`v0.1.16` status sync evidence:
 
-- GitHub release `v0.1.15` is a published prerelease, not a draft, and points to `436988542825cfddd19a4538e1354d37c7039b69`.
-- PyPI latest is `0.1.15`; the wheel and sdist are present with SHA-256 `d8727c3fd00301cccf93e042506faba7bb3abe13f6669cd1e724b7e947aa3ebd` and `71f4f4719fc09375a9b5c80931b2d67fc2321124cc00432055313149c9f928af`.
+- GitHub release `v0.1.16` is a published prerelease, not a draft, and points to `6bb9b66937ee558188bab0f7533d6d77142fe29a`.
+- PyPI latest is `0.1.16`; the wheel and sdist are present with SHA-256 `ecbab53328a754cf1ea6cbdd2137814af157dd7babf7fc78aabcf98ebf0b7106` and `f83909c83b71a08817a789bf8533ad198d00aa5a043ce625181202fb5e68344a`.
 - PyPI Project-URL metadata contains Homepage, Source, Issues, and Documentation links to the GitHub repository and README.
-- A clean temporary `pip install agent-personal-vault==0.1.15` confirmed installed metadata version `0.1.15`, and the `agent-personal-vault`, `apv-gui`, and `apv-mcp` console scripts were available.
-- The PyPI long description contains `agent-personal-vault==0.1.15` and no longer contains `agent-personal-vault==0.1.14`.
-- PyPI integrity provenance endpoints returned attestation data for both the `0.1.15` wheel and sdist.
-- GitHub Actions `publish-package` for `v0.1.15`, main `test`, main CodeQL, and dependency graph update completed successfully.
+- A clean temporary `pip install agent-personal-vault==0.1.16` confirmed installed metadata version `0.1.16`, and the `agent-personal-vault`, `apv-gui`, and `apv-mcp` console scripts were available.
+- The PyPI long description contains `agent-personal-vault==0.1.16`.
+- PyPI integrity provenance endpoints returned attestation data for both the `0.1.16` wheel and sdist.
+- GitHub Actions `publish-package` for `v0.1.16`, main `test`, main CodeQL, and dependency graph update completed successfully.
 - Open security alerts were 0 for CodeQL, Dependabot, and secret scanning during this status sync.
-- Open GitHub state during this status sync was Issue #239 only and no open PRs.
+- Open GitHub state before opening this status-sync PR was Issue #245 only and no open PRs.
 - External reaction check found no actionable project-specific feedback in GitHub Issues/PRs or broad web search.
 
 ## Prerelease Graduation Criteria
@@ -386,7 +387,7 @@ Stop before any v0.1.1 release, tag, package publish, or announcement request if
 
 ## Historical RC Preparation Checklist
 
-This historical checklist records pre-`v0.1.0` release-candidate preparation. It is not the current package state. Current state is `v0.1.15` GitHub prerelease and PyPI `0.1.15`, with Trusted Publishing OIDC validated.
+This historical checklist records pre-`v0.1.0` release-candidate preparation. It is not the current package state. Current state is `v0.1.16` GitHub prerelease and PyPI `0.1.16`, with Trusted Publishing OIDC validated.
 
 RC preparation was allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It did not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
@@ -408,7 +409,7 @@ This is a historical local dry-run snapshot from before the first public-alpha r
 - Historical version candidate: `0.1.0`. Latest PyPI package is now `0.1.15`.
 - CHANGELOG: `CHANGELOG.md` remains an Unreleased draft and is the current release-note source. It includes user-visible changes, security/privacy changes, docs/governance, package prep, and known limitations.
 - Security snapshot: latest `main` test and CodeQL are successful. Open CodeQL alerts, Dependabot alerts, and secret scanning alerts are 0. Vulnerability alerts endpoint returns `204 No Content`.
-- Historical repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run was the tracking Issue for that work. This is no longer current; the project now has published prereleases and tags through `v0.1.15`.
+- Historical repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run was the tracking Issue for that work. This is no longer current; the project now has published prereleases and tags through `v0.1.16`.
 - Artifact dry-run: completed from a temporary clean-copy-equivalent source tree without upload. Artifacts were built into a temporary directory and were not committed.
   - `agent_personal_vault-0.1.0-py3-none-any.whl`: SHA-256 `fbf280d1f77cc6c81c4cbff1d297cdceb0d7c1b726eb3e443534a949ee124fcb`, 33121 bytes, 15 entries, no forbidden name hits.
   - `agent_personal_vault-0.1.0.tar.gz`: SHA-256 `265544a427176dcb468a16caeb70b870ce628b837db7c5ac88e18fb7d2e3b5d2`, 41448 bytes, 26 entries, no forbidden name hits.
@@ -457,7 +458,7 @@ Remaining P1 risks before stable/GA confidence or any future separately approved
 - Encryption is optional and passphrase-managed. OS key store integration and recovery UX remain pending.
 - MCP remains intentionally raw-free except for consent request creation. Raw-value MCP tools should not be added without a separate consent, audit, and client-behavior review.
 - GUI localhost access is an operator workflow convenience, not a hard multi-user security boundary.
-- Package publishing and release artifacts are now exercised through GitHub prereleases and PyPI packages through `v0.1.15`. Future releases, tags, package uploads, and public announcements remain approval-gated, and each future version still needs fresh artifact, CI, security, PyPI availability, and approval checks.
+- Package publishing and release artifacts are now exercised through GitHub prereleases and PyPI packages through `v0.1.16`. Future releases, tags, package uploads, and public announcements remain approval-gated, and each future version still needs fresh artifact, CI, security, PyPI availability, and approval checks.
 - Public usage is still too early to infer stability, support load, or external user misunderstanding patterns.
 - MCP host/client behavior differs. Generic stdio, Codex configuration, and Claude Code configuration were validated, but broader host UI behavior still depends on each client.
 - Claude Desktop was validated by configuration shape, generic stdio behavior, and terminal-only/Desktop-like local consent handoff. Full Claude Desktop app restart and in-app live tool-call UX remain unvalidated and should not be run without explicit user approval and a non-interfering environment because it requires editing user-level Desktop config, restarting the app, and operating the user's active GUI.
@@ -489,7 +490,7 @@ The following future actions remain stopped:
 
 ## Historical v0.1.4 Approval Snapshot
 
-This section records the historical `v0.1.4` candidate and publish decision. It is retained as release evidence only. It is not the current package state; latest GitHub prerelease and PyPI package are `v0.1.15`.
+This section records the historical `v0.1.4` candidate and publish decision. It is retained as release evidence only. It is not the current package state; latest GitHub prerelease and PyPI package are `v0.1.16`.
 
 - Outcome: `v0.1.4` was released as a GitHub prerelease and published to PyPI.
 - Reason: v0.1.4 carries the user-facing safety-boundary docs and consent-state hardening that were not present in the PyPI `0.1.3` package.
@@ -531,12 +532,12 @@ Status date: 2026-07-05.
 Current state:
 
 - Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.5` through `v0.1.15` were published to PyPI through the Trusted Publishing OIDC lane.
+- `v0.1.5` through `v0.1.16` were published to PyPI through the Trusted Publishing OIDC lane.
 - `.github/workflows/pypi-publish.yml` exists as the manual workflow-dispatch path for the OIDC publish lane.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully through `v0.1.15`.
-- PyPI `0.1.15` is published.
+- The first OIDC workflow result confirms the PyPI Trusted Publisher identity through the `v0.1.5` publish, and the lane was reused successfully through `v0.1.16`.
+- PyPI `0.1.16` is published.
 - Do not attempt to republish an existing PyPI version.
 
 Recommended sequencing:
