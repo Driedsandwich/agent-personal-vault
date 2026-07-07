@@ -12,7 +12,19 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-No unreleased changes are currently recorded after the v0.1.15 release-candidate preparation.
+No unreleased changes are currently recorded after the v0.1.16 release-candidate preparation.
+
+## 0.1.16 - 2026-07-07
+
+### Security And Privacy Changes
+
+- Harden raw-looking purpose redaction against split email forms, ideographic dot variants, and invisible-character local path forms before audit and consent text detection.
+- Extend regression coverage so consent request/list and audit metadata redact these raw-looking purpose variants to `[redacted]`.
+
+### Documentation And Governance
+
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.16`.
+- Recorded the fresh v0.1.16 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ## 0.1.15 - 2026-07-07
 

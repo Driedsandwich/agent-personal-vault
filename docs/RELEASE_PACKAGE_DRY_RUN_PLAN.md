@@ -116,6 +116,51 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.16 Purpose Redaction Hardening Patch Candidate Dry-Run
+
+Status date: 2026-07-07.
+
+Tracking Issue: #243.
+
+This section records the package dry-run for the `v0.1.16` purpose redaction hardening patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.15` to `0.1.16`;
+- move the post-`v0.1.15` purpose redaction hardening into the `0.1.16` changelog entry;
+- include split email, ideographic dot, and invisible-character local path variants in raw-looking purpose redaction coverage;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.16`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build path: `/tmp/apv-v016-dry-run`.
+- Temporary build/twine environment: temporary local virtual environment.
+- `python -m build`: completed.
+- `twine check dist/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.16`.
+- PyPI `0.1.16` absence check returned HTTP 404 before the candidate preparation work.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.16-py3-none-any.whl` | 39,423 bytes | 15 | `d66b001a4b68009d15cc2ae455cddfd30a7b02058f79a8f0a601bb32e3821561` |
+| `agent_personal_vault-0.1.16.tar.gz` | 54,536 bytes | 22 | `94dcaf3ea23f40b7eb71bef6f591962590bc1051a8a046b6f873a6008c2bf229` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.16` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.16`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## v0.1.15 Raw-Free GUI And Consent Boundary Patch Candidate Dry-Run
 
 Status date: 2026-07-07.
