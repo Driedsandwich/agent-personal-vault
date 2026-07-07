@@ -115,6 +115,52 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.15 Raw-Free GUI And Consent Boundary Patch Candidate Dry-Run
+
+Status date: 2026-07-07.
+
+Tracking Issue: #237.
+
+This section records the package dry-run for the `v0.1.15` raw-free GUI and consent boundary patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.14` to `0.1.15`;
+- move the post-`v0.1.14` docs freshness sync and raw-free GUI/consent boundary hardening into the `0.1.15` changelog entry;
+- include Unicode compatibility-character normalization before raw-looking audit and consent text detection;
+- include sanitized JSON `500` responses for GUI GET API failures without Python tracebacks, GUI tokens, or local store paths in stderr;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.15`.
+
+Local dry-run results:
+
+- Fresh isolated artifact build source: temporary local source copy with `.git`, generated outputs, and local package metadata excluded.
+- Temporary build/twine environment: temporary local virtual environment.
+- Build command: `python -m build --outdir <temp-dist> <temp-src>`.
+- `twine check <temp-dist>/*`: passed for sdist and wheel.
+- Wheel metadata reports version `0.1.15`.
+- PyPI `0.1.15` absence check returned HTTP 404 before the candidate preparation work.
+- Project-URL metadata:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+- Strict forbidden-file entry and text scan found no bundled `vault.json`, `consents.json`, `audit.jsonl`, `.pypirc`, `.env`, private job profile file, username-specific path fragment, private project path fragment, or `/Users/` path in artifact entries/text.
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.15-py3-none-any.whl` | 39,229 bytes | 15 | `87852ac33d866cc22eb6f4063a07fa1a4d1e390b494dbf0b89a9177edcda2c9a` |
+| `agent_personal_vault-0.1.15.tar.gz` | 54,198 bytes | 22 | `07cc44dd8aa0940c49839238d9461ead927832c7175d9bf01fe1232e2d313ef4` |
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.15` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, `.pypirc`, `.env`, private job profile data, username-specific paths, private project path fragments, or `/Users/` path entries/text;
+- the package metadata does not report version `0.1.15`;
+- `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## v0.1.14 GUI Boundary Hardening Patch Candidate Dry-Run
 
 Status date: 2026-07-06.

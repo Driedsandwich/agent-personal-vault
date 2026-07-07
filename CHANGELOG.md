@@ -4,7 +4,7 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-06
+last_updated: 2026-07-07
 
 All notable changes to Agent Personal Vault are documented here.
 
@@ -12,9 +12,21 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+No unreleased changes are currently recorded after the v0.1.15 release-candidate preparation.
+
+## 0.1.15 - 2026-07-07
+
+### Security And Privacy Changes
+
+- Strengthen raw-looking purpose redaction so Unicode compatibility characters such as fullwidth at-sign are normalized before audit and consent text detection.
+- Return sanitized JSON `500` responses for GUI GET API failures instead of exposing Python tracebacks, GUI tokens, or local store paths to stderr.
+- Extend regression coverage for compatibility-character purpose redaction across audit, consent request/list, MCP outputs, and GUI GET error handling.
+
 ### Documentation And Governance
 
 - Sync remaining v0.1.14 publication-gate, RC packet/plan, roadmap, and historical public-review wording so current-state pointers use the published `v0.1.14` GitHub prerelease and PyPI `0.1.14` package while older snapshots are clearly historical.
+- Updated README install examples so the PyPI long description for this patch candidate points to `agent-personal-vault==0.1.15`.
+- Recorded the fresh v0.1.15 isolated artifact dry-run before any separate tag, release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ## 0.1.14 - 2026-07-06
 
