@@ -391,7 +391,7 @@ This historical checklist records pre-`v0.1.0` release-candidate preparation. It
 
 RC preparation was allowed only as checklist, documentation, and local dry-run work through Issue/PR workflow. It did not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
-- Historical version candidate: this section used `0.1.0` as the then-current alpha package version. Do not treat that as current; latest PyPI is `0.1.15`.
+- Historical version candidate: this section used `0.1.0` as the then-current alpha package version. Do not treat that as current; latest PyPI is `0.1.16`.
 - CHANGELOG: keep `CHANGELOG.md` as the source for the future release note draft. Before any release approval request, review the Unreleased section for user-visible changes, security/privacy changes, docs/governance changes, package prep, and known limitations.
 - Artifact hash confirmation: rerun the clean-copy-equivalent local build immediately before any release approval request and compare the generated filenames, SHA-256 hashes, entry counts, and forbidden-name scan with the latest recorded dry-run.
 - Rollback preparation: prepare a short rollback note before any release approval request. It should cover withdrawing announcements, opening corrective Issues/advisories, reverting docs/code through PR, and publishing a corrective patch only if separately approved.
@@ -406,7 +406,7 @@ This is a historical local dry-run snapshot from before the first public-alpha r
 
 - Tracking Issue: #67.
 - Target commit for this dry-run: `5209055 docs: add RC preparation checklist`.
-- Historical version candidate: `0.1.0`. Latest PyPI package is now `0.1.15`.
+- Historical version candidate: `0.1.0`. Latest PyPI package is now `0.1.16`.
 - CHANGELOG: `CHANGELOG.md` remains an Unreleased draft and is the current release-note source. It includes user-visible changes, security/privacy changes, docs/governance, package prep, and known limitations.
 - Security snapshot: latest `main` test and CodeQL are successful. Open CodeQL alerts, Dependabot alerts, and secret scanning alerts are 0. Vulnerability alerts endpoint returns `204 No Content`.
 - Historical repository snapshot: releases 0, tags 0, open PRs 0. The only open Issue during this dry-run was the tracking Issue for that work. This is no longer current; the project now has published prereleases and tags through `v0.1.16`.
@@ -423,7 +423,7 @@ This is a historical local dry-run snapshot from before the first public-alpha r
 
 This section records historical draft inputs for the first release-candidate preparation decision. It is not current state, is not a release-candidate approval, and does not authorize release creation, tag creation, package publish, announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
-- Historical target version: `0.1.0` for the first public-alpha line. Latest PyPI package is now `0.1.15`.
+- Historical target version: `0.1.0` for the first public-alpha line. Latest PyPI package is now `0.1.16`.
 - Version bump policy: do not bump the version in documentation-only readiness PRs. Any version bump must be a dedicated Issue/PR with CI and explicit user approval for that exact bump. A version bump still would not authorize release, tag, package publish, or announcement.
 - Changelog draft: `CHANGELOG.md` exists as an unreleased draft and separates user-visible changes, security/privacy changes, documentation/governance, package/release preparation, and known limitations.
 - Support expectation: public alpha support is best-effort only. No response-time, production support, data recovery, or compatibility guarantee should be promised before a separate support policy is approved.
