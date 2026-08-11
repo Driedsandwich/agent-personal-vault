@@ -4,7 +4,7 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-07
+last_updated: 2026-08-11
 
 All notable changes to Agent Personal Vault are documented here.
 
@@ -12,7 +12,16 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-No unreleased changes are currently recorded after the v0.1.16 release-candidate preparation.
+### Security And Privacy Changes
+
+- Reject existing custom POSIX storage directories that are not owned by the current user or are accessible by group/other users, without silently changing their permissions; fail closed on non-POSIX storage until equivalent guarantees exist.
+- Open vault, audit, consent, lock, and unique temporary files relative to a held directory descriptor; reject symbolic links, unsafe hard links, and target swaps before replacement.
+- Bind the OIDC publish job to one canonical build-job artifact bundle using an exact-version, SHA-256-pinned toolchain plus a source/tag/embedded-metadata/file-size/artifact-SHA-256 manifest recomputed from the same tag checkout immediately before publish.
+
+### Tests And Release Governance
+
+- Add regressions for permissive parents, symbolic-link and hard-link targets, target swaps, raw-free CLI failure output, artifact tampering, extra distributions, and workflow source/digest binding.
+- Triage all 27 findings from Deep Security Scan `13cfe285-a83a-4341-8081-c22982c1edfb` in public tracking Issue #250 while keeping announcement and the next release on hold.
 
 ## 0.1.16 - 2026-07-07
 

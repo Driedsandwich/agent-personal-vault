@@ -18,6 +18,7 @@ from pathlib import Path
 
 from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
+from agent_personal_vault.audit import write_audit_event
 from agent_personal_vault.consent import consent_path, create_consent_request, list_consent_requests
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
@@ -172,36 +173,147 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("Traceback", combined)
             self.assertNotIn(str(path), combined)
 
-    def test_existing_store_parent_permissions_are_not_changed(self) -> None:
+    @unittest.skipIf(os.name != "posix", "POSIX owner/mode enforcement")
+    def test_existing_permissive_store_parent_is_rejected_without_chmod(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             parent = Path(tmp) / "shared-parent"
             parent.mkdir()
             os.chmod(parent, 0o755)
             path = parent / "vault.json"
-            load_store(create=True, path=path)
+
+            with self.assertRaises(PermissionError):
+                load_store(create=True, path=path)
+
             self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o755)
-            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertFalse(path.exists())
+
+    @unittest.skipIf(os.name != "posix", "POSIX owner enforcement")
+    def test_existing_store_parent_with_different_owner_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            path = parent / "vault.json"
+
+            with mock.patch("agent_personal_vault.private_io.os.geteuid", return_value=os.geteuid() + 1):
+                with self.assertRaises(PermissionError):
+                    load_store(create=True, path=path)
+
+            self.assertFalse(path.exists())
+
+    def test_non_posix_storage_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            with mock.patch("agent_personal_vault.private_io._is_posix", return_value=False):
+                with self.assertRaisesRegex(PermissionError, "unavailable on this platform"):
+                    load_store(create=True, path=path)
+            self.assertFalse(path.exists())
 
     def test_store_temp_file_is_private_before_json_write(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            parent = Path(tmp) / "shared-parent"
+            parent = Path(tmp) / "private-parent"
             parent.mkdir()
-            os.chmod(parent, 0o777)
+            os.chmod(parent, 0o700)
             path = parent / "vault.json"
-            tmp_path = path.with_suffix(path.suffix + ".tmp")
             store = blank_store()
-            original_dump = json.dump
+            original_replace = os.replace
             observed_modes: list[int] = []
 
-            def checking_dump(*args, **kwargs):
-                observed_modes.append(stat.S_IMODE(tmp_path.stat().st_mode))
-                return original_dump(*args, **kwargs)
+            def checking_replace(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+                observed_modes.append(stat.S_IMODE(os.stat(src, dir_fd=src_dir_fd).st_mode))
+                return original_replace(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
 
-            with mock.patch("agent_personal_vault.vault.json.dump", side_effect=checking_dump):
+            with mock.patch("agent_personal_vault.private_io.os.replace", side_effect=checking_replace):
                 write_store(store, path)
 
             self.assertEqual(observed_modes, [0o600])
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    @unittest.skipIf(os.name != "posix", "POSIX no-follow enforcement")
+    def test_store_rejects_precreated_target_symlink_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            target = Path(outside) / "target.json"
+            target.write_text("unchanged\n", encoding="utf-8")
+            path = parent / "vault.json"
+            path.symlink_to(target)
+
+            with self.assertRaises(PermissionError):
+                write_store(blank_store(), path)
+
+            self.assertTrue(path.is_symlink())
+            self.assertEqual(target.read_text(encoding="utf-8"), "unchanged\n")
+
+    @unittest.skipIf(os.name != "posix", "POSIX hard-link enforcement")
+    def test_store_rejects_precreated_hard_link_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            target = Path(outside) / "target.json"
+            target.write_text("unchanged\n", encoding="utf-8")
+            path = parent / "vault.json"
+            os.link(target, path)
+
+            with self.assertRaises(PermissionError):
+                write_store(blank_store(), path)
+
+            self.assertEqual(target.read_text(encoding="utf-8"), "unchanged\n")
+
+    @unittest.skipIf(os.name != "posix", "POSIX directory descriptor enforcement")
+    def test_store_atomic_replace_does_not_follow_swapped_target_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            target = Path(outside) / "target.json"
+            target.write_text("unchanged\n", encoding="utf-8")
+            path = parent / "vault.json"
+            original_replace = os.replace
+
+            def swap_then_replace(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+                path.symlink_to(target)
+                return original_replace(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+
+            with mock.patch("agent_personal_vault.private_io.os.replace", side_effect=swap_then_replace):
+                write_store(blank_store(), path)
+
+            self.assertFalse(path.is_symlink())
+            self.assertEqual(target.read_text(encoding="utf-8"), "unchanged\n")
+            self.assertEqual(load_store(path=path)["schema"], "job_hunting_profile")
+
+    @unittest.skipIf(os.name != "posix", "POSIX no-follow enforcement")
+    def test_store_rejects_symlinked_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            real_parent = Path(tmp) / "real"
+            real_parent.mkdir(mode=0o700)
+            linked_parent = Path(tmp) / "linked"
+            linked_parent.symlink_to(real_parent, target_is_directory=True)
+
+            with self.assertRaises(PermissionError):
+                write_store(blank_store(), linked_parent / "vault.json")
+
+            self.assertFalse((real_parent / "vault.json").exists())
+
+    @unittest.skipIf(os.name != "posix", "POSIX no-follow enforcement")
+    def test_audit_and_consent_lock_reject_precreated_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            vault_path = parent / "vault.json"
+            write_store(blank_store(), vault_path)
+            target = Path(outside) / "target.txt"
+            target.write_text("unchanged\n", encoding="utf-8")
+
+            audit_path(vault_path).symlink_to(target)
+            with self.assertRaises(PermissionError):
+                write_audit_event(vault_path=vault_path, actor="test", action="test")
+            audit_path(vault_path).unlink()
+
+            lock_path = consent_path(vault_path).with_suffix(".json.lock")
+            lock_path.symlink_to(target)
+            with self.assertRaises(PermissionError):
+                create_consent_request(vault_path=vault_path, action="get", key="EMAIL", purpose="test")
+
+            self.assertEqual(target.read_text(encoding="utf-8"), "unchanged\n")
 
     def test_package_version_matches_pyproject(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
@@ -1496,6 +1608,30 @@ class VaultTests(unittest.TestCase):
             self.assertFalse(payload["encrypted"])
             self.assertFalse(payload["raw_values_included"])
             self.assertNotIn("山田", result.stdout)
+
+    @unittest.skipIf(os.name != "posix", "POSIX no-follow enforcement")
+    def test_cli_encryption_status_rejects_symlink_without_leaking_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            parent = Path(tmp) / "private-parent"
+            parent.mkdir(mode=0o700)
+            target = Path(outside) / "private-target-marker.json"
+            target.write_text('{"fields":{"FAMILY_NAME":"raw-marker"}}\n', encoding="utf-8")
+            path = parent / "vault.json"
+            path.symlink_to(target)
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "encryption", "status"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "error: permission denied\n")
+            self.assertNotIn("private-target-marker", result.stderr)
+            self.assertNotIn("raw-marker", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_encrypt_requires_optional_crypto_or_roundtrips_without_raw_plaintext(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

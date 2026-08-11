@@ -110,6 +110,7 @@ def main() -> int:
             *map(str, (ROOT / "agent_personal_vault").glob("*.py")),
             str(ROOT / "scripts/pii_scan.py"),
             str(ROOT / "scripts/release_policy.py"),
+            str(ROOT / "scripts/release_artifact_manifest.py"),
         ],
     )
     run_step("unit tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests"])

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 import secrets
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -21,7 +19,8 @@ except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
 from .audit import _clean_text, redact_consent_id, write_audit_event
-from .vault import ensure_private_dir, now_iso, store_path, write_json_private
+from .private_io import open_private_lock, private_file_exists, read_private_json
+from .vault import now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
 
@@ -37,10 +36,8 @@ def consent_path(vault_path: Path | None = None) -> Path:
 
 @contextmanager
 def _state_lock(path: Path):
-    ensure_private_dir(path.parent)
     lock_path = path.with_suffix(path.suffix + ".lock")
-    with lock_path.open("a+", encoding="utf-8") as handle:
-        os.chmod(lock_path, 0o600)
+    with open_private_lock(lock_path) as handle:
         if fcntl is not None:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         elif msvcrt is not None:  # pragma: no cover - Windows fallback path
@@ -86,10 +83,9 @@ def _build_grant(
 
 
 def _load_state(path: Path) -> dict[str, Any]:
-    if not path.exists():
+    if not private_file_exists(path):
         return {"version": 1, "grants": [], "requests": []}
-    with path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = read_private_json(path)
     if not isinstance(payload, dict):
         raise ConsentError("consent state is invalid")
     payload.setdefault("version", 1)

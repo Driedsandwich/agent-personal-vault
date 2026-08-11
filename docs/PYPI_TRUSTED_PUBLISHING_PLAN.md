@@ -96,24 +96,25 @@ jobs:
           ref: ${{ inputs.tag }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.13"
+          python-version: "3.13.14"
       - name: Verify checkout is the approved tag
         run: |
           head_sha="$(git rev-parse HEAD)"
           tag_sha="$(git rev-parse "refs/tags/${APV_TAG}^{commit}")"
           test "$head_sha" = "$tag_sha"
-      - name: Build distributions
+      - name: Install hash-pinned build tools
         run: |
-          python -m pip install --upgrade pip build twine
-          python -m build
-          twine check dist/*
+          python -m pip install --require-hashes --only-binary=:all: -r .github/release-requirements.txt
+          python -m build --no-isolation
       - name: Strict forbidden-file scan
         run: python <inline artifact scan>
-      - name: Upload distributions for approval
+      - name: Create canonical artifact bundle and approval manifest
+        run: python scripts/release_artifact_manifest.py create <approved tag and commit>
+      - name: Upload canonical bundle for environment approval
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: dist
-          path: dist/*
+          name: approved-release-bundle
+          path: release-bundle/
 
   publish:
     needs: build
@@ -129,10 +130,14 @@ jobs:
       - name: Download distributions
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
-          name: dist
-          path: dist
+          name: approved-release-bundle
+          path: release-bundle
+      - name: Verify exact environment-approved artifact bytes
+        run: python scripts/release_artifact_manifest.py verify <tag, commit, pyproject, and bundle>
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        with:
+          packages-dir: release-bundle/dist/
 ```
 
 Design notes:
@@ -143,8 +148,11 @@ Design notes:
 - The workflow verifies that the checkout matches `refs/tags/<tag>`, so a branch with a matching name is not enough.
 - The workflow requires a confirmation input matching `publish <tag>` to reduce accidental dispatch risk.
 - The workflow checks that the package version is not already present on PyPI before building.
+- Release build requirements and the PEP 517 backend are exact-version and SHA-256 pinned; the build runs without an isolated dependency re-resolution.
+- The build job reads both wheel `METADATA` and sdist `PKG-INFO`, requires their package/version/Project-URL metadata to match `pyproject.toml`, records their metadata digests plus tag, commit, filenames, sizes, and artifact SHA-256 values in `artifact-manifest.json`, and displays it before the protected-environment approval.
+- The publish job checks out the same tag, verifies its commit, downloads the same canonical bundle, recomputes embedded metadata and all digests, and refuses OIDC publication if source identity, metadata, artifact set, or bytes differ from the reviewed manifest.
 - The build job uploads artifacts for the protected publish job to consume.
-- The build job runs `twine check` and a strict artifact forbidden-file scan before upload.
+- The build frontend validates package metadata while producing the distributions, and the build job runs a strict artifact forbidden-file scan before upload.
 - Action references are pinned to full commit SHAs. Updating those actions is a normal dependency-maintenance PR, not an implicit publish approval.
 
 Workflow addition is a repository code change, not a publish by itself. It still needs a dedicated Issue/PR because it introduces a path that can publish once the external settings exist.
@@ -237,7 +245,7 @@ Stop before upload if any of these occur:
 - The workflow is triggered from a branch or commit that is not the approved tag.
 - CI, CodeQL, Dependabot, secret scanning, or local release checks are failing.
 - Artifacts contain vault, consent, audit, private config, database, image, backup, token, or local developer files.
-- `twine check` fails.
+- the canonical artifact manifest is absent, malformed, not reviewed, or does not match the transferred wheel and sdist bytes.
 - The package version is already present on PyPI.
 - The release note, approval packet, or tag target does not match the publish target.
 - Any real personal data, secrets, private paths, or private support details appear in workflow logs, artifacts, Issues, PRs, or release text.
@@ -250,8 +258,9 @@ Required preflight before any future OIDC publish:
 - target tag, package version, CHANGELOG, GitHub release state, and PyPI availability all agree;
 - the GitHub `pypi` environment is protected and pending human approval before publish;
 - PyPI publisher settings exactly match owner `Driedsandwich`, repository `agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`;
-- workflow run builds fresh artifacts from the approved tag;
-- artifact filenames, sizes, entry counts, SHA-256 hashes, Project-URL metadata, and forbidden-file scan are recorded;
+- workflow run builds one canonical artifact bundle from the approved tag using the hash-pinned release toolchain;
+- artifact filenames, sizes, entry counts, SHA-256 hashes, Project-URL metadata, forbidden-file scan, and source commit are recorded;
+- the protected-environment reviewer checks the generated manifest before approval, and the publish job re-verifies the transferred bytes against it;
 - no SNS/blog/community announcement is bundled into the publish approval.
 
 Rollback after a bad OIDC publish:
