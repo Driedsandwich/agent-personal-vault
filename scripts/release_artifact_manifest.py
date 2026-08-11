@@ -237,37 +237,35 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     create = subparsers.add_parser("create")
-    create.add_argument("--dist", type=Path, required=True)
-    create.add_argument("--bundle", type=Path, required=True)
-    create.add_argument("--pyproject", type=Path, default=Path("pyproject.toml"))
     create.add_argument("--tag", required=True)
     create.add_argument("--commit", required=True)
     verify = subparsers.add_parser("verify")
-    verify.add_argument("--dist", type=Path, required=True)
-    verify.add_argument("--manifest", type=Path, required=True)
-    verify.add_argument("--tag")
-    verify.add_argument("--commit")
-    verify.add_argument("--pyproject", type=Path)
+    verify.add_argument("--tag", required=True)
+    verify.add_argument("--commit", required=True)
     args = parser.parse_args()
+
+    dist_dir = Path("dist") if args.command == "create" else Path("release-bundle/dist")
+    manifest_path = Path("release-bundle/artifact-manifest.json")
+    pyproject_path = Path("pyproject.toml")
 
     if args.command == "create":
         manifest = create_manifest(
-            dist_dir=args.dist,
-            pyproject_path=args.pyproject,
+            dist_dir=dist_dir,
+            pyproject_path=pyproject_path,
             tag=args.tag,
             commit=args.commit,
         )
-        manifest_path = write_bundle(dist_dir=args.dist, bundle_dir=args.bundle, manifest=manifest)
+        manifest_path = write_bundle(dist_dir=dist_dir, bundle_dir=Path("release-bundle"), manifest=manifest)
         print(manifest_path.read_text(encoding="utf-8"), end="")
         return 0
 
-    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     verify_manifest(
-        dist_dir=args.dist,
+        dist_dir=dist_dir,
         manifest=manifest,
         expected_tag=args.tag,
         expected_commit=args.commit,
-        pyproject_path=args.pyproject,
+        pyproject_path=pyproject_path,
     )
     print("artifact manifest verification passed")
     return 0

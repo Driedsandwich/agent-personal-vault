@@ -165,8 +165,6 @@ jobs:
           set -euo pipefail
           commit="$(git rev-parse HEAD)"
           python scripts/release_artifact_manifest.py create \
-            --dist dist \
-            --bundle release-bundle \
             --tag "${APV_TAG}" \
             --commit "${commit}"
           {
@@ -219,11 +217,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${APV_SOURCE_COMMIT}"
           python scripts/release_artifact_manifest.py verify \
-            --dist release-bundle/dist \
-            --manifest release-bundle/artifact-manifest.json \
             --tag "${APV_TAG}" \
-            --commit "${APV_SOURCE_COMMIT}" \
-            --pyproject pyproject.toml
+            --commit "${APV_SOURCE_COMMIT}"
         env:
           APV_TAG: ${{ inputs.tag }}
           APV_SOURCE_COMMIT: ${{ needs.build.outputs.source_commit }}
