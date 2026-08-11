@@ -36,7 +36,6 @@ def lexical_absolute_path(path: Path) -> Path:
 
     # Operator-selected storage paths are intentional. All filesystem access is
     # revalidated by private_directory_fd's held-fd, no-follow component walk.
-    # lgtm[py/path-injection]
     normalized = Path(os.path.abspath(os.fspath(Path(path).expanduser())))
     if sys.platform != "darwin" or len(normalized.parts) < 2 or normalized.parts[1] not in _DARWIN_SYSTEM_LINKS:
         return normalized
