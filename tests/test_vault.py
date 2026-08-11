@@ -113,6 +113,22 @@ class VaultTests(unittest.TestCase):
             expected = Path(tmp).resolve() / "vault.json"
             self.assertEqual(local_user_path(Path(tmp) / "." / "vault.json"), expected)
 
+    @unittest.skipIf(os.name != "posix", "POSIX owner/mode enforcement")
+    def test_dot_segment_store_path_cannot_bypass_private_parent_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            private_parent = root / "private"
+            private_parent.mkdir(mode=0o700)
+            shared_parent = root / "shared"
+            shared_parent.mkdir(mode=0o755)
+            path = private_parent / ".." / "shared" / "vault.json"
+
+            with self.assertRaises(PermissionError):
+                load_store(create=True, path=path)
+
+            self.assertEqual(local_user_path(path).parts[-2:], ("shared", "vault.json"))
+            self.assertFalse((shared_parent / "vault.json").exists())
+
     def test_store_path_warnings_detect_common_sync_folders(self) -> None:
         warning = "\n".join(store_path_warnings(Path("/tmp/OneDrive/apv/vault.json")))
 
