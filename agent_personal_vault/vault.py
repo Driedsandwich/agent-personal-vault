@@ -11,6 +11,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .crypto_store import decrypt_store_payload, encrypt_store_payload, is_encrypted_payload
+from .private_io import (
+    ensure_private_directory,
+    lexical_absolute_path,
+    private_file_exists,
+    private_file_stat,
+    read_private_json,
+    write_private_json,
+)
 from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
 
 APP_NAME = "agent-personal-vault"
@@ -92,7 +100,7 @@ def local_user_path(value: str | Path) -> Path:
     """Normalize a path explicitly supplied by the local operator."""
 
     # lgtm[py/path-injection]
-    return Path(value).expanduser().resolve()
+    return lexical_absolute_path(Path(value))
 
 
 def default_data_dir() -> Path:
@@ -173,53 +181,26 @@ def get_schema(schema_name: str) -> dict[str, FieldSpec]:
 
 
 def ensure_private_dir(path: Path) -> None:
-    if path.exists():
-        if not path.is_dir():
-            raise NotADirectoryError(f"Vault parent path is not a directory: {path}")
-        return
-    path.mkdir(parents=True, exist_ok=True)
-    os.chmod(path, 0o700)
-
-
-def enforce_file_mode(path: Path) -> None:
-    if path.exists():
-        os.chmod(path, 0o600)
+    ensure_private_directory(path)
 
 
 def write_json_private(path: Path, payload: dict) -> None:
-    """Write JSON through a private-mode temporary file."""
+    """Write JSON through the owner-private storage boundary."""
 
-    ensure_private_dir(path.parent)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.chmod(tmp_path, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-    except Exception:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-        raise
-    tmp_path.replace(path)
-    enforce_file_mode(path)
+    write_private_json(path, payload)
 
 
 def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
     path = path or store_path()
     ensure_private_dir(path.parent)
-    if not path.exists():
+    if not private_file_exists(path):
         if not create:
             raise FileNotFoundError(f"Vault does not exist: {path}")
         store = blank_store(schema_name)
         write_store(store, path)
         return store
 
-    enforce_file_mode(path)
-    with path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = read_private_json(path)
     encrypted_payload = is_encrypted_payload(payload)
     effective_passphrase = passphrase or default_passphrase()
     if encrypted_payload:
@@ -252,10 +233,9 @@ def write_store(store: dict, path: Path | None = None, passphrase: str | None = 
     store["updated_at"] = now_iso()
     if encrypted is None:
         encrypted = False
-        if path.exists():
+        if private_file_exists(path):
             try:
-                with path.open("r", encoding="utf-8") as handle:
-                    encrypted = is_encrypted_payload(json.load(handle))
+                encrypted = is_encrypted_payload(read_private_json(path))
             except json.JSONDecodeError:
                 encrypted = False
     payload = store
@@ -431,9 +411,10 @@ def check_summary(store: dict, path: Path) -> dict:
     schema = get_schema(str(store["schema"]))
     fields = store.get("fields", {})
     missing = [key for key, spec in schema.items() if not spec.optional and not str(fields.get(key, "")).strip()]
+    file_info = private_file_stat(path)
     return {
         "path": str(path),
-        "mode": oct(stat.S_IMODE(path.stat().st_mode)) if path.exists() else "missing",
+        "mode": oct(stat.S_IMODE(file_info.st_mode)) if file_info is not None else "missing",
         "schema": store["schema"],
         "registered": sum(bool(str(fields.get(key, "")).strip()) for key in schema),
         "total": len(schema),

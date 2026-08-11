@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import unicodedata
 from pathlib import Path
 from typing import Any
 
-from .vault import ensure_private_dir, now_iso, store_path
+from .private_io import append_private_line, private_file_exists, read_private_text
+from .vault import now_iso, store_path
 
 
 DEFAULT_LIMIT = 20
@@ -192,7 +192,6 @@ def write_audit_event(
     request_id: str | None = None,
 ) -> dict[str, Any]:
     path = audit_path(vault_path)
-    ensure_private_dir(path.parent)
     event: dict[str, Any] = {
         "timestamp": now_iso(),
         "actor": actor,
@@ -209,26 +208,22 @@ def write_audit_event(
         event["human_operated"] = bool(human_operated)
     if request_id is not None:
         event["request_id"] = _clean_text(request_id)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True))
-        handle.write("\n")
-    os.chmod(path, 0o600)
+    append_private_line(path, json.dumps(event, ensure_ascii=False, sort_keys=True))
     return event
 
 
 def read_audit_events(vault_path: Path, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
     path = audit_path(vault_path)
-    if not path.exists():
+    if not private_file_exists(path):
         return []
     events: list[dict[str, Any]] = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line:
-                continue
-            payload = json.loads(line)
-            if isinstance(payload, dict):
-                events.append(payload)
+    for line in read_private_text(path).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        payload = json.loads(line)
+        if isinstance(payload, dict):
+            events.append(payload)
     if limit <= 0:
         return events
     return events[-limit:]

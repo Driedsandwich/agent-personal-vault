@@ -20,6 +20,7 @@ from .consent import (
     validate_and_consume_consent,
 )
 from .crypto_store import ENCRYPTED_STORAGE, EncryptionUnavailableError, cryptography_available, is_encrypted_payload
+from .private_io import private_file_exists, read_private_json
 from .schemas import DERIVED_FIELDS
 from .vault import (
     DEFAULT_SCHEMA,
@@ -211,15 +212,15 @@ def command_audit(args: argparse.Namespace) -> None:
 
 def command_encryption(args: argparse.Namespace) -> None:
     path = resolve_path(args)
+    store_exists = private_file_exists(path)
     encrypted = False
-    if path.exists():
-        with path.open("r", encoding="utf-8") as handle:
-            encrypted = is_encrypted_payload(json.load(handle))
+    if store_exists:
+        encrypted = is_encrypted_payload(read_private_json(path))
     if args.encryption_command == "status":
         print(
             json.dumps(
                 {
-                    "store_exists": path.exists(),
+                    "store_exists": store_exists,
                     "storage": ENCRYPTED_STORAGE if encrypted else "plain-json",
                     "encrypted": encrypted,
                     "cryptography_available": cryptography_available(),

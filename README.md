@@ -152,7 +152,7 @@ export AGENT_PERSONAL_VAULT_HOME="$HOME/.local/share/agent-personal-vault"
 agent-personal-vault --store /path/to/vault.json check
 ```
 
-新規作成する保存ディレクトリは `0700`、保存ファイルは `0600` に設定されます。既存のcustom親ディレクトリを指定した場合、その親ディレクトリの権限は自動変更しません。共有・同期・公開される場所を保存先にしないでください。既定の平文JSONは、バックアップ、クラウド同期、Time Machineや仮想環境スナップショット、手動コピーに含まれると、元ファイルの権限境界の外へ複製されます。実データを保存する場合は、その保存先がバックアップ・同期対象かを確認し、必要ならoptional encryptionを有効にしてください。
+新規作成する保存ディレクトリは `0700`、保存ファイルは `0600` に設定されます。POSIX環境で既存のcustom親ディレクトリを指定した場合、現在のOSユーザー所有でgroup/otherからアクセスできない場所だけを受け入れます。権限は自動変更せず、安全でない場合は保存を拒否します。保存状態ファイルと一時ファイルは、検証済みの親ディレクトリに対するfd起点で開き、symbolic linkと複数hard linkを追従しません。共有・同期・公開される場所を保存先にしないでください。既定の平文JSONは、バックアップ、クラウド同期、Time Machineや仮想環境スナップショット、手動コピーに含まれると、元ファイルの権限境界の外へ複製されます。実データを保存する場合は、その保存先がバックアップ・同期対象かを確認し、必要ならoptional encryptionを有効にしてください。
 
 保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。誤って実データを入れた検証用vaultを丸ごと捨てる場合は、まず `check` で保存先を確認し、GUIやMCP serverを停止してから、そのvaultファイルだけを削除してください。削除対象が分からないまま `rm -rf` や親ディレクトリ削除を使わないでください。
 
@@ -304,7 +304,7 @@ GUIは `127.0.0.1` にだけbindし、起動ごとにtoken付きURLを発行し�
 - 既定では暗号化しません。optional extraでAES-256-GCM暗号化backendを使えますが、passphrase管理はユーザー責任です。macOS Keychain、Windows Credential Manager、libsecret対応は今後の候補です。
 - audit logはraw値なしの利用履歴であり、改ざん不能な証跡ではありません。同じOSユーザーや侵害済み端末は `audit.jsonl` を編集・削除できます。
 - ブラウザ履歴やターミナルログにtokenやraw値を残さない運用が必要です。
-- WindowsではUnix系の `0600` 権限や `fcntl` lockと同じ実効性を保証しません。consent lockingにはWindows fallbackがありますが、Windows実機の競合テストは未完了です。
+- Windowsなど非POSIX環境では、owner-privateな親ディレクトリとsymlink-safeなfd起点I/Oを同等に保証できないため、現在の保存操作はfail-closedで拒否します。Windows対応はACL・reparse point・競合lockを実機検証した後の別レーンです。
 - 暗号化、MCP連携、強い権限委譲が必要な用途では、既存のpersonal context vaultやsecret manager系OSSも比較してください。
 - このプロジェクトは現時点でalphaです。強いセキュリティ、法令遵守、エンタープライズ用途を主張しません。
 

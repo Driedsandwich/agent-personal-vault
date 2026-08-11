@@ -62,7 +62,7 @@ The release note must not include raw personal data, local private paths, screen
 
 ## Fresh Artifact Hash Procedure
 
-Before any GitHub release or package publish approval request, regenerate artifacts from the target commit in a pinned local environment.
+Before any GitHub release or package publish approval request, run the local dry-run in a pinned environment as a source/readiness check. The package-publish workflow separately creates the canonical artifact bundle from the approved tag with the repository's hash-pinned release toolchain.
 
 Minimum procedure:
 
@@ -71,8 +71,8 @@ git switch main
 git pull --ff-only
 python3 -m venv .venv-release-dry-run
 . .venv-release-dry-run/bin/activate
-python3 -m pip install --upgrade pip build
-python3 -m build
+python3 -m pip install --require-hashes --only-binary=:all: -r .github/release-requirements.txt
+python3 -m build --no-isolation
 python3 scripts/check_release.py
 ```
 
@@ -87,7 +87,7 @@ Record:
 - forbidden-name scan result
 - whether artifacts include only expected package, metadata, README, LICENSE, tests, and packaging files
 
-The recorded hashes are evidence for those exact generated files. They are not a cross-environment reproducible-build guarantee.
+The local recorded hashes are evidence for those exact dry-run files, not a cross-environment reproducible-build guarantee. For package publish, approve the canonical workflow-generated `artifact-manifest.json` after the build job; it includes wheel/sdist embedded metadata and metadata digests as well as artifact hashes. Publish only the transferred bundle that the environment-gated publish job re-verifies against that manifest and the same tag checkout.
 
 Delete or ignore local build outputs after the dry-run unless a later PR explicitly adds an artifact workflow.
 
@@ -192,13 +192,14 @@ Post-action verification:
 Approval required:
 
 ```text
-Approve publishing package <name> version <version> from commit <commit> to <package index> using artifacts with these hashes: <hashes>. Do not create GitHub releases/tags or announce publicly unless separately approved.
+Approve publishing package <name> version <version> from commit <commit> to <package index> only after reviewing the workflow-generated artifact manifest and hashes. Do not create GitHub releases/tags or announce publicly unless separately approved.
 ```
 
 Allowed after approval:
 
 - Publish only the approved package/version to the approved package index.
-- Use only the freshly generated and reviewed artifacts.
+- Use only the canonical workflow-generated bundle whose source identity, filenames, sizes, and SHA-256 values appear in the reviewed manifest.
+- Verify the downloaded bundle against the same manifest inside the environment-gated publish job before granting OIDC publish access.
 
 Still not allowed:
 

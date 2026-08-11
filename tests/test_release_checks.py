@@ -1,15 +1,150 @@
 from __future__ import annotations
 
+import io
+import json
 import subprocess
 import sys
+import tarfile
 import tempfile
+import tomllib
 import unittest
+import zipfile
 from pathlib import Path
 
-from scripts import check_release, pii_scan, release_policy
+from scripts import check_release, pii_scan, release_artifact_manifest, release_policy
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def _manifest_fixture(self, root: Path) -> tuple[Path, Path]:
+        dist = root / "dist"
+        dist.mkdir()
+        metadata = (
+            "Metadata-Version: 2.4\n"
+            "Name: agent-personal-vault\n"
+            "Version: 1.2.3\n"
+            "Summary: Fixture package\n"
+            "Requires-Python: >=3.11\n"
+            "Description-Content-Type: text/markdown\n"
+            "Project-URL: Homepage, https://example.test/project\n"
+            "\n"
+            "# Fixture\n"
+        ).encode()
+        wheel = dist / "agent_personal_vault-1.2.3-py3-none-any.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("agent_personal_vault-1.2.3.dist-info/METADATA", metadata)
+        sdist = dist / "agent_personal_vault-1.2.3.tar.gz"
+        with tarfile.open(sdist, "w:gz") as archive:
+            info = tarfile.TarInfo("agent_personal_vault-1.2.3/PKG-INFO")
+            info.size = len(metadata)
+            archive.addfile(info, io.BytesIO(metadata))
+        pyproject = root / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\n'
+            'name = "agent-personal-vault"\n'
+            'version = "1.2.3"\n'
+            'description = "Fixture package"\n'
+            'requires-python = ">=3.11"\n'
+            'readme = "README.md"\n'
+            '[project.urls]\n'
+            'Homepage = "https://example.test/project"\n',
+            encoding="utf-8",
+        )
+        return dist, pyproject
+
+    def test_release_artifact_manifest_binds_exact_bytes_and_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist, pyproject = self._manifest_fixture(root)
+            commit = "a" * 40
+            manifest = release_artifact_manifest.create_manifest(
+                dist_dir=dist,
+                pyproject_path=pyproject,
+                tag="v1.2.3",
+                commit=commit,
+            )
+
+            verified = release_artifact_manifest.verify_manifest(
+                dist_dir=dist,
+                manifest=manifest,
+                expected_tag="v1.2.3",
+                expected_commit=commit,
+                pyproject_path=pyproject,
+            )
+
+            self.assertEqual(verified["source"], {"tag": "v1.2.3", "commit": commit})
+            self.assertEqual(len(verified["artifacts"]), 2)
+            for artifact in verified["artifacts"]:
+                self.assertEqual(artifact["embedded_metadata"]["name"], "agent-personal-vault")
+                self.assertEqual(artifact["embedded_metadata"]["version"], "1.2.3")
+                self.assertEqual(
+                    artifact["embedded_metadata"]["project_urls"],
+                    {"Homepage": "https://example.test/project"},
+                )
+
+    def test_release_artifact_manifest_rejects_embedded_metadata_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist, pyproject = self._manifest_fixture(root)
+            pyproject.write_text(pyproject.read_text().replace('version = "1.2.3"', 'version = "1.2.4"'))
+
+            with self.assertRaisesRegex(ValueError, "distribution metadata does not match pyproject: version"):
+                release_artifact_manifest.create_manifest(
+                    dist_dir=dist,
+                    pyproject_path=pyproject,
+                    tag="v1.2.4",
+                    commit="c" * 40,
+                )
+
+    def test_release_artifact_manifest_rejects_tamper_and_extra_distribution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist, pyproject = self._manifest_fixture(root)
+            manifest = release_artifact_manifest.create_manifest(
+                dist_dir=dist,
+                pyproject_path=pyproject,
+                tag="v1.2.3",
+                commit="b" * 40,
+            )
+            wheel = dist / "agent_personal_vault-1.2.3-py3-none-any.whl"
+            wheel.write_bytes(b"tampered")
+
+            with self.assertRaisesRegex(ValueError, "artifact bytes do not match"):
+                release_artifact_manifest.verify_manifest(dist_dir=dist, manifest=manifest)
+
+            (root / "fresh").mkdir()
+            dist, _ = self._manifest_fixture(root / "fresh")
+            (dist / "unexpected-1.2.3-py3-none-any.whl").write_bytes(b"extra")
+            with self.assertRaisesRegex(ValueError, "exactly one wheel and one sdist"):
+                release_artifact_manifest.verify_manifest(dist_dir=dist, manifest=manifest)
+
+    def test_publish_workflow_uses_hash_locked_tools_and_verifies_bundle(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        workflow = (root / ".github" / "workflows" / "pypi-publish.yml").read_text(encoding="utf-8")
+        requirements = (root / ".github" / "release-requirements.txt").read_text(encoding="utf-8")
+        pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertIn("--require-hashes", workflow)
+        self.assertIn("--only-binary=:all:", workflow)
+        self.assertIn("python -m build --no-isolation", workflow)
+        self.assertIn("artifact-manifest.json", workflow)
+        self.assertIn("Verify exact environment-approved artifact bytes", workflow)
+        self.assertIn("source_commit: ${{ steps.source_identity.outputs.commit }}", workflow)
+        self.assertIn('--commit "${APV_SOURCE_COMMIT}"', workflow)
+        self.assertNotIn("--pyproject", workflow)
+        self.assertNotIn("--dist", workflow)
+        self.assertNotIn("--manifest", workflow)
+        self.assertIn('test "$(git rev-parse HEAD)" = "${APV_SOURCE_COMMIT}"', workflow)
+        self.assertEqual(workflow.count("actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"), 2)
+        self.assertIn("packages-dir: release-bundle/dist/", workflow)
+        self.assertNotIn("pip install --upgrade pip build twine", workflow)
+        self.assertEqual(pyproject["build-system"]["requires"], ["setuptools==84.0.0"])
+        self.assertIn('python-version: "3.13.14"', workflow)
+        self.assertEqual(workflow.count('python-version: "3.13.14"'), 2)
+        for package in ["build", "packaging", "pip", "pyproject-hooks", "setuptools"]:
+            self.assertRegex(requirements, rf"(?m)^{package}==[^ ]+ \\$")
+        self.assertEqual(requirements.count("--hash=sha256:"), 5)
+        self.assertIn("embedded_metadata(path)", (root / "scripts" / "release_artifact_manifest.py").read_text())
+
     def test_pii_scan_skips_local_agent_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
