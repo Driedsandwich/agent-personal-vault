@@ -20,7 +20,19 @@ from .consent import ConsentError, list_consent_requests, resolve_consent_reques
 from .crypto_store import is_encrypted_payload
 from .private_io import private_file_exists, read_private_json
 from .schemas import DERIVED_FIELDS
-from .vault import check_summary, derived_fields, get_schema, load_store, local_user_path, normalize_value, store_path, store_path_warnings, write_store
+from .vault import (
+    VaultConflictError,
+    check_summary,
+    derived_fields,
+    get_schema,
+    load_store,
+    local_user_path,
+    normalize_value,
+    store_path,
+    store_path_warnings,
+    store_revision,
+    write_store,
+)
 
 
 def schema_payload(schema_name: str) -> dict:
@@ -132,6 +144,7 @@ let timer = null;
 let storageContext = "";
 let storageProtection = "plain-json";
 let plaintextAcknowledgedContext = "";
+let revision = 0;
 
 function esc(value) {{ return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }}
 function api(path, options={{}}) {{
@@ -260,6 +273,7 @@ async function load() {{
   if (storageContext && storageContext !== nextContext) plaintextAcknowledgedContext = "";
   storageContext = nextContext;
   storageProtection = String(data.storage_protection || "plain-json");
+  revision = Number.isInteger(data.revision) ? data.revision : 0;
   fields = data.fields || {{}};
   render(); await loadConsentRequests(); await loadAudit(); dirty=false; setState("保存済み");
 }}
@@ -280,7 +294,7 @@ async function save(show=true) {{
   fields = collect();
   setState("保存中");
   try {{
-    await api("/api/profile", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{fields, storage_context:storageContext}})}});
+    await api("/api/profile", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{fields, revision, storage_context:storageContext}})}});
   }} catch (err) {{
     plaintextAcknowledgedContext = "";
     throw err;
@@ -299,11 +313,16 @@ load().catch(err => setState(err.message));
 </html>"""
 
 
-def save_profile_fields(path: Path, schema_name: str, incoming: dict) -> dict:
-    store = load_store(create=True, path=path, schema_name=schema_name)
+def save_profile_fields(path: Path, schema_name: str, incoming: dict, expected_revision: int) -> dict:
+    store = load_store(path=path, schema_name=schema_name)
     schema = get_schema(store["schema"])
-    for key in schema:
-        store["fields"][key] = normalize_value(key, str(incoming.get(key, "")))
+    if store_revision(store) != expected_revision:
+        raise VaultConflictError("vault changed; reload and retry")
+    unknown_keys = set(incoming) - set(schema)
+    if unknown_keys:
+        raise ValueError("fields contain unknown keys")
+    for key, value in incoming.items():
+        store["fields"][key] = normalize_value(key, str(value))
     write_store(store, path)
     write_audit_event(
         vault_path=path,
@@ -328,7 +347,11 @@ def profile_view_payload(path: Path, schema_name: str) -> dict:
         source="localhost_gui",
         human_operated=True,
     )
-    return {"fields": store.get("fields", {}), "summary": check_summary(store, path)}
+    return {
+        "fields": store.get("fields", {}),
+        "revision": store_revision(store),
+        "summary": check_summary(store, path),
+    }
 
 
 def storage_protection(path: Path) -> str:
@@ -514,6 +537,10 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(incoming, dict):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": "fields must be an object"})
             return
+        expected_revision = payload.get("revision")
+        if type(expected_revision) is not int or expected_revision < 0:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "revision must be a non-negative integer"})
+            return
         current_context, protection = self.current_storage_context()
         if str(payload.get("storage_context") or "") != current_context:
             self.send_json(HTTPStatus.CONFLICT, {"error": "storage context changed; reload and confirm again"})
@@ -521,8 +548,26 @@ class Handler(BaseHTTPRequestHandler):
         if protection == "plain-json" and self.server.plaintext_acknowledged_context != current_context:
             self.send_json(HTTPStatus.PRECONDITION_REQUIRED, {"error": "plaintext storage acknowledgement required"})
             return
-        store = save_profile_fields(self.server.store_path, self.server.schema_name, incoming)
-        self.send_json(HTTPStatus.OK, {"ok": True, "summary": check_summary(store, self.server.store_path)})
+        try:
+            store = save_profile_fields(
+                self.server.store_path,
+                self.server.schema_name,
+                incoming,
+                expected_revision,
+            )
+        except (VaultConflictError, FileNotFoundError):
+            self.send_json(HTTPStatus.CONFLICT, {"error": "vault changed; reload and retry"})
+            return
+        except ValueError:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid profile update"})
+            return
+        except Exception:
+            self.send_internal_error()
+            return
+        self.send_json(
+            HTTPStatus.OK,
+            {"ok": True, "revision": store_revision(store), "summary": check_summary(store, self.server.store_path)},
+        )
 
 
 def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> None:
