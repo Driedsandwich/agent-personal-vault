@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Run local release-readiness checks."""
+"""Run non-destructive local release-readiness checks."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
-import shutil
 from pathlib import Path
+
+sys.dont_write_bytecode = True
 
 try:
     from scripts.release_policy import SKIP_DIRS, iter_release_files
@@ -15,110 +17,29 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parent.parent
 
-FORBIDDEN_NAMES = {
-    "audit.jsonl",
-    "consents.json",
-    "vault.json",
-}
 
-FORBIDDEN_SUFFIXES = {
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".heic",
-    ".sqlite",
-    ".db",
-}
-
-FORBIDDEN_TEXT = [
-    "/" + "Users/" + "kishimoto" + "satoshi",
-    "private/" + "job_profile",
-    "personal-ai" + "-os",
-    "job-profile" + "-backups",
-    "memory" + "-audit",
-    "inbox" + "-log",
-    "kishimoto" + "satoshi",
-]
-
-TEXT_SUFFIXES = {".py", ".md", ".toml", ".json", ".txt", ".yml", ".yaml"}
-
-
-def run_step(name: str, command: list[str]) -> None:
+def run_step(name: str, command: list[str], *, env: dict[str, str] | None = None) -> None:
     print(f"== {name}")
-    subprocess.run(command, cwd=ROOT, check=True)
+    subprocess.run(command, cwd=ROOT, check=True, env=env)
 
 
-def iter_files() -> list[Path]:
-    return iter_release_files(ROOT)
-
-
-def check_forbidden_files() -> None:
-    print("== forbidden files")
-    findings = []
-    for path in iter_files():
-        if path.name in FORBIDDEN_NAMES or path.suffix.lower() in FORBIDDEN_SUFFIXES:
-            findings.append(path.relative_to(ROOT))
-    if findings:
-        for finding in findings:
-            print(f"forbidden file: {finding}", file=sys.stderr)
-        raise SystemExit(1)
-    print("no forbidden files found")
-
-
-def check_forbidden_text() -> None:
-    print("== forbidden text")
-    findings = []
-    for path in iter_files():
-        if path.suffix not in TEXT_SUFFIXES and path.name not in {".gitignore", "LICENSE"}:
-            continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        for needle in FORBIDDEN_TEXT:
-            if needle in text:
-                findings.append((path.relative_to(ROOT), needle))
-    if findings:
-        for path, needle in findings:
-            print(f"forbidden text: {path}: {needle}", file=sys.stderr)
-        raise SystemExit(1)
-    print("no forbidden text found")
-
-
-def clean_generated() -> None:
-    print("== clean generated files")
-    for path in ROOT.rglob("__pycache__"):
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-    for path in ROOT.rglob(".pytest_cache"):
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-    for dirname in ("dist", "build"):
-        path = ROOT / dirname
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-    for path in ROOT.glob("*.egg-info"):
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-    print("generated files cleaned")
+def compile_python_sources() -> None:
+    print("== compile Python sources without writing bytecode")
+    python_files = sorted(path for path in iter_release_files(ROOT) if path.suffix == ".py")
+    if not python_files:
+        raise SystemExit("no Python sources found")
+    for path in python_files:
+        compile(path.read_text(encoding="utf-8", errors="strict"), str(path), "exec")
+    print(f"compiled {len(python_files)} Python sources")
 
 
 def main() -> int:
-    run_step(
-        "py_compile",
-        [
-            sys.executable,
-            "-m",
-            "py_compile",
-            *map(str, (ROOT / "agent_personal_vault").glob("*.py")),
-            str(ROOT / "scripts/pii_scan.py"),
-            str(ROOT / "scripts/release_policy.py"),
-            str(ROOT / "scripts/release_artifact_manifest.py"),
-        ],
-    )
-    run_step("unit tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
-    run_step("pii scan", [sys.executable, "scripts/pii_scan.py", "."])
-    check_forbidden_files()
-    check_forbidden_text()
-    clean_generated()
-    print("release checks passed")
+    compile_python_sources()
+    test_env = os.environ.copy()
+    test_env["PYTHONDONTWRITEBYTECODE"] = "1"
+    run_step("unit tests", [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests"], env=test_env)
+    run_step("source privacy scan", [sys.executable, "-B", "scripts/pii_scan.py", "."], env=test_env)
+    print("release checks passed; existing build outputs were not modified")
     return 0
 
 

@@ -821,26 +821,33 @@ After this dry-run evidence is current, use `docs/RC_APPROVAL_PLAN.md` to separa
 
 - Confirm the target commit is on `main` and CI is green before proposing a release.
 - Inspect the files that would be included in a source distribution or wheel.
-- Confirm generated artifacts do not include `vault.json`, consent/audit files, local developer config, images, screenshots, databases, backups, or private paths.
+- Apply the same versioned fail-closed policy with `scripts/pii_scan.py` for source and `scripts/scan_release_artifacts.py` for the complete wheel/sdist inventory. Confirm no entry is missing, nonregular, undecodable, or contains a forbidden name, secret pattern, local developer config, image, database, backup, or private path.
 - Keep build outputs out of the repository unless a later PR explicitly adds an ignored local artifact path or CI artifact workflow.
 - Record source distribution and wheel filenames plus SHA-256 hashes in the future RC proposal. Hash recording is evidence for the proposal only; it does not authorize upload.
 - Treat recorded hashes as evidence for the exact generated files from that dry-run, not as a cross-environment reproducible-build guarantee. Before any separately approved release or package publish action, rebuild from the target commit in a pinned local environment, record fresh filenames, sizes, entry counts, and SHA-256 hashes, and use those fresh hashes for the approval request.
 
 ## Package Build Check
 
-Dry-run package build should be performed in an isolated local environment before any publish approval request.
+Dry-run package build must use a detached isolated worktree fixed to the full reviewed commit before any publish approval request. The maintainer's mutable working tree is not an approval input.
 
 Expected future check:
 
 ```sh
-python3 -m venv .venv-release-dry-run
-. .venv-release-dry-run/bin/activate
-python3 -m pip install --upgrade pip build
-python3 -m build
+approved_sha=<full-reviewed-commit>
+dry_run_root="$(mktemp -d)"
+git worktree add --detach "$dry_run_root/source" "$approved_sha"
+cd "$dry_run_root/source"
+test "$(git rev-parse HEAD)" = "$approved_sha"
+python3 -m venv "$dry_run_root/venv"
+. "$dry_run_root/venv/bin/activate"
+python3 -m pip install --require-hashes --only-binary=:all: -r .github/release-requirements.txt
 python3 scripts/check_release.py
+python3 -m build --no-isolation --outdir "$dry_run_root/dist"
+python3 scripts/scan_release_artifacts.py "$dry_run_root/dist"
+test -z "$(git status --porcelain --untracked-files=no)"
 ```
 
-Do not upload the built package. If an additional build dependency or packaging workflow change is needed, handle it in a separate PR.
+`scripts/check_release.py` must not delete or rewrite pre-existing build output. Do not upload the dry-run package. If an additional build dependency or packaging workflow change is needed, handle it in a separate PR.
 
 ## RC Entry Snapshot
 
