@@ -62,18 +62,23 @@ The release note must not include raw personal data, local private paths, screen
 
 ## Fresh Artifact Hash Procedure
 
-Before any GitHub release or package publish approval request, run the local dry-run in a pinned environment as a source/readiness check. The package-publish workflow separately creates the canonical artifact bundle from the approved tag with the repository's hash-pinned release toolchain.
+Before any GitHub release or package publish approval request, run the local dry-run from a detached, isolated worktree fixed to the exact reviewed commit. Do not build from the maintainer's mutable working tree. The package-publish workflow separately creates the canonical artifact bundle from the approved tag with the repository's hash-pinned release toolchain.
 
 Minimum procedure:
 
 ```sh
-git switch main
-git pull --ff-only
-python3 -m venv .venv-release-dry-run
-. .venv-release-dry-run/bin/activate
+approved_sha=<full-reviewed-commit>
+dry_run_root="$(mktemp -d)"
+git worktree add --detach "$dry_run_root/source" "$approved_sha"
+cd "$dry_run_root/source"
+test "$(git rev-parse HEAD)" = "$approved_sha"
+python3 -m venv "$dry_run_root/venv"
+. "$dry_run_root/venv/bin/activate"
 python3 -m pip install --require-hashes --only-binary=:all: -r .github/release-requirements.txt
-python3 -m build --no-isolation
 python3 scripts/check_release.py
+python3 -m build --no-isolation --outdir "$dry_run_root/dist"
+(cd "$dry_run_root" && "$dry_run_root/venv/bin/python" "$dry_run_root/source/scripts/scan_release_artifacts.py")
+test -z "$(git status --porcelain --untracked-files=no)"
 ```
 
 Record:
@@ -87,7 +92,7 @@ Record:
 - forbidden-name scan result
 - whether artifacts include only expected package, metadata, README, LICENSE, tests, and packaging files
 
-The local recorded hashes are evidence for those exact dry-run files, not a cross-environment reproducible-build guarantee. For package publish, approve the canonical workflow-generated `artifact-manifest.json` after the build job; it includes wheel/sdist embedded metadata and metadata digests as well as artifact hashes. Publish only the transferred bundle that the environment-gated publish job re-verifies against that manifest and the same tag checkout.
+The local recorded hashes are evidence for those exact dry-run files from the recorded commit, not a cross-environment reproducible-build guarantee. `scripts/check_release.py` is non-destructive and does not delete or replace pre-existing build outputs. For package publish, approve the canonical workflow-generated `artifact-manifest.json` after the build job; it includes wheel/sdist embedded metadata and metadata digests as well as artifact hashes. Publish only the transferred bundle that the environment-gated publish job re-verifies against that manifest and the same tag checkout.
 
 Delete or ignore local build outputs after the dry-run unless a later PR explicitly adds an artifact workflow.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import subprocess
@@ -15,6 +16,23 @@ from scripts import check_release, pii_scan, release_artifact_manifest, release_
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_release_scanner_clis_reject_path_arguments_without_echoing_them(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        private_path = "/" + "Users" + "/example/private"
+
+        for script in ("scripts/pii_scan.py", "scripts/scan_release_artifacts.py"):
+            result = subprocess.run(
+                [sys.executable, script, private_path],
+                cwd=root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("usage:", result.stderr)
+            self.assertNotIn(private_path, result.stderr)
+
     def _manifest_fixture(self, root: Path) -> tuple[Path, Path]:
         dist = root / "dist"
         dist.mkdir()
@@ -145,7 +163,7 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertEqual(requirements.count("--hash=sha256:"), 5)
         self.assertIn("embedded_metadata(path)", (root / "scripts" / "release_artifact_manifest.py").read_text())
 
-    def test_pii_scan_skips_local_agent_config(self) -> None:
+    def test_pii_scan_checks_local_agent_config_without_git(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             private_path = "/" + "Users" + "/example/private"
@@ -157,18 +175,16 @@ class ReleaseCheckTests(unittest.TestCase):
                 (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
             (root / "README.md").write_text("public docs only\n", encoding="utf-8")
 
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("No obvious private data patterns found.", result.stdout)
+            self.assertNotEqual(returncode, 0)
+            self.assertIn("Potential private release content found:", stderr.getvalue())
+            self.assertNotIn(private_path, stderr.getvalue())
 
-    def test_release_checks_skip_local_developer_config(self) -> None:
+    def test_release_checks_preserve_git_local_config_policy(self) -> None:
         self.assertEqual(pii_scan.SKIP_DIRS, release_policy.SKIP_DIRS)
         self.assertEqual(check_release.SKIP_DIRS, release_policy.SKIP_DIRS)
         for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
@@ -253,7 +269,7 @@ class ReleaseCheckTests(unittest.TestCase):
         for filename in release_policy.LOCAL_DEVELOPER_CONFIG_FILES:
             self.assertIn(f"/{filename}", gitignore)
 
-    def test_untracked_local_developer_config_is_not_release_surface(self) -> None:
+    def test_non_git_local_developer_config_is_release_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             private_path = "/" + "Users" + "/example/private"
@@ -267,9 +283,11 @@ class ReleaseCheckTests(unittest.TestCase):
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
 
-            self.assertEqual(files, {Path("README.md")})
+            expected = {Path("README.md"), *map(Path, release_policy.LOCAL_DEVELOPER_CONFIG_FILES)}
+            expected.update(Path(dirname) / "settings.json" for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS)
+            self.assertEqual(files, expected)
 
-    def test_root_local_agent_config_files_are_not_release_surface(self) -> None:
+    def test_non_git_root_local_agent_config_files_are_release_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             private_path = "/" + "Users" + "/example/private"
@@ -279,7 +297,7 @@ class ReleaseCheckTests(unittest.TestCase):
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
 
-            self.assertEqual(files, {Path("README.md")})
+            self.assertEqual(files, {Path("README.md"), *map(Path, release_policy.LOCAL_DEVELOPER_CONFIG_FILES)})
 
     def test_untracked_codex_hooks_do_not_trigger_release_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -296,31 +314,28 @@ class ReleaseCheckTests(unittest.TestCase):
             )
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
             self.assertEqual(files, {Path("README.md")})
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(returncode, 0, stderr.getvalue())
 
-    def test_forbidden_file_check_skips_local_developer_config(self) -> None:
+    def test_shared_policy_rejects_non_git_local_developer_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for dirname in release_policy.LOCAL_DEVELOPER_CONFIG_DIRS:
                 local_file = root / dirname / "local-screenshot.png"
                 local_file.parent.mkdir()
                 local_file.write_bytes(b"local artifact only")
+            (root / "README.md").write_text("public docs only\n", encoding="utf-8")
 
-            old_root = check_release.ROOT
-            try:
-                check_release.ROOT = root
-                check_release.check_forbidden_files()
-            finally:
-                check_release.ROOT = old_root
+            findings = release_policy.scan_release_tree(root)
+            self.assertEqual(
+                sum(finding.rule == "forbidden-suffix:.png" for finding in findings),
+                len(release_policy.LOCAL_DEVELOPER_CONFIG_DIRS),
+            )
 
     def test_release_files_use_git_tracked_files_when_available(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -358,7 +373,7 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(files, {Path("README.md")})
 
-    def test_clean_generated_removes_build_artifacts(self) -> None:
+    def test_release_check_exposes_no_destructive_generated_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             (root / "dist").mkdir()
@@ -369,16 +384,10 @@ class ReleaseCheckTests(unittest.TestCase):
             egg_info.mkdir()
             (egg_info / "PKG-INFO").write_text("Version: 0.1.0\n", encoding="utf-8")
 
-            old_root = check_release.ROOT
-            try:
-                check_release.ROOT = root
-                check_release.clean_generated()
-            finally:
-                check_release.ROOT = old_root
-
-            self.assertFalse((root / "dist").exists())
-            self.assertFalse((root / "build").exists())
-            self.assertFalse(egg_info.exists())
+            self.assertFalse(hasattr(check_release, "clean_generated"))
+            self.assertTrue((root / "dist" / "package.whl").exists())
+            self.assertTrue((root / "build" / "temp.txt").exists())
+            self.assertTrue((egg_info / "PKG-INFO").exists())
 
     def test_tracked_local_developer_config_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -393,17 +402,14 @@ class ReleaseCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "-f", ".codex/settings.json"], cwd=root, check=True)
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
             self.assertEqual(files, {Path(".codex/settings.json")})
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Potential private data found:", result.stderr)
+            self.assertNotEqual(returncode, 0)
+            self.assertIn("Potential private release content found:", stderr.getvalue())
 
     def test_tracked_private_text_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -425,9 +431,8 @@ class ReleaseCheckTests(unittest.TestCase):
             (root / "README.md").write_text("public docs only\n", encoding="utf-8")
             (root / "linked.md").symlink_to(outside_file)
 
-            files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-
-            self.assertEqual(files, {Path("README.md")})
+            with self.assertRaisesRegex(release_policy.ReleasePolicyError, "symbolic-link"):
+                release_policy.iter_release_files(root)
 
     def test_pii_scan_refuses_path_outside_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:

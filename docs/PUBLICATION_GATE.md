@@ -41,7 +41,7 @@ Local-first personal data vault for AI agents with a bundled profile schema.
 - No real `vault.json` exists in this tree.
 - No `private/`, backup, screenshot, local log, or machine-specific absolute path is included.
 - `python3 -m unittest discover -s tests` passes.
-- `python3 scripts/pii_scan.py .` passes.
+- `python3 scripts/pii_scan.py` passes.
 - `python3 -m py_compile agent_personal_vault/*.py scripts/pii_scan.py` passes.
 - `python3 scripts/check_release.py` passes.
 - `make release-check` passes when `make` is available.
@@ -89,7 +89,7 @@ Run from this directory:
 ```sh
 python3 -m py_compile agent_personal_vault/*.py scripts/pii_scan.py
 python3 -m unittest discover -s tests
-python3 scripts/pii_scan.py .
+python3 scripts/pii_scan.py
 python3 scripts/check_release.py
 make release-check
 ```

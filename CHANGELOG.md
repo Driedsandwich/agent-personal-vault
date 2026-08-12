@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Apply one fail-closed privacy policy to both tracked release source and every regular wheel/sdist member, rejecting incomplete inventories, nonregular entries, invalid UTF-8, private path fragments, obvious credentials, and private-data patterns without echoing matched values.
 - Enforce each MCP tool's advertised input schema at runtime, rejecting undeclared properties, missing required fields, type coercions, and invalid enum values with a stable non-echoing error.
 - Validate encrypted-vault envelope version, algorithm identifiers, supported KDF iterations, strict Base64 encoding, exact salt/nonce sizes, and bounded ciphertext before optional cryptographic work begins.
 - Reject short or known-predictable passphrases for new optional-encryption migrations unless the operator uses an explicit warned compatibility override; preserve access to existing encrypted vaults created under the earlier policy.
@@ -29,6 +30,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Make local release checks non-destructive, require detached exact-commit dry-runs, and add regressions proving source/artifact policy parity, complete artifact-pair scanning, unsafe-entry rejection, stable diagnostics, and preservation of pre-existing build outputs.
 - Add MCP regressions proving undeclared consent-token injection and out-of-contract argument types fail closed without raw values, tokens, local paths, state mutation, or process loss.
 - Add regressions proving malformed or oversized encrypted envelopes fail closed before key derivation while supported v1 encrypted vaults remain readable.
 - Require Python 3.11-3.13 CI to build and install the wheel with the encrypted extra, fail on skipped encryption regressions, and reject a tampered synthetic ciphertext through the installed artifact.
