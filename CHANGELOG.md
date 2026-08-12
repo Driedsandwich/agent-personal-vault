@@ -14,6 +14,8 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Reject malformed persisted consent request IDs using the generated base64url grammar before they reach CLI, MCP, or GUI rendering and resolution paths.
+- Render GUI consent decisions with inert data attributes and DOM event listeners instead of embedding persisted request IDs in inline JavaScript handlers.
 - Require a GUI-session plaintext-storage acknowledgement before autosave, and bind that acknowledgement to an opaque destination/protection context so it cannot be reused after the store path or at-rest protection changes.
 - Reject existing custom POSIX storage directories that are not owned by the current user or are accessible by group/other users, without silently changing their permissions; fail closed on non-POSIX storage until equivalent guarantees exist.
 - Open vault, audit, consent, lock, and unique temporary files relative to a held directory descriptor; reject symbolic links, unsafe hard links, and target swaps before replacement.
@@ -21,6 +23,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.
 - Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.
 - Add regressions for permissive parents, symbolic-link and hard-link targets, target swaps, raw-free CLI failure output, artifact tampering, extra distributions, and workflow source/digest binding.
 - Triage all 27 findings from Deep Security Scan `13cfe285-a83a-4341-8081-c22982c1edfb` in public tracking Issue #250 while keeping announcement and the next release on hold.

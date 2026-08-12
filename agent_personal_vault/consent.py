@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -23,10 +24,17 @@ from .private_io import open_private_lock, private_file_exists, read_private_jso
 from .vault import now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
+REQUEST_ID_PATTERN = re.compile(r"r_[A-Za-z0-9_-]{24}")
 
 
 class ConsentError(ValueError):
     """Raised when a consent token is missing, invalid, expired, or mismatched."""
+
+
+def _validate_request_id(value: Any) -> str:
+    if not isinstance(value, str) or REQUEST_ID_PATTERN.fullmatch(value) is None:
+        raise ConsentError("consent request id is invalid")
+    return value
 
 
 def consent_path(vault_path: Path | None = None) -> Path:
@@ -91,6 +99,11 @@ def _load_state(path: Path) -> dict[str, Any]:
     payload.setdefault("version", 1)
     payload.setdefault("grants", [])
     payload.setdefault("requests", [])
+    requests = payload["requests"]
+    if isinstance(requests, list):
+        for request in requests:
+            if isinstance(request, dict):
+                _validate_request_id(request.get("id"))
     return payload
 
 
@@ -223,6 +236,7 @@ def resolve_consent_request(
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
     actor: str = "cli",
 ) -> dict[str, Any]:
+    request_id = _validate_request_id(request_id)
     path = consent_path(vault_path)
     audit_event: dict[str, Any] | None = None
     with _state_lock(path):

@@ -19,7 +19,13 @@ from pathlib import Path
 from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.audit import write_audit_event
-from agent_personal_vault.consent import consent_path, create_consent_request, list_consent_requests
+from agent_personal_vault.consent import (
+    ConsentError,
+    consent_path,
+    create_consent_request,
+    list_consent_requests,
+    resolve_consent_request,
+)
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
@@ -1082,6 +1088,17 @@ class VaultTests(unittest.TestCase):
         self.assertIn("--consent-id", html)
         self.assertIn("CLI get", html)
 
+    def test_gui_consent_actions_use_dom_event_binding_not_inline_handlers(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertNotIn('onclick="decideConsent', html)
+        self.assertIn('data-consent-id="${esc(req.id)}"', html)
+        self.assertIn('data-consent-decision="approve"', html)
+        self.assertIn('data-consent-decision="deny"', html)
+        self.assertIn('button.addEventListener("click"', html)
+        self.assertIn("button.dataset.consentId", html)
+        self.assertIn("button.dataset.consentDecision", html)
+
     def test_gui_page_warns_on_bulk_consent_requests(self) -> None:
         html = page_html("dummy-token", "job_hunting_profile")
 
@@ -1328,6 +1345,112 @@ class VaultTests(unittest.TestCase):
             self.assertIn("error: consent state is invalid", result.stderr)
             self.assertNotIn("Traceback", combined)
             self.assertNotIn(str(path), combined)
+
+    def test_invalid_persisted_consent_request_id_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            invalid_request_id = "r_invalid'identifier"
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [],
+                        "requests": [
+                            {
+                                "id": invalid_request_id,
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "synthetic boundary check",
+                                "requested_at": "2026-08-12T00:00:00+00:00",
+                                "resolved_at": "",
+                                "status": "pending",
+                                "actor": "test",
+                                "source": "request",
+                                "consent_id": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ConsentError, "consent request id is invalid"):
+                list_consent_requests(path)
+
+    def test_generated_consent_request_id_passes_strict_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose="synthetic boundary check",
+                actor="test",
+            )
+
+            self.assertRegex(request["id"], r"\Ar_[A-Za-z0-9_-]{24}\Z")
+            self.assertEqual(list_consent_requests(path)[0]["id"], request["id"])
+
+    def test_resolve_rejects_invalid_request_id_before_state_lookup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+
+            with self.assertRaisesRegex(ConsentError, "consent request id is invalid"):
+                resolve_consent_request(
+                    vault_path=path,
+                    request_id="r_invalid'identifier",
+                    approve=True,
+                    actor="test",
+                )
+
+    def test_gui_consent_list_rejects_invalid_id_without_echoing_private_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            invalid_request_id = "r_invalid'identifier"
+            token = "dummy-gui-token-private"
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [],
+                        "requests": [{"id": invalid_request_id, "status": "pending"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            server.gui_token = token  # type: ignore[attr-defined]
+            server.store_path = path  # type: ignore[attr-defined]
+            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/consent/requests?token={token}"
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(url, timeout=5)
+                self.assertEqual(raised.exception.code, 500)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertEqual(json.loads(body), {"error": "internal error"})
+                self.assertNotIn(invalid_request_id, body)
+                self.assertNotIn(token, body)
+                self.assertNotIn(str(path), body)
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertNotIn(invalid_request_id, log_output)
+                self.assertNotIn(token, log_output)
+                self.assertNotIn(str(path), log_output)
+                self.assertNotIn("Traceback", log_output)
+                self.assertIn("token=[redacted]", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
 
     def test_cli_consent_token_concurrent_consume_allows_one_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1617,7 +1740,7 @@ class VaultTests(unittest.TestCase):
                     str(path),
                     "consent",
                     "approve",
-                    "missing-request",
+                    "r_AAAAAAAAAAAAAAAAAAAAAAAA",
                 ],
                 text=True,
                 stdout=subprocess.PIPE,
@@ -1627,6 +1750,35 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertIn("error: consent request not found", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_rejects_invalid_consent_request_id_without_echo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            invalid_request_id = "r_invalid'identifier"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "approve",
+                    invalid_request_id,
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "error: consent request id is invalid\n")
+            self.assertNotIn(invalid_request_id, combined)
+            self.assertNotIn(str(path), combined)
+            self.assertNotIn("Traceback", combined)
 
     def test_cli_get_with_forged_consent_token_is_traceback_free_and_raw_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
