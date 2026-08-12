@@ -4,7 +4,7 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-08-11
+last_updated: 2026-08-12
 
 All notable changes to Agent Personal Vault are documented here.
 
@@ -14,12 +14,14 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Require a GUI-session plaintext-storage acknowledgement before autosave, and bind that acknowledgement to an opaque destination/protection context so it cannot be reused after the store path or at-rest protection changes.
 - Reject existing custom POSIX storage directories that are not owned by the current user or are accessible by group/other users, without silently changing their permissions; fail closed on non-POSIX storage until equivalent guarantees exist.
 - Open vault, audit, consent, lock, and unique temporary files relative to a held directory descriptor; reject symbolic links, unsafe hard links, and target swaps before replacement.
 - Bind the OIDC publish job to one canonical build-job artifact bundle using an exact-version, SHA-256-pinned toolchain plus a source/tag/embedded-metadata/file-size/artifact-SHA-256 manifest recomputed from the same tag checkout immediately before publish.
 
 ### Tests And Release Governance
 
+- Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.
 - Add regressions for permissive parents, symbolic-link and hard-link targets, target swaps, raw-free CLI failure output, artifact tampering, extra distributions, and workflow source/digest binding.
 - Triage all 27 findings from Deep Security Scan `13cfe285-a83a-4341-8081-c22982c1edfb` in public tracking Issue #250 while keeping announcement and the next release on hold.
 
