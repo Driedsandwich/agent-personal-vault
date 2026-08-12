@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import stat
@@ -2107,6 +2108,58 @@ class VaultTests(unittest.TestCase):
                 loaded = load_store(path=path, passphrase="correct horse battery staple")
 
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
+
+    def test_encrypted_store_rejects_unsupported_envelope_before_crypto_work(self) -> None:
+        payload = {
+            "app": "agent-personal-vault",
+            "storage": crypto_store.ENCRYPTED_STORAGE,
+            "version": 1,
+            "cipher": "AES-256-GCM",
+            "kdf": crypto_store.KDF_NAME,
+            "iterations": crypto_store.KDF_ITERATIONS,
+            "salt": base64.b64encode(b"s" * 16).decode("ascii"),
+            "nonce": base64.b64encode(b"n" * 12).decode("ascii"),
+            "ciphertext": base64.b64encode(b"c" * 16).decode("ascii"),
+        }
+        invalid_variants = [
+            {**payload, "version": 2},
+            {**payload, "version": True},
+            {**payload, "iterations": crypto_store.KDF_ITERATIONS + 1},
+            {**payload, "salt": "not-base64"},
+            {**payload, "salt": payload["salt"][:-3] + "x=="},
+            {**payload, "salt": base64.b64encode(b"s" * 15).decode("ascii")},
+            {**payload, "nonce": base64.b64encode(b"n" * 11).decode("ascii")},
+            {**payload, "ciphertext": base64.b64encode(b"c" * 15).decode("ascii")},
+            {**payload, "ciphertext": ["not", "a", "string"]},
+        ]
+
+        with mock.patch.object(crypto_store, "_require_crypto") as require_crypto:
+            for invalid in invalid_variants:
+                with self.subTest(invalid=invalid):
+                    with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
+                        crypto_store.decrypt_store_payload(invalid, "correct horse battery staple")
+            require_crypto.assert_not_called()
+
+    def test_encrypted_store_rejects_oversized_ciphertext_before_crypto_work(self) -> None:
+        payload = {
+            "app": "agent-personal-vault",
+            "storage": crypto_store.ENCRYPTED_STORAGE,
+            "version": 1,
+            "cipher": "AES-256-GCM",
+            "kdf": crypto_store.KDF_NAME,
+            "iterations": crypto_store.KDF_ITERATIONS,
+            "salt": base64.b64encode(b"s" * 16).decode("ascii"),
+            "nonce": base64.b64encode(b"n" * 12).decode("ascii"),
+            "ciphertext": base64.b64encode(b"c" * 17).decode("ascii"),
+        }
+
+        with (
+            mock.patch.object(crypto_store, "MAX_ENCRYPTED_CIPHERTEXT_BYTES", 16),
+            mock.patch.object(crypto_store, "_require_crypto") as require_crypto,
+        ):
+            with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
+                crypto_store.decrypt_store_payload(payload, "correct horse battery staple")
+            require_crypto.assert_not_called()
 
     def test_mcp_server_exposes_only_raw_free_read_tools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

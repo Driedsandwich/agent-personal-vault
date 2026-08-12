@@ -7,6 +7,7 @@ used. It does not implement custom cryptographic primitives.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import os
 import unicodedata
@@ -15,6 +16,12 @@ from typing import Any
 ENCRYPTED_STORAGE = "encrypted-json-v1"
 KDF_NAME = "pbkdf2-hmac-sha256"
 KDF_ITERATIONS = 390_000
+SUPPORTED_KDF_ITERATIONS = frozenset({KDF_ITERATIONS})
+SALT_BYTES = 16
+NONCE_BYTES = 12
+AES_GCM_TAG_BYTES = 16
+MAX_ENCRYPTED_PLAINTEXT_BYTES = 8 * 1024 * 1024
+MAX_ENCRYPTED_CIPHERTEXT_BYTES = MAX_ENCRYPTED_PLAINTEXT_BYTES + AES_GCM_TAG_BYTES
 MIN_NEW_PASSPHRASE_LENGTH = 12
 COMMON_WEAK_PASSPHRASES = frozenset(
     {
@@ -78,6 +85,60 @@ def passphrase_strength_issue(passphrase: str) -> str | None:
     return None
 
 
+def _decode_envelope_component(
+    payload: dict,
+    name: str,
+    *,
+    exact_bytes: int | None = None,
+    min_bytes: int | None = None,
+    max_bytes: int | None = None,
+) -> bytes:
+    value = payload.get(name)
+    if not isinstance(value, str):
+        raise DecryptionError("unsupported encrypted store format")
+    byte_limit = exact_bytes if exact_bytes is not None else max_bytes
+    if byte_limit is not None and len(value) > ((byte_limit + 2) // 3) * 4:
+        raise DecryptionError("unsupported encrypted store format")
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (binascii.Error, UnicodeError, ValueError) as exc:
+        raise DecryptionError("unsupported encrypted store format") from exc
+    if base64.b64encode(decoded).decode("ascii") != value:
+        raise DecryptionError("unsupported encrypted store format")
+    if exact_bytes is not None and len(decoded) != exact_bytes:
+        raise DecryptionError("unsupported encrypted store format")
+    if min_bytes is not None and len(decoded) < min_bytes:
+        raise DecryptionError("unsupported encrypted store format")
+    if max_bytes is not None and len(decoded) > max_bytes:
+        raise DecryptionError("unsupported encrypted store format")
+    return decoded
+
+
+def _validate_encrypted_payload(payload: dict) -> tuple[int, bytes, bytes, bytes]:
+    version = payload.get("version")
+    if (
+        payload.get("app") != "agent-personal-vault"
+        or payload.get("storage") != ENCRYPTED_STORAGE
+        or type(version) is not int
+        or version != 1
+        or payload.get("kdf") != KDF_NAME
+        or payload.get("cipher") != "AES-256-GCM"
+    ):
+        raise DecryptionError("unsupported encrypted store format")
+    iterations = payload.get("iterations")
+    if type(iterations) is not int or iterations not in SUPPORTED_KDF_ITERATIONS:
+        raise DecryptionError("unsupported encrypted store format")
+    salt = _decode_envelope_component(payload, "salt", exact_bytes=SALT_BYTES)
+    nonce = _decode_envelope_component(payload, "nonce", exact_bytes=NONCE_BYTES)
+    ciphertext = _decode_envelope_component(
+        payload,
+        "ciphertext",
+        min_bytes=AES_GCM_TAG_BYTES,
+        max_bytes=MAX_ENCRYPTED_CIPHERTEXT_BYTES,
+    )
+    return iterations, salt, nonce, ciphertext
+
+
 def encrypt_store_payload(store: dict, passphrase: str, *, allow_weak_passphrase: bool = False) -> dict:
     if not passphrase:
         raise ValueError("passphrase is required")
@@ -85,10 +146,12 @@ def encrypt_store_payload(store: dict, passphrase: str, *, allow_weak_passphrase
     if strength_issue is not None and not allow_weak_passphrase:
         raise ValueError(f"passphrase is too weak for new encryption: {strength_issue}")
     AESGCM, _PBKDF2HMAC, _crypto = _require_crypto()
-    salt = os.urandom(16)
-    nonce = os.urandom(12)
+    salt = os.urandom(SALT_BYTES)
+    nonce = os.urandom(NONCE_BYTES)
     key = _derive_key(passphrase, salt)
     plaintext = json.dumps(store, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    if len(plaintext) > MAX_ENCRYPTED_PLAINTEXT_BYTES:
+        raise ValueError("store is too large for encrypted storage")
     ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
     return {
         "app": "agent-personal-vault",
@@ -108,17 +171,10 @@ def decrypt_store_payload(payload: dict, passphrase: str) -> dict:
         raise ValueError("passphrase is required")
     if not is_encrypted_payload(payload):
         raise DecryptionError("store payload is not encrypted")
-    if payload.get("kdf") != KDF_NAME or payload.get("cipher") != "AES-256-GCM":
-        raise DecryptionError("unsupported encrypted store format")
-    iterations = payload.get("iterations")
-    if not isinstance(iterations, int) or iterations <= 0:
-        raise DecryptionError("unsupported encrypted store format")
+    iterations, salt, nonce, ciphertext = _validate_encrypted_payload(payload)
     AESGCM, _PBKDF2HMAC, crypto = _require_crypto()
     _hashes, invalid_tag = crypto
     try:
-        salt = base64.b64decode(str(payload["salt"]))
-        nonce = base64.b64decode(str(payload["nonce"]))
-        ciphertext = base64.b64decode(str(payload["ciphertext"]))
         key = _derive_key(passphrase, salt, iterations=iterations)
         plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
     except invalid_tag as exc:
