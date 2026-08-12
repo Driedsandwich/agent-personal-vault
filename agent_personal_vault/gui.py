@@ -204,10 +204,17 @@ async function loadConsentRequests() {{
     <div class="hint">要求元: ${{esc(req.actor || "")}} / ${{esc(req.requested_at || "")}}</div>
     ${{(req.action === "env" || req.key === "*") ? `<div class="bulk-warning">一括raw exportの同意リクエストです。public alphaのAIエージェント通常導線ではありません。必要性を人間が確認してから判断してください。</div>` : ""}}
     <div class="request-actions">
-      <button onclick="decideConsent('${{esc(req.id)}}','approve')">承認</button>
-      <button onclick="decideConsent('${{esc(req.id)}}','deny')">拒否</button>
+      <button data-consent-id="${{esc(req.id)}}" data-consent-decision="approve">承認</button>
+      <button data-consent-id="${{esc(req.id)}}" data-consent-decision="deny">拒否</button>
     </div>
   </div>`).join("");
+  node.querySelectorAll("[data-consent-id][data-consent-decision]").forEach(button => {{
+    button.addEventListener("click", () => {{
+      decideConsent(button.dataset.consentId || "", button.dataset.consentDecision || "").catch(error => {{
+        document.getElementById("consentResult").textContent = error.message;
+      }});
+    }});
+  }});
 }}
 async function decideConsent(id, decision) {{
   const data = await api(`/api/consent/${{decision}}`, {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{id}})}});
