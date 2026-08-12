@@ -7,13 +7,25 @@ import os
 import re
 import shlex
 import stat
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback path
+    fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - Unix fallback path
+    msvcrt = None  # type: ignore[assignment]
 
 from .crypto_store import decrypt_store_payload, encrypt_store_payload, is_encrypted_payload
 from .private_io import (
     ensure_private_directory,
     lexical_absolute_path,
+    open_private_lock,
     private_file_exists,
     private_file_stat,
     read_private_json,
@@ -23,6 +35,11 @@ from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
 
 APP_NAME = "agent-personal-vault"
 DEFAULT_SCHEMA = "job_hunting_profile"
+
+
+class VaultConflictError(ValueError):
+    """Raised when a stale in-memory vault would overwrite a newer revision."""
+
 
 SYNC_PATH_MARKERS = {
     "dropbox": "Dropbox",
@@ -254,6 +271,7 @@ def blank_store(schema_name: str = DEFAULT_SCHEMA) -> dict:
         "schema": schema_name,
         "created_at": now_iso(),
         "updated_at": now_iso(),
+        "revision": 0,
         "fields": {key: "" for key in schema},
     }
 
@@ -267,7 +285,37 @@ def validate_store_shape(store: object) -> dict:
     fields = store.get("fields")
     if fields is not None and not isinstance(fields, dict):
         raise ValueError("vault store is invalid")
+    revision = store.get("revision", 0)
+    if type(revision) is not int or revision < 0:
+        raise ValueError("vault store is invalid")
     return store
+
+
+def store_revision(store: dict) -> int:
+    validate_store_shape(store)
+    return int(store.get("revision", 0))
+
+
+@contextmanager
+def _store_lock(path: Path):
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    with open_private_lock(lock_path) as handle:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        elif msvcrt is not None:  # pragma: no cover - Windows fallback path
+            handle.seek(0)
+            handle.write("0")
+            handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            elif msvcrt is not None:  # pragma: no cover - Windows fallback path
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def get_schema(schema_name: str) -> dict[str, FieldSpec]:
@@ -310,7 +358,8 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
 
     schema = get_schema(str(store.get("schema") or schema_name))
     fields = store.setdefault("fields", {})
-    changed = False
+    changed = "revision" not in store
+    store.setdefault("revision", 0)
     for key in schema:
         if key not in fields:
             fields[key] = ""
@@ -334,27 +383,47 @@ def write_store(
 ) -> None:
     path = path or store_path()
     ensure_private_dir(path.parent)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    store["updated_at"] = now_iso()
-    existing_encrypted = False
-    if private_file_exists(path):
-        try:
-            existing_encrypted = is_encrypted_payload(read_private_json(path))
-        except json.JSONDecodeError:
-            existing_encrypted = False
-    if encrypted is None:
-        encrypted = existing_encrypted
-    payload = store
-    if encrypted:
-        effective_passphrase = passphrase or default_passphrase()
-        if not effective_passphrase:
-            raise ValueError("Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
-        payload = encrypt_store_payload(
-            store,
-            effective_passphrase,
-            allow_weak_passphrase=allow_weak_passphrase or existing_encrypted,
-        )
-    write_json_private(path, payload)
+    expected_revision = store_revision(store)
+    with _store_lock(path):
+        existing_encrypted = False
+        current_revision = 0
+        if private_file_exists(path):
+            existing_payload = read_private_json(path)
+            existing_encrypted = is_encrypted_payload(existing_payload)
+            if existing_encrypted:
+                effective_passphrase = passphrase or default_passphrase()
+                if not effective_passphrase:
+                    raise ValueError(
+                        "Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase."
+                    )
+                existing_store = validate_store_shape(decrypt_store_payload(existing_payload, effective_passphrase))
+            else:
+                existing_store = validate_store_shape(existing_payload)
+            current_revision = store_revision(existing_store)
+        if current_revision != expected_revision:
+            raise VaultConflictError("vault changed; reload and retry")
+
+        next_store = dict(store)
+        next_store["fields"] = dict(store.get("fields", {}))
+        next_store["updated_at"] = now_iso()
+        next_store["revision"] = current_revision + 1
+        if encrypted is None:
+            encrypted = existing_encrypted
+        payload = next_store
+        if encrypted:
+            effective_passphrase = passphrase or default_passphrase()
+            if not effective_passphrase:
+                raise ValueError(
+                    "Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase."
+                )
+            payload = encrypt_store_payload(
+                next_store,
+                effective_passphrase,
+                allow_weak_passphrase=allow_weak_passphrase or existing_encrypted,
+            )
+        write_json_private(path, payload)
+        store["updated_at"] = next_store["updated_at"]
+        store["revision"] = next_store["revision"]
 
 
 def validate_key(key: str, schema_name: str = DEFAULT_SCHEMA) -> str:

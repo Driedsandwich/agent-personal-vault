@@ -272,7 +272,7 @@ def command_encryption(args: argparse.Namespace) -> None:
                 )
             passphrase = read_passphrase()
             store = load_store(path=path, passphrase=passphrase)
-            write_store(store, path, encrypted=False)
+            write_store(store, path, passphrase=passphrase, encrypted=False)
             write_audit_event(vault_path=path, actor="cli", action="decrypt", purpose=args.purpose)
             print("encrypted: false")
             return

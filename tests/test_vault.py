@@ -34,6 +34,7 @@ from agent_personal_vault.consent import (
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
 from agent_personal_vault.vault import (
+    VaultConflictError,
     agent_context,
     blank_store,
     check_summary,
@@ -48,6 +49,7 @@ from agent_personal_vault.vault import (
     schema_context,
     store_path,
     store_path_warnings,
+    store_revision,
     write_json_private,
     write_store,
 )
@@ -255,6 +257,134 @@ class VaultTests(unittest.TestCase):
 
             self.assertEqual(observed_modes, [0o600])
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    def test_concurrent_store_writes_allow_exactly_one_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            barrier = threading.Barrier(2)
+
+            def update(key: str, value: str) -> bool:
+                store = load_store(path=path)
+                store["fields"][key] = value
+                barrier.wait(timeout=5)
+                try:
+                    write_store(store, path)
+                except VaultConflictError:
+                    return False
+                return True
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(
+                    pool.map(
+                        lambda item: update(*item),
+                        [("FAMILY_NAME", "Alpha"), ("GIVEN_NAME", "Beta")],
+                    )
+                )
+
+            self.assertEqual(sorted(results), [False, True])
+            stored = load_store(path=path)
+            self.assertEqual(
+                sum(bool(stored["fields"][key]) for key in ("FAMILY_NAME", "GIVEN_NAME")),
+                1,
+            )
+
+    def test_cli_cross_process_stale_write_allows_exactly_one_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+
+            def start(key: str) -> subprocess.Popen[str]:
+                return subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-m",
+                        "agent_personal_vault.cli",
+                        "--store",
+                        str(path),
+                        "set",
+                        key,
+                        "--stdin",
+                        "--purpose",
+                        "synthetic concurrent update",
+                    ],
+                    text=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+
+            first = start("FAMILY_NAME")
+            second = start("GIVEN_NAME")
+            first_prefix = first.stderr.readline() if first.stderr is not None else ""
+            second_prefix = second.stderr.readline() if second.stderr is not None else ""
+            self.assertIn("WARNING", first_prefix)
+            self.assertIn("WARNING", second_prefix)
+            first_stdout, first_stderr = first.communicate("Alpha\n", timeout=10)
+            second_stdout, second_stderr = second.communicate("Beta\n", timeout=10)
+
+            self.assertEqual(sorted([first.returncode, second.returncode]), [0, 1])
+            combined = first_prefix + first_stdout + first_stderr + second_prefix + second_stdout + second_stderr
+            self.assertNotIn(str(path), combined)
+            stored = load_store(path=path)
+            self.assertEqual(
+                sum(bool(stored["fields"][key]) for key in ("FAMILY_NAME", "GIVEN_NAME")),
+                1,
+            )
+
+    def test_store_rejects_stale_revision_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            first = load_store(create=True, path=path)
+            stale = load_store(path=path)
+            first["fields"]["FAMILY_NAME"] = "Alpha"
+            write_store(first, path)
+            before = path.read_bytes()
+
+            stale["fields"]["GIVEN_NAME"] = "Beta"
+            with self.assertRaisesRegex(VaultConflictError, "reload and retry"):
+                write_store(stale, path)
+
+            self.assertEqual(path.read_bytes(), before)
+            stored = load_store(path=path)
+            self.assertEqual(stored["fields"]["FAMILY_NAME"], "Alpha")
+            self.assertEqual(stored["fields"]["GIVEN_NAME"], "")
+
+    def test_legacy_store_adds_revision_without_losing_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            legacy["fields"]["EMAIL"] = "kept@example.test"
+            write_json_private(path, legacy)
+
+            migrated = load_store(path=path)
+
+            self.assertEqual(store_revision(migrated), 1)
+            self.assertEqual(migrated["fields"]["EMAIL"], "kept@example.test")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["revision"], 1)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypted_store_rejects_stale_revision_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            passphrase = "correct horse battery staple"
+            initial = load_store(create=True, path=path)
+            write_store(initial, path, passphrase=passphrase, encrypted=True)
+            first = load_store(path=path, passphrase=passphrase)
+            stale = load_store(path=path, passphrase=passphrase)
+            first["fields"]["FAMILY_NAME"] = "Alpha"
+            write_store(first, path, passphrase=passphrase)
+            before = path.read_bytes()
+
+            stale["fields"]["GIVEN_NAME"] = "Beta"
+            with self.assertRaisesRegex(VaultConflictError, "reload and retry"):
+                write_store(stale, path, passphrase=passphrase)
+
+            self.assertEqual(path.read_bytes(), before)
+            stored = load_store(path=path, passphrase=passphrase)
+            self.assertEqual(stored["fields"]["FAMILY_NAME"], "Alpha")
+            self.assertEqual(stored["fields"]["GIVEN_NAME"], "")
 
     @unittest.skipIf(os.name != "posix", "POSIX no-follow enforcement")
     def test_store_rejects_precreated_target_symlink_without_touching_target(self) -> None:
@@ -893,6 +1023,7 @@ class VaultTests(unittest.TestCase):
     def test_gui_profile_save_writes_raw_free_audit_event(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
             save_profile_fields(
                 path,
                 "job_hunting_profile",
@@ -900,6 +1031,7 @@ class VaultTests(unittest.TestCase):
                     "FAMILY_NAME": "山田",
                     "EMAIL": "private.person@example.test",
                 },
+                store_revision(store),
             )
             store = load_store(path=path)
             self.assertEqual(store["fields"]["FAMILY_NAME"], "山田")
@@ -914,6 +1046,39 @@ class VaultTests(unittest.TestCase):
             self.assertIn('"key": "*"', encoded)
             self.assertNotIn("山田", encoded)
             self.assertNotIn("private.person@example.test", encoded)
+
+    def test_gui_profile_patch_preserves_omitted_fields_and_rejects_stale_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["EMAIL"] = "kept@example.test"
+            write_store(store, path)
+            expected_revision = store_revision(store)
+
+            saved = save_profile_fields(
+                path,
+                "job_hunting_profile",
+                {"FAMILY_NAME": "Alpha"},
+                expected_revision,
+            )
+            self.assertEqual(saved["fields"]["EMAIL"], "kept@example.test")
+            before = path.read_bytes()
+            audit_before = read_audit_events(path, limit=0)
+
+            with self.assertRaisesRegex(VaultConflictError, "reload and retry"):
+                save_profile_fields(
+                    path,
+                    "job_hunting_profile",
+                    {"GIVEN_NAME": "Beta"},
+                    expected_revision,
+                )
+
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(read_audit_events(path, limit=0), audit_before)
+            stored = load_store(path=path)
+            self.assertEqual(stored["fields"]["FAMILY_NAME"], "Alpha")
+            self.assertEqual(stored["fields"]["GIVEN_NAME"], "")
+            self.assertEqual(stored["fields"]["EMAIL"], "kept@example.test")
 
     def test_gui_profile_view_writes_raw_access_audit_event_without_raw_values(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1038,8 +1203,13 @@ class VaultTests(unittest.TestCase):
                 return urllib.request.urlopen(request, timeout=5)
 
             try:
-                storage_context = str(get_profile()["storage_context"])
-                update = {"fields": {"FAMILY_NAME": "Example"}, "storage_context": storage_context}
+                profile = get_profile()
+                storage_context = str(profile["storage_context"])
+                update = {
+                    "fields": {"FAMILY_NAME": "Example"},
+                    "revision": profile["revision"],
+                    "storage_context": storage_context,
+                }
 
                 with self.assertRaises(urllib.error.HTTPError) as raised:
                     post_json("/api/profile", update)
@@ -1056,6 +1226,15 @@ class VaultTests(unittest.TestCase):
                 with post_json("/api/profile", update) as response:
                     self.assertEqual(response.status, 200)
                 self.assertEqual(load_store(path=path)["fields"]["FAMILY_NAME"], "Example")
+
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    post_json("/api/profile", update)
+                self.assertEqual(raised.exception.code, 409)
+                conflict_body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("vault changed; reload and retry", conflict_body)
+                self.assertNotIn(token, conflict_body)
+                self.assertNotIn(str(path), conflict_body)
 
                 server.store_path = other_path  # type: ignore[attr-defined]
                 with self.assertRaises(urllib.error.HTTPError) as raised:
