@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Make every public issue form explicitly reject secret capabilities and link to the verified private vulnerability-reporting route.
 - Make GUI mask mode hide complete field values, selected options, and derived names instead of retaining identifying fragments on screen.
 - Apply one fail-closed privacy policy to both tracked release source and every regular wheel/sdist member, rejecting incomplete inventories, nonregular entries, invalid UTF-8, private path fragments, obvious credentials, and private-data patterns without echoing matched values.
 - Enforce each MCP tool's advertised input schema at runtime, rejecting undeclared properties, missing required fields, type coercions, and invalid enum values with a stable non-echoing error.

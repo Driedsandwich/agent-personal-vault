@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Private vulnerability report
+    url: https://github.com/Driedsandwich/agent-personal-vault/security/advisories/new
+    about: Use this private route when a security report needs sensitive details.

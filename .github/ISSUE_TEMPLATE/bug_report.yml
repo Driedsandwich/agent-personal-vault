@@ -7,6 +7,8 @@ body:
     attributes:
       value: |
         Do not include real names, addresses, phone numbers, emails, photos, IDs, local paths, vault files, logs with raw values, or screenshots containing personal data.
+        Never include credentials, API keys, encryption passphrases, private keys, cookies, consent IDs, or tokenized GUI URLs.
+        If the report needs any sensitive detail, use a [private vulnerability report](https://github.com/Driedsandwich/agent-personal-vault/security/advisories/new) instead of a public issue.
         Use dummy values such as `Example Family`, `example.test`, or redacted placeholders.
   - type: textarea
     id: summary
@@ -44,5 +46,5 @@ body:
     attributes:
       label: Safety confirmation
       options:
-        - label: I removed real personal data, screenshots, vault files, local absolute paths, and raw logs.
+        - label: I removed real personal data, credentials, API keys, passphrases, private keys, cookies, consent IDs, tokenized GUI URLs, screenshots, vault files, local absolute paths, and raw logs.
           required: true
