@@ -201,6 +201,41 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertIn("mcp__agent-personal-vault__apv_request_consent", docs)
         self.assertIn("dontAsk", docs)
 
+    def test_public_issue_forms_reject_secrets_and_link_private_reporting(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        template_dir = root / ".github" / "ISSUE_TEMPLATE"
+        private_report_url = (
+            "https://github.com/Driedsandwich/agent-personal-vault/security/advisories/new"
+        )
+        required_secret_classes = (
+            "credentials",
+            "API keys",
+            "passphrases",
+            "private keys",
+            "cookies",
+            "consent IDs",
+            "tokenized GUI URLs",
+        )
+
+        public_forms = sorted(path for path in template_dir.glob("*.yml") if path.name != "config.yml")
+        self.assertEqual(
+            [path.name for path in public_forms],
+            ["bug_report.yml", "security_report.yml"],
+        )
+        for form in public_forms:
+            text = form.read_text(encoding="utf-8")
+            guidance, safety = text.split("    id: safety", maxsplit=1)
+            self.assertIn(private_report_url, text, form.name)
+            for secret_class in required_secret_classes:
+                self.assertIn(secret_class, guidance, form.name)
+                self.assertIn(secret_class, safety, form.name)
+            self.assertIn("required: true", safety, form.name)
+
+        config = (template_dir / "config.yml").read_text(encoding="utf-8")
+        security = (root / "SECURITY.md").read_text(encoding="utf-8")
+        self.assertIn(private_report_url, config)
+        self.assertIn(private_report_url, security)
+
     def test_quickstart_docs_use_venv_before_editable_install(self) -> None:
         root = Path(__file__).resolve().parent.parent
         readme = (root / "README.md").read_text(encoding="utf-8")

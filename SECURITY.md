@@ -21,7 +21,7 @@ Rules:
 
 ## Reporting Vulnerabilities
 
-Open a private advisory or contact the maintainer privately if the issue involves a real user's personal data.
+Open a [private vulnerability report](https://github.com/Driedsandwich/agent-personal-vault/security/advisories/new) if the issue involves a real user's personal data, credentials, API keys, encryption passphrases, private keys, cookies, consent IDs, tokenized GUI URLs, or other sensitive details.
 
 Public issues are acceptable only when they contain no personal data, credentials, screenshots with raw values, or local private paths.
 
