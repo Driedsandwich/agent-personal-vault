@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
+import hmac
 import json
 import secrets
 import threading
@@ -15,6 +17,8 @@ from urllib.parse import parse_qs, urlparse
 
 from .audit import audit_summary, read_audit_events, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
+from .crypto_store import is_encrypted_payload
+from .private_io import private_file_exists, read_private_json
 from .schemas import DERIVED_FIELDS
 from .vault import check_summary, derived_fields, get_schema, load_store, local_user_path, normalize_value, store_path, store_path_warnings, write_store
 
@@ -125,6 +129,9 @@ let fields = {{}};
 let masked = false;
 let dirty = false;
 let timer = null;
+let storageContext = "";
+let storageProtection = "plain-json";
+let plaintextAcknowledgedContext = "";
 
 function esc(value) {{ return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }}
 function api(path, options={{}}) {{
@@ -233,17 +240,43 @@ async function loadAudit() {{
     <div class="hint">${{esc(ev.timestamp || "")}} / ${{esc(ev.actor || "")}} / outcome: ${{esc(ev.outcome || "")}} / raw_returned: ${{esc(ev.raw_returned)}}</div>
   </div>`).join("") : "<p class='muted'>監査イベントなし</p>";
 }}
-function scheduleSave() {{ clearTimeout(timer); timer = setTimeout(() => save(false), 900); }}
-async function load() {{ const data = await api("/api/profile"); fields = data.fields || {{}}; render(); await loadConsentRequests(); await loadAudit(); dirty=false; setState("保存済み"); }}
+function requiresPlaintextAcknowledgement() {{ return storageProtection === "plain-json" && plaintextAcknowledgedContext !== storageContext; }}
+function scheduleSave() {{
+  clearTimeout(timer);
+  if (requiresPlaintextAcknowledgement()) {{ setState("未保存（保存確認が必要）"); return; }}
+  timer = setTimeout(() => save(false).catch(err => {{ plaintextAcknowledgedContext=""; setState(err.message); }}), 900);
+}}
+async function load() {{
+  const data = await api("/api/profile");
+  const nextContext = String(data.storage_context || "");
+  if (storageContext && storageContext !== nextContext) plaintextAcknowledgedContext = "";
+  storageContext = nextContext;
+  storageProtection = String(data.storage_protection || "plain-json");
+  fields = data.fields || {{}};
+  render(); await loadConsentRequests(); await loadAudit(); dirty=false; setState("保存済み");
+}}
+async function acknowledgeStorage() {{
+  await api("/api/storage/acknowledge", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{storage_context:storageContext}})}});
+  plaintextAcknowledgedContext = storageContext;
+}}
 async function save(show=true) {{
   clearTimeout(timer);
   if (show) {{
-    const ok = window.confirm("保存前の確認: Agent Personal Vaultはalpha版で、既定では保存データを暗号化しません。平文JSONはbackup、cloud sync、snapshot、手動コピーに残る可能性があります。dummy dataか、この端末に保存してよい値だけを保存してください。続行しますか？");
-    if (!ok) {{ setState("保存を中止しました"); return; }}
+    if (requiresPlaintextAcknowledgement()) {{
+      const ok = window.confirm("保存前の確認: Agent Personal Vaultはalpha版で、既定では保存データを暗号化しません。平文JSONはbackup、cloud sync、snapshot、手動コピーに残る可能性があります。dummy dataか、この端末に保存してよい値だけを保存してください。続行しますか？");
+      if (!ok) {{ setState("保存を中止しました"); return; }}
+      await acknowledgeStorage();
+    }}
   }}
+  if (requiresPlaintextAcknowledgement()) {{ setState("未保存（保存確認が必要）"); return; }}
   fields = collect();
   setState("保存中");
-  await api("/api/profile", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{fields}})}});
+  try {{
+    await api("/api/profile", {{method:"POST", headers:{{"Content-Type":"application/json"}}, body:JSON.stringify({{fields, storage_context:storageContext}})}});
+  }} catch (err) {{
+    plaintextAcknowledgedContext = "";
+    throw err;
+  }}
   dirty=false; setState(show ? "保存しました" : "保存済み");
   await load();
 }}
@@ -290,6 +323,18 @@ def profile_view_payload(path: Path, schema_name: str) -> dict:
     return {"fields": store.get("fields", {}), "summary": check_summary(store, path)}
 
 
+def storage_protection(path: Path) -> str:
+    if not private_file_exists(path):
+        return "plain-json"
+    return "encrypted" if is_encrypted_payload(read_private_json(path)) else "plain-json"
+
+
+def storage_context(path: Path, secret: bytes) -> tuple[str, str]:
+    protection = storage_protection(path)
+    identity = f"{path.absolute()}\0{protection}".encode("utf-8")
+    return hmac.new(secret, identity, hashlib.sha256).hexdigest(), protection
+
+
 def audit_view_payload(path: Path, limit: int = 10) -> dict:
     events = []
     for event in read_audit_events(path, limit=limit):
@@ -330,6 +375,9 @@ class Handler(BaseHTTPRequestHandler):
     def token_ok(self) -> bool:
         query = parse_qs(urlparse(self.path).query)
         return query.get("token", [""])[0] == self.server.gui_token
+
+    def current_storage_context(self) -> tuple[str, str]:
+        return storage_context(self.server.store_path, self.server.storage_context_secret)
 
     def send_json(self, status: HTTPStatus, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -376,6 +424,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = profile_view_payload(self.server.store_path, self.server.schema_name)
+                context, protection = self.current_storage_context()
+                payload["storage_context"] = context
+                payload["storage_protection"] = protection
             except Exception:
                 self.send_internal_error()
                 return
@@ -408,6 +459,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed_path = urlparse(self.path).path
+        if parsed_path == "/api/storage/acknowledge":
+            if not self.token_ok():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+                return
+            payload = self.read_json_body()
+            if payload is None:
+                return
+            current_context, _protection = self.current_storage_context()
+            if str(payload.get("storage_context") or "") != current_context:
+                self.send_json(HTTPStatus.CONFLICT, {"error": "storage context changed; reload and confirm again"})
+                return
+            self.server.plaintext_acknowledged_context = current_context
+            self.send_json(HTTPStatus.OK, {"ok": True})
+            return
         if parsed_path in {"/api/consent/approve", "/api/consent/deny"}:
             if not self.token_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
@@ -441,6 +506,13 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(incoming, dict):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": "fields must be an object"})
             return
+        current_context, protection = self.current_storage_context()
+        if str(payload.get("storage_context") or "") != current_context:
+            self.send_json(HTTPStatus.CONFLICT, {"error": "storage context changed; reload and confirm again"})
+            return
+        if protection == "plain-json" and self.server.plaintext_acknowledged_context != current_context:
+            self.send_json(HTTPStatus.PRECONDITION_REQUIRED, {"error": "plaintext storage acknowledgement required"})
+            return
         store = save_profile_fields(self.server.store_path, self.server.schema_name, incoming)
         self.send_json(HTTPStatus.OK, {"ok": True, "summary": check_summary(store, self.server.store_path)})
 
@@ -451,6 +523,8 @@ def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> N
     server.gui_token = token  # type: ignore[attr-defined]
     server.store_path = path  # type: ignore[attr-defined]
     server.schema_name = schema_name  # type: ignore[attr-defined]
+    server.storage_context_secret = secrets.token_bytes(32)  # type: ignore[attr-defined]
+    server.plaintext_acknowledged_context = None  # type: ignore[attr-defined]
     actual_port = server.server_address[1]
     url = f"http://127.0.0.1:{actual_port}/?token={token}"
     load_store(create=True, path=path, schema_name=schema_name)

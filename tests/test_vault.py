@@ -955,6 +955,79 @@ class VaultTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=5)
 
+    def test_gui_http_requires_plaintext_acknowledgement_bound_to_storage_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "vault.json"
+            other_path = root / "other-vault.json"
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            server.gui_token = token  # type: ignore[attr-defined]
+            server.store_path = path  # type: ignore[attr-defined]
+            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            server.storage_context_secret = b"synthetic-storage-context-secret"  # type: ignore[attr-defined]
+            server.plaintext_acknowledged_context = None  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+
+            def get_profile() -> dict:
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    return json.loads(response.read().decode("utf-8"))
+
+            def post_json(endpoint: str, payload: dict):
+                url = f"http://127.0.0.1:{server.server_address[1]}{endpoint}?token={token}"
+                request = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
+                return urllib.request.urlopen(request, timeout=5)
+
+            try:
+                storage_context = str(get_profile()["storage_context"])
+                update = {"fields": {"FAMILY_NAME": "Example"}, "storage_context": storage_context}
+
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    post_json("/api/profile", update)
+                self.assertEqual(raised.exception.code, 428)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("plaintext storage acknowledgement required", body)
+                self.assertNotIn(token, body)
+                self.assertNotIn(str(path), body)
+                self.assertEqual(load_store(path=path)["fields"]["FAMILY_NAME"], "")
+
+                with post_json("/api/storage/acknowledge", {"storage_context": storage_context}) as response:
+                    self.assertEqual(response.status, 200)
+                with post_json("/api/profile", update) as response:
+                    self.assertEqual(response.status, 200)
+                self.assertEqual(load_store(path=path)["fields"]["FAMILY_NAME"], "Example")
+
+                server.store_path = other_path  # type: ignore[attr-defined]
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    post_json("/api/profile", update)
+                self.assertEqual(raised.exception.code, 409)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("storage context changed", body)
+                self.assertNotIn(token, body)
+                self.assertNotIn(str(other_path), body)
+                self.assertFalse(other_path.exists())
+
+                server.store_path = path  # type: ignore[attr-defined]
+                path.write_text(json.dumps({"storage": crypto_store.ENCRYPTED_STORAGE}), encoding="utf-8")
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    post_json("/api/profile", update)
+                self.assertEqual(raised.exception.code, 409)
+                raised.exception.close()
+                self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["storage"], crypto_store.ENCRYPTED_STORAGE)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_gui_request_target_redacts_token_query(self) -> None:
         redacted = _redact_request_target("/api/profile?token=secret-token&x=1")
         self.assertEqual(redacted, "/api/profile?token=[redacted]")
@@ -1025,6 +1098,20 @@ class VaultTests(unittest.TestCase):
         self.assertIn("dummy data", html)
         self.assertIn('if (show) {', html)
         self.assertIn('window.confirm', html)
+
+    def test_gui_page_does_not_schedule_plaintext_autosave_before_acknowledgement(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn("requiresPlaintextAcknowledgement", html)
+        self.assertIn("保存確認が必要", html)
+        self.assertIn("/api/storage/acknowledge", html)
+        self.assertIn("plaintextAcknowledgedContext = storageContext", html)
+        self.assertIn(
+            'if (requiresPlaintextAcknowledgement()) { setState("未保存（保存確認が必要）"); return; }\n'
+            '  timer = setTimeout(() => save(false)',
+            html,
+        )
+        self.assertLess(html.index("if (!ok)"), html.index("await acknowledgeStorage()"))
 
     def test_gui_page_shows_synced_store_warning_when_provided(self) -> None:
         html = page_html("dummy-token", "job_hunting_profile", store_path_warnings(Path("/tmp/Dropbox/apv/vault.json")))
