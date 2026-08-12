@@ -44,38 +44,136 @@ SYNC_PATH_MARKERS = {
 
 TASK_HINTS = [
     {
-        "name": "identity",
-        "keywords": ("identity", "name", "氏名", "名前", "本人", "プロフィール", "profile"),
-        "keys": ("FULL_NAME", "FULL_NAME_KANA", "FAMILY_NAME", "GIVEN_NAME", "FAMILY_NAME_KANA", "GIVEN_NAME_KANA", "BIRTH_DATE"),
-        "reason": "identity fields are commonly needed for profile or application forms",
+        "name": "full_name",
+        "keywords": ("identity", "name", "氏名", "名前", "本人"),
+        "keys": ("FULL_NAME",),
+        "reason": "a full name is the narrow candidate for a name request",
     },
     {
-        "name": "contact",
-        "keywords": ("contact", "address", "住所", "連絡先", "郵便", "電話", "メール", "email", "phone"),
-        "keys": ("POSTAL_CODE", "PREFECTURE", "CITY_ADDRESS", "STREET_ADDRESS", "BUILDING_NAME", "ADDRESS", "PHONE", "EMAIL"),
-        "reason": "contact fields are commonly needed for reachable applicant information",
+        "name": "full_name_kana",
+        "keywords": ("name kana", "phonetic name", "ふりがな", "フリガナ", "氏名カナ", "名前カナ"),
+        "keys": ("FULL_NAME_KANA",),
+        "reason": "a phonetic full name is the narrow candidate for a kana request",
     },
     {
-        "name": "education",
-        "keywords": ("education", "school", "university", "学歴", "学校", "大学", "大学院", "卒業", "修了", "専攻"),
-        "keys": (
-            "GRADUATION_PERIOD",
-            "SCHOOL_TYPE",
-            "ACADEMIC_FIELD_TYPE",
-            "UNIVERSITY_NAME",
-            "FACULTY_NAME",
-            "DEPARTMENT_NAME",
-            "GRADUATE_SCHOOL_NAME",
-            "GRADUATE_MAJOR_NAME",
-            "DEGREE",
-            "ENROLLMENT_DATE",
-            "COMPLETION_DATE",
-            "GRADUATE_ENROLLMENT_DATE",
-            "GRADUATE_COMPLETION_DATE",
-            "HIGH_SCHOOL_NAME",
-            "HIGH_SCHOOL_GRADUATION_DATE",
-        ),
-        "reason": "education fields are commonly needed for academic history sections",
+        "name": "birth_date",
+        "keywords": ("birth date", "date of birth", "birthday", "生年月日", "誕生日"),
+        "keys": ("BIRTH_DATE",),
+        "reason": "a birth date is the narrow candidate for a birth-date request",
+    },
+    {
+        "name": "postal_code",
+        "keywords": ("postal code", "zip code", "郵便番号"),
+        "keys": ("POSTAL_CODE",),
+        "reason": "a postal code is the narrow candidate for a postal-code request",
+    },
+    {
+        "name": "address",
+        "keywords": ("address", "住所"),
+        "keys": ("ADDRESS",),
+        "reason": "the submission address is the narrow candidate for an address request",
+    },
+    {
+        "name": "phone",
+        "keywords": ("phone", "telephone", "電話", "電話番号"),
+        "keys": ("PHONE",),
+        "reason": "a phone number is the narrow candidate for a phone request",
+    },
+    {
+        "name": "email",
+        "keywords": ("email address", "e-mail address", "email", "e-mail", "メール", "メールアドレス"),
+        "keys": ("EMAIL",),
+        "reason": "an email address is the narrow candidate for an email request",
+    },
+    {
+        "name": "graduation_period",
+        "keywords": ("graduation period", "completion period", "卒業予定", "修了予定"),
+        "keys": ("GRADUATION_PERIOD",),
+        "reason": "the graduation period is the narrow candidate for an expected-completion request",
+    },
+    {
+        "name": "school_type",
+        "keywords": ("school type", "学校区分"),
+        "keys": ("SCHOOL_TYPE",),
+        "reason": "the school type is the narrow candidate for a school-type request",
+    },
+    {
+        "name": "academic_field_type",
+        "keywords": ("academic field type", "文理区分"),
+        "keys": ("ACADEMIC_FIELD_TYPE",),
+        "reason": "the academic field type is the narrow candidate for a field-type request",
+    },
+    {
+        "name": "university_name",
+        "keywords": ("university name", "大学名"),
+        "keys": ("UNIVERSITY_NAME",),
+        "reason": "the university name is the narrow candidate for a university-name request",
+    },
+    {
+        "name": "faculty_name",
+        "keywords": ("faculty name", "学部名"),
+        "keys": ("FACULTY_NAME",),
+        "reason": "the faculty name is the narrow candidate for a faculty request",
+    },
+    {
+        "name": "department_name",
+        "keywords": ("department name", "学科名"),
+        "keys": ("DEPARTMENT_NAME",),
+        "reason": "the department name is the narrow candidate for a department request",
+    },
+    {
+        "name": "graduate_school_name",
+        "keywords": ("graduate school name", "大学院名", "研究科名"),
+        "keys": ("GRADUATE_SCHOOL_NAME",),
+        "reason": "the graduate-school name is the narrow candidate for a graduate-school request",
+    },
+    {
+        "name": "graduate_major_name",
+        "keywords": ("graduate major", "専攻名"),
+        "keys": ("GRADUATE_MAJOR_NAME",),
+        "reason": "the graduate major is the narrow candidate for a major request",
+    },
+    {
+        "name": "degree",
+        "keywords": ("degree", "学位"),
+        "keys": ("DEGREE",),
+        "reason": "the degree is the narrow candidate for a degree request",
+    },
+    {
+        "name": "university_enrollment_date",
+        "keywords": ("university enrollment date", "大学入学年月"),
+        "keys": ("ENROLLMENT_DATE",),
+        "reason": "the university enrollment date is the narrow candidate for that date request",
+    },
+    {
+        "name": "university_completion_date",
+        "keywords": ("university completion date", "大学卒業年月"),
+        "keys": ("COMPLETION_DATE",),
+        "reason": "the university completion date is the narrow candidate for that date request",
+    },
+    {
+        "name": "graduate_enrollment_date",
+        "keywords": ("graduate enrollment date", "大学院入学年月"),
+        "keys": ("GRADUATE_ENROLLMENT_DATE",),
+        "reason": "the graduate enrollment date is the narrow candidate for that date request",
+    },
+    {
+        "name": "graduate_completion_date",
+        "keywords": ("graduate completion date", "大学院修了年月"),
+        "keys": ("GRADUATE_COMPLETION_DATE",),
+        "reason": "the graduate completion date is the narrow candidate for that date request",
+    },
+    {
+        "name": "high_school_name",
+        "keywords": ("high school name", "高校名"),
+        "keys": ("HIGH_SCHOOL_NAME",),
+        "reason": "the high-school name is the narrow candidate for a high-school request",
+    },
+    {
+        "name": "high_school_graduation_date",
+        "keywords": ("high school graduation date", "高校卒業年月"),
+        "keys": ("HIGH_SCHOOL_GRADUATION_DATE",),
+        "reason": "the high-school graduation date is the narrow candidate for that date request",
     },
     {
         "name": "qualifications",
@@ -364,9 +462,23 @@ def planning_hints(store: dict, task: str) -> dict:
     fields = store.get("fields", {})
     matched = []
     seen: set[str] = set()
-    for hint in TASK_HINTS:
-        if not any(keyword.lower() in query for keyword in hint["keywords"]):
+    remaining_query = query
+    specific_first = sorted(
+        enumerate(TASK_HINTS),
+        key=lambda item: max(len(keyword) for keyword in item[1]["keywords"]),
+        reverse=True,
+    )
+    selected_hints = []
+    for original_index, hint in specific_first:
+        keywords = sorted((keyword.lower() for keyword in hint["keywords"]), key=len, reverse=True)
+        matched_keyword = next((keyword for keyword in keywords if keyword in remaining_query), None)
+        if matched_keyword is None:
             continue
+        selected_hints.append((original_index, hint))
+        for keyword in keywords:
+            remaining_query = remaining_query.replace(keyword, " ")
+
+    for _, hint in sorted(selected_hints):
         keys = []
         for key in hint["keys"]:
             if key in seen:

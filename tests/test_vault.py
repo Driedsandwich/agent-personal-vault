@@ -405,8 +405,42 @@ class VaultTests(unittest.TestCase):
             self.assertFalse(hints["task_echoed"])
             self.assertIn("FULL_NAME", encoded)
             self.assertIn("EMAIL", encoded)
+            candidate_keys = {
+                item["key"]
+                for hint in hints["matched_hints"]
+                for item in hint["candidate_keys"]
+            }
+            self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
             self.assertNotIn("山田", encoded)
             self.assertNotIn("private.person@example.test", encoded)
+
+    def test_planning_hints_keep_narrow_tasks_to_directly_relevant_keys(self) -> None:
+        store = blank_store()
+        cases = {
+            "email": {"EMAIL"},
+            "email address": {"EMAIL"},
+            "電話番号": {"PHONE"},
+            "住所": {"ADDRESS"},
+            "name": {"FULL_NAME"},
+            "name kana": {"FULL_NAME_KANA"},
+            "生年月日": {"BIRTH_DATE"},
+            "大学名": {"UNIVERSITY_NAME"},
+            "university name": {"UNIVERSITY_NAME"},
+            "name and university name": {"FULL_NAME", "UNIVERSITY_NAME"},
+        }
+        for task, expected in cases.items():
+            with self.subTest(task=task):
+                hints = planning_hints(store, task)
+                candidate_keys = {
+                    item["key"]
+                    for hint in hints["matched_hints"]
+                    for item in hint["candidate_keys"]
+                }
+                self.assertEqual(candidate_keys, expected)
+
+        for generic_task in ("contact", "連絡先", "profile", "education"):
+            with self.subTest(generic_task=generic_task):
+                self.assertEqual(planning_hints(store, generic_task)["matched_hints"], [])
 
     def test_schema_context_has_no_raw_values(self) -> None:
         context = schema_context("job_hunting_profile")
@@ -477,6 +511,12 @@ class VaultTests(unittest.TestCase):
             self.assertFalse(payload["planning_hints"]["task_echoed"])
             self.assertIn("FULL_NAME", result.stdout)
             self.assertIn("EMAIL", result.stdout)
+            candidate_keys = {
+                item["key"]
+                for hint in payload["planning_hints"]["matched_hints"]
+                for item in hint["candidate_keys"]
+            }
+            self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
             self.assertNotIn("山田", result.stdout)
             self.assertNotIn("private.person@example.test", result.stdout)
 
@@ -2216,6 +2256,13 @@ class VaultTests(unittest.TestCase):
             self.assertIn("planning_hints", result.stdout)
             self.assertIn("FULL_NAME", result.stdout)
             self.assertIn("EMAIL", result.stdout)
+            context_payload = json.loads(responses[2]["result"]["content"][0]["text"])
+            candidate_keys = {
+                item["key"]
+                for hint in context_payload["planning_hints"]["matched_hints"]
+                for item in hint["candidate_keys"]
+            }
+            self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
 
     def test_mcp_context_redacts_raw_looking_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
