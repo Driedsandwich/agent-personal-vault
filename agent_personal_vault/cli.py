@@ -250,7 +250,7 @@ def command_encryption(args: argparse.Namespace) -> None:
             strength_issue = passphrase_strength_issue(passphrase)
             if strength_issue is not None and args.allow_weak_passphrase:
                 print(
-                    f"# WARNING: weak passphrase override: {strength_issue}; copied vault bytes are easier to guess offline.",
+                    "# WARNING: weak passphrase override accepted; copied vault bytes are easier to guess offline.",
                     file=sys.stderr,
                 )
             write_store(
