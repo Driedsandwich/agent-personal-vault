@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Narrow raw-free planning hints to directly relevant intent-specific keys instead of broad identity, contact, or education bundles.
 - Make every public issue form explicitly reject secret capabilities and link to the verified private vulnerability-reporting route.
 - Make GUI mask mode hide complete field values, selected options, and derived names instead of retaining identifying fragments on screen.
 - Apply one fail-closed privacy policy to both tracked release source and every regular wheel/sdist member, rejecting incomplete inventories, nonregular entries, invalid UTF-8, private path fragments, obvious credentials, and private-data patterns without echoing matched values.
