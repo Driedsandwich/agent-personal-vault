@@ -20,6 +20,7 @@ PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "agent-personal-vault"
 SERVER_VERSION = __version__
 VALIDATION_ERROR_MESSAGES = (
+    "Invalid arguments",
     "MCP request_consent supports one-key get requests only; bulk env requests are not part of the public-alpha agent path",
     "purpose is required",
 )
@@ -81,6 +82,29 @@ def tool_definitions() -> list[dict[str, Any]]:
     ]
 
 
+def validate_tool_arguments(name: str, arguments: dict[str, Any]) -> None:
+    tools = {tool["name"]: tool for tool in tool_definitions()}
+    if name not in tools:
+        raise KeyError(name)
+
+    schema = tools[name]["inputSchema"]
+    properties = schema.get("properties", {})
+    required = schema.get("required", [])
+    if schema.get("additionalProperties") is False and any(key not in properties for key in arguments):
+        raise ValueError("Invalid arguments")
+    if any(key not in arguments for key in required):
+        raise ValueError("Invalid arguments")
+
+    for key, value in arguments.items():
+        property_schema = properties[key]
+        if property_schema.get("type") != "string" or not isinstance(value, str):
+            raise ValueError("Invalid arguments")
+        if "enum" in property_schema and value not in property_schema["enum"]:
+            if name == "apv.request_consent" and key == "action":
+                raise ValueError(VALIDATION_ERROR_MESSAGES[1])
+            raise ValueError("Invalid arguments")
+
+
 class MCPServer:
     def __init__(self, path: Path, schema_name: str) -> None:
         self.path = path
@@ -94,6 +118,7 @@ class MCPServer:
 
     def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         arguments = arguments or {}
+        validate_tool_arguments(name, arguments)
         if name == "apv.schema":
             return text_json(schema_context(self.schema_name))
         if name == "apv.context":
