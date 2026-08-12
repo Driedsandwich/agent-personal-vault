@@ -267,6 +267,14 @@ agent-personal-vault encryption status
 agent-personal-vault encryption encrypt --purpose "enable local at-rest encryption"
 ```
 
+新規暗号化では12文字以上かつ明白に予測しにくいpassphraseを要求します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。
+
+暗号化を解除すると同じ保存先が平文JSONへ置き換わり、backup、sync、snapshotにも平文が残り得ます。専用の確認flagなしでは実行されません。
+
+```sh
+agent-personal-vault encryption decrypt --purpose "disable local at-rest encryption" --i-understand-plaintext-persistence
+```
+
 暗号化されたvaultを通常CLIで読む場合は、環境変数でpassphraseを渡します。値はログや公開Issueへ出さないでください。
 
 ```sh
