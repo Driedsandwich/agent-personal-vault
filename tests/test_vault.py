@@ -8,6 +8,7 @@ import sys
 import tempfile
 import threading
 import tomllib
+import unicodedata
 import urllib.error
 import urllib.request
 import unittest
@@ -23,8 +24,11 @@ from agent_personal_vault.consent import (
     ConsentError,
     consent_path,
     create_consent_request,
+    issue_consent,
+    list_consents,
     list_consent_requests,
     resolve_consent_request,
+    validate_and_consume_consent,
 )
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
@@ -2205,7 +2209,6 @@ class VaultTests(unittest.TestCase):
         cases = [
             "contact private.person @ example.test for local draft",
             "contact private.person@example。test for local draft",
-            "/" + "\u200b" + "Users/example/private/vault.json",
         ]
         for raw_looking_purpose in cases:
             with self.subTest(raw_looking_purpose=raw_looking_purpose), tempfile.TemporaryDirectory() as tmp:
@@ -2225,6 +2228,218 @@ class VaultTests(unittest.TestCase):
                 self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
                 self.assertNotIn(raw_looking_purpose, encoded_events)
                 self.assertNotIn(raw_looking_purpose, listed_requests)
+
+    def test_consent_binding_distinguishes_redacted_purposes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            approved_purpose = "contact first.person@example.test"
+            colliding_display_purpose = "contact second.person@example.test"
+
+            grant = issue_consent(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose=approved_purpose,
+                actor="test",
+            )
+
+            self.assertEqual(grant["purpose"], "[redacted]")
+            self.assertNotIn("purpose_binding", grant)
+            with self.assertRaisesRegex(ConsentError, "consent token purpose mismatch"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id=grant["id"],
+                    action="get",
+                    key="EMAIL",
+                    purpose=colliding_display_purpose,
+                    actor="test",
+                )
+            validate_and_consume_consent(
+                vault_path=path,
+                consent_id=grant["id"],
+                action="get",
+                key="EMAIL",
+                purpose=approved_purpose,
+                actor="test",
+            )
+
+            persisted = consent_path(path).read_text(encoding="utf-8")
+            public_views = json.dumps(
+                {
+                    "grants": list_consents(path, include_used=True),
+                    "audit": read_audit_events(path, limit=20),
+                },
+                ensure_ascii=False,
+            )
+            self.assertRegex(json.loads(persisted)["grants"][0]["purpose_binding"], r"\Asha256:[0-9a-f]{64}\Z")
+            self.assertNotIn("purpose_binding", public_views)
+            self.assertNotIn(approved_purpose, persisted)
+            self.assertNotIn(colliding_display_purpose, persisted)
+
+    def test_request_approval_preserves_exact_purpose_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            approved_purpose = "contact first.person@example.test"
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose=approved_purpose,
+                actor="test",
+            )
+            result = resolve_consent_request(
+                vault_path=path,
+                request_id=request["id"],
+                approve=True,
+                actor="test",
+            )
+            self.assertNotIn("purpose_binding", request)
+            self.assertNotIn("purpose_binding", result["grant"])
+
+            with self.assertRaisesRegex(ConsentError, "consent token purpose mismatch"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id=result["grant"]["id"],
+                    action="get",
+                    key="EMAIL",
+                    purpose="contact second.person@example.test",
+                    actor="test",
+                )
+            validate_and_consume_consent(
+                vault_path=path,
+                consent_id=result["grant"]["id"],
+                action="get",
+                key="EMAIL",
+                purpose=approved_purpose,
+                actor="test",
+            )
+
+    def test_consent_purpose_rejects_empty_and_format_controls_before_mutation(self) -> None:
+        cases = ["   ", "review\u202eapproved", "review\u200bapproved"]
+        for purpose in cases:
+            with self.subTest(purpose=repr(purpose)), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "vault.json"
+                load_store(create=True, path=path)
+
+                with self.assertRaises(ConsentError):
+                    issue_consent(
+                        vault_path=path,
+                        action="get",
+                        key="EMAIL",
+                        purpose=purpose,
+                        actor="test",
+                    )
+                with self.assertRaises(ConsentError):
+                    create_consent_request(
+                        vault_path=path,
+                        action="get",
+                        key="EMAIL",
+                        purpose=purpose,
+                        actor="test",
+                    )
+
+                self.assertFalse(consent_path(path).exists())
+                self.assertEqual(read_audit_events(path, limit=20), [])
+
+    def test_persisted_format_control_purpose_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [],
+                        "requests": [
+                            {
+                                "id": "r_123456789012345678901234",
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "review\u202eapproved",
+                                "requested_at": "2026-08-12T00:00:00+00:00",
+                                "resolved_at": "",
+                                "status": "pending",
+                                "actor": "test",
+                                "source": "request",
+                                "consent_id": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
+                list_consent_requests(path)
+
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [
+                            {
+                                "id": "c_synthetic",
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "review\u202eapproved",
+                                "purpose_binding": "sha256:" + ("0" * 64),
+                                "issued_at": "2026-08-12T00:00:00+00:00",
+                                "expires_at": "2026-08-12T01:00:00+00:00",
+                                "used_at": "",
+                                "actor": "test",
+                            }
+                        ],
+                        "requests": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
+                list_consents(path)
+
+    def test_legacy_consent_without_binding_is_visible_but_fails_closed_on_consume(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [
+                            {
+                                "id": "c_legacy",
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "review email",
+                                "issued_at": "2026-08-12T00:00:00+00:00",
+                                "expires_at": "2099-08-12T01:00:00+00:00",
+                                "used_at": "",
+                                "actor": "test",
+                            }
+                        ],
+                        "requests": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(list_consents(path)[0]["purpose"], "review email")
+            with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id="c_legacy",
+                    action="get",
+                    key="EMAIL",
+                    purpose="review email",
+                    actor="test",
+                )
+
+    def test_audit_clean_text_makes_format_controls_visible(self) -> None:
+        cleaned = _clean_text("review\u202eapproved")
+        self.assertEqual(cleaned, "review[U+202E]approved")
+        self.assertFalse(any(unicodedata.category(char) == "Cf" for char in cleaned))
 
     def test_mcp_consent_request_rejects_env_bulk_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

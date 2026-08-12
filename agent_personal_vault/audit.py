@@ -163,10 +163,15 @@ def audit_path(vault_path: Path | None = None) -> Path:
 def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
-    text = " ".join(str(value).split())
-    detection_text = _detection_text(text)
+    raw_text = str(value)
+    detection_text = _detection_text(raw_text)
     if _looks_raw_like(detection_text):
         return "[redacted]"
+    visible_text = "".join(
+        f"[U+{ord(char):04X}]" if unicodedata.category(char) == "Cf" else char
+        for char in raw_text
+    )
+    text = " ".join(visible_text.split())
     return text[:240]
 
 

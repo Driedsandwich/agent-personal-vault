@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import secrets
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +27,7 @@ from .vault import now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
 REQUEST_ID_PATTERN = re.compile(r"r_[A-Za-z0-9_-]{24}")
+PURPOSE_BINDING_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class ConsentError(ValueError):
@@ -35,6 +38,43 @@ def _validate_request_id(value: Any) -> str:
     if not isinstance(value, str) or REQUEST_ID_PATTERN.fullmatch(value) is None:
         raise ConsentError("consent request id is invalid")
     return value
+
+
+def _normalize_purpose(value: Any) -> str:
+    if not isinstance(value, str):
+        raise ConsentError("consent purpose is invalid")
+    if any(unicodedata.category(char) == "Cf" for char in value):
+        raise ConsentError("consent purpose contains unsupported format controls")
+    normalized = unicodedata.normalize("NFKC", value)
+    if any(unicodedata.category(char) == "Cf" for char in normalized):
+        raise ConsentError("consent purpose contains unsupported format controls")
+    normalized = " ".join(normalized.split())
+    if not normalized:
+        raise ConsentError("consent purpose is required")
+    return normalized
+
+
+def _purpose_binding(normalized_purpose: str) -> str:
+    digest = hashlib.sha256(normalized_purpose.encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _validate_purpose_binding(value: Any) -> str:
+    if not isinstance(value, str) or PURPOSE_BINDING_PATTERN.fullmatch(value) is None:
+        raise ConsentError("consent purpose binding is invalid")
+    return value
+
+
+def _validate_stored_purpose(value: Any) -> str:
+    if not isinstance(value, str):
+        raise ConsentError("consent purpose is invalid")
+    if any(unicodedata.category(char) == "Cf" for char in value):
+        raise ConsentError("consent purpose contains unsupported format controls")
+    return value
+
+
+def _public_record(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in record.items() if key != "purpose_binding"}
 
 
 def consent_path(vault_path: Path | None = None) -> Path:
@@ -73,14 +113,23 @@ def _build_grant(
     actor: str,
     source: str,
     human_operated: bool,
+    purpose_binding: str | None = None,
 ) -> dict[str, Any]:
+    if purpose_binding is None:
+        normalized_purpose = _normalize_purpose(purpose)
+        purpose_binding = _purpose_binding(normalized_purpose)
+        display_purpose = _clean_text(normalized_purpose)
+    else:
+        purpose_binding = _validate_purpose_binding(purpose_binding)
+        display_purpose = _validate_stored_purpose(purpose)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     expires_at = now + timedelta(seconds=max(1, ttl_seconds))
     return {
         "id": "c_" + secrets.token_urlsafe(18),
         "action": action,
         "key": key,
-        "purpose": _clean_text(purpose),
+        "purpose": display_purpose,
+        "purpose_binding": purpose_binding,
         "issued_at": now.isoformat(),
         "expires_at": expires_at.isoformat(),
         "used_at": "",
@@ -104,6 +153,16 @@ def _load_state(path: Path) -> dict[str, Any]:
         for request in requests:
             if isinstance(request, dict):
                 _validate_request_id(request.get("id"))
+                _validate_stored_purpose(request.get("purpose"))
+                if "purpose_binding" in request:
+                    _validate_purpose_binding(request.get("purpose_binding"))
+    grants = payload["grants"]
+    if isinstance(grants, list):
+        for grant in grants:
+            if isinstance(grant, dict):
+                _validate_stored_purpose(grant.get("purpose"))
+                if "purpose_binding" in grant:
+                    _validate_purpose_binding(grant.get("purpose_binding"))
     return payload
 
 
@@ -161,7 +220,7 @@ def issue_consent(
         source=source,
         human_operated=human_operated,
     )
-    return grant
+    return _public_record(grant)
 
 
 def create_consent_request(
@@ -172,11 +231,13 @@ def create_consent_request(
     purpose: str,
     actor: str = "cli",
 ) -> dict[str, Any]:
+    normalized_purpose = _normalize_purpose(purpose)
     request = {
         "id": "r_" + secrets.token_urlsafe(18),
         "action": action,
         "key": key,
-        "purpose": _clean_text(purpose),
+        "purpose": _clean_text(normalized_purpose),
+        "purpose_binding": _purpose_binding(normalized_purpose),
         "requested_at": now_iso(),
         "resolved_at": "",
         "status": "pending",
@@ -205,7 +266,7 @@ def create_consent_request(
         human_operated=False,
         request_id=request["id"],
     )
-    return request
+    return _public_record(request)
 
 
 def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> list[dict[str, Any]]:
@@ -279,6 +340,7 @@ def resolve_consent_request(
                 actor=actor,
                 source="request_approval",
                 human_operated=actor in {"cli", "gui"},
+                purpose_binding=_validate_purpose_binding(request.get("purpose_binding")),
             )
             grants = state.setdefault("grants", [])
             if not isinstance(grants, list):
@@ -297,7 +359,7 @@ def resolve_consent_request(
                 "human_operated": actor in {"cli", "gui"},
                 "request_id": request_id,
             }
-            result = {"request_id": request_id, "grant": grant}
+            result = {"request_id": request_id, "grant": _public_record(grant)}
             break
         else:
             raise ConsentError("consent request not found")
@@ -316,6 +378,8 @@ def validate_and_consume_consent(
     purpose: str,
     actor: str = "cli",
 ) -> dict[str, Any]:
+    normalized_purpose = _normalize_purpose(purpose)
+    provided_binding = _purpose_binding(normalized_purpose)
     path = consent_path(vault_path)
     with _state_lock(path):
         state = _load_state(path)
@@ -331,14 +395,15 @@ def validate_and_consume_consent(
                 raise ConsentError("consent token action mismatch")
             if grant.get("key") != key:
                 raise ConsentError("consent token key mismatch")
-            if grant.get("purpose") != _clean_text(purpose):
+            stored_binding = _validate_purpose_binding(grant.get("purpose_binding"))
+            if not secrets.compare_digest(stored_binding, provided_binding):
                 raise ConsentError("consent token purpose mismatch")
             expires_at = _parse_expires_at(grant.get("expires_at"))
             if datetime.now(timezone.utc).replace(microsecond=0) > expires_at:
                 raise ConsentError("consent token has expired")
             grant["used_at"] = now_iso()
             _write_state(path, state)
-            result = dict(grant)
+            result = _public_record(grant)
             break
         else:
             raise ConsentError("consent token not found")

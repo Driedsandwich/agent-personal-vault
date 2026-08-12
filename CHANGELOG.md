@@ -14,6 +14,8 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Bind consent authorization to a SHA-256 digest of the exact NFKC-normalized purpose instead of the lossy display-redacted label, while keeping the binding out of CLI, MCP, GUI, list, and audit output.
+- Reject empty consent purposes and Unicode format controls before state or audit mutation, fail closed on unsafe restored state, and render any audit-only format controls as visible code-point markers.
 - Reject malformed persisted consent request IDs using the generated base64url grammar before they reach CLI, MCP, or GUI rendering and resolution paths.
 - Render GUI consent decisions with inert data attributes and DOM event listeners instead of embedding persisted request IDs in inline JavaScript handlers.
 - Require a GUI-session plaintext-storage acknowledgement before autosave, and bind that acknowledgement to an opaque destination/protection context so it cannot be reused after the store path or at-rest protection changes.
@@ -23,6 +25,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add regressions for colliding redacted purpose labels, request-to-grant binding preservation, nonprinting control rejection, restored-state validation, and raw-free public projections.
 - Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.
 - Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.
 - Add regressions for permissive parents, symbolic-link and hard-link targets, target swaps, raw-free CLI failure output, artifact tampering, extra distributions, and workflow source/digest binding.
