@@ -27,6 +27,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Require Python 3.11-3.13 CI to build and install the wheel with the encrypted extra, fail on skipped encryption regressions, and reject a tampered synthetic ciphertext through the installed artifact.
 - Add regressions proving weak new encryption and unacknowledged persistent decrypt fail before mutation, while explicit override/acknowledgement paths retain the supported round trip.
 - Add regressions for colliding redacted purpose labels, request-to-grant binding preservation, nonprinting control rejection, restored-state validation, and raw-free public projections.
 - Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.

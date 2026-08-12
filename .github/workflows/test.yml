@@ -24,3 +24,51 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run release checks
         run: python scripts/check_release.py
+
+  encrypted-artifact-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build wheel
+        run: python -m pip wheel --no-deps --wheel-dir "${RUNNER_TEMP}/dist" .
+      - name: Install wheel with encrypted extra
+        shell: bash
+        run: |
+          shopt -s nullglob
+          wheels=("${RUNNER_TEMP}"/dist/*.whl)
+          test "${#wheels[@]}" -eq 1
+          python -m pip install "agent-personal-vault[encrypted] @ file://${wheels[0]}"
+      - name: Run encryption regressions without skips
+        run: |
+          python - <<'PY'
+          import unittest
+
+          names = [
+              "tests.test_vault.VaultTests.test_cli_encrypt_requires_optional_crypto_or_roundtrips_without_raw_plaintext",
+              "tests.test_vault.VaultTests.test_new_encryption_rejects_weak_passphrase_without_mutation",
+              "tests.test_vault.VaultTests.test_weak_passphrase_override_is_explicit_and_warned",
+              "tests.test_vault.VaultTests.test_cli_decrypt_requires_plaintext_persistence_ack_without_mutation",
+              "tests.test_vault.VaultTests.test_cli_decrypt_with_plaintext_persistence_ack_roundtrips",
+              "tests.test_vault.VaultTests.test_encrypt_store_payload_rejects_weak_passphrase_by_default",
+              "tests.test_vault.VaultTests.test_existing_weak_encrypted_store_remains_writable",
+              "tests.test_vault.VaultTests.test_encrypted_store_decrypt_uses_payload_iterations",
+          ]
+          suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if result.skipped:
+              skipped = ", ".join(test.id() for test, _reason in result.skipped)
+              raise SystemExit(f"encrypted regression unexpectedly skipped: {skipped}")
+          if not result.wasSuccessful():
+              raise SystemExit("encrypted regressions failed")
+          PY
+      - name: Smoke-test installed encrypted artifact
+        run: |
+          cd "${RUNNER_TEMP}"
+          python -I "${GITHUB_WORKSPACE}/scripts/check_encrypted_artifact.py"
