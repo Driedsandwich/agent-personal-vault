@@ -1094,6 +1094,20 @@ class VaultTests(unittest.TestCase):
         self.assertIn("--consent-id", html)
         self.assertIn("CLI get", html)
 
+    def test_gui_mask_mode_renders_no_raw_fragments_options_or_derived_names(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn('function maskValue(v) { return v ? "••••" : ""; }', html)
+        self.assertNotIn("v.slice(0,2)", html)
+        self.assertNotIn("v.slice(-2)", html)
+        self.assertIn('if (masked) return `<input type="text"', html)
+        self.assertLess(
+            html.index('if (masked) return `<input type="text"'),
+            html.index("if (info.options && info.options.length)"),
+        )
+        self.assertIn("const d = masked ? null : derived();", html)
+        self.assertIn('masked ? "非表示" : esc(d[k] || "未生成")', html)
+
     def test_gui_consent_actions_use_dom_event_binding_not_inline_handlers(self) -> None:
         html = page_html("dummy-token", "job_hunting_profile")
 
