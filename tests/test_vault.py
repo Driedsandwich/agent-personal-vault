@@ -2374,6 +2374,68 @@ class VaultTests(unittest.TestCase):
             with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
                 list_consent_requests(path)
 
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [
+                            {
+                                "id": "c_synthetic",
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "review\u202eapproved",
+                                "purpose_binding": "sha256:" + ("0" * 64),
+                                "issued_at": "2026-08-12T00:00:00+00:00",
+                                "expires_at": "2026-08-12T01:00:00+00:00",
+                                "used_at": "",
+                                "actor": "test",
+                            }
+                        ],
+                        "requests": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
+                list_consents(path)
+
+    def test_legacy_consent_without_binding_is_visible_but_fails_closed_on_consume(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            consent_path(path).write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "grants": [
+                            {
+                                "id": "c_legacy",
+                                "action": "get",
+                                "key": "EMAIL",
+                                "purpose": "review email",
+                                "issued_at": "2026-08-12T00:00:00+00:00",
+                                "expires_at": "2099-08-12T01:00:00+00:00",
+                                "used_at": "",
+                                "actor": "test",
+                            }
+                        ],
+                        "requests": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(list_consents(path)[0]["purpose"], "review email")
+            with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id="c_legacy",
+                    action="get",
+                    key="EMAIL",
+                    purpose="review email",
+                    actor="test",
+                )
+
     def test_audit_clean_text_makes_format_controls_visible(self) -> None:
         cleaned = _clean_text("review\u202eapproved")
         self.assertEqual(cleaned, "review[U+202E]approved")
