@@ -144,7 +144,7 @@ function api(path, options={{}}) {{
 }}
 function groups() {{ return [...new Set(Object.values(schema).map(x => x.group))]; }}
 function value(key) {{ return String(fields[key] || ""); }}
-function maskValue(v) {{ if (!v) return ""; return v.length <= 4 ? "•".repeat(v.length) : v.slice(0,2) + "••••" + v.slice(-2); }}
+function maskValue(v) {{ return v ? "••••" : ""; }}
 function derived() {{
   return {{
     FULL_NAME: [value("FAMILY_NAME").trim(), value("GIVEN_NAME").trim()].filter(Boolean).join("　"),
@@ -166,11 +166,12 @@ function renderControl(key) {{
   const info = schema[key];
   const raw = value(key);
   const shown = masked ? maskValue(raw) : raw;
+  if (masked) return `<input type="text" data-key="${{key}}" value="${{esc(shown)}}" readonly>`;
   if (info.options && info.options.length) {{
-    return `<select data-key="${{key}}" ${{masked ? "disabled" : ""}}>` + info.options.map(o => `<option value="${{esc(o)}}" ${{o === raw ? "selected" : ""}}>${{esc(o || "選択してください")}}</option>`).join("") + `</select>`;
+    return `<select data-key="${{key}}">` + info.options.map(o => `<option value="${{esc(o)}}" ${{o === raw ? "selected" : ""}}>${{esc(o || "選択してください")}}</option>`).join("") + `</select>`;
   }}
-  if (key === "ADDRESS" || key === "QUALIFICATIONS" || key === "NOTES") return `<textarea data-key="${{key}}" ${{masked ? "readonly" : ""}}>${{esc(shown)}}</textarea>`;
-  return `<input type="${{esc(info.input_type || "text")}}" data-key="${{key}}" value="${{esc(shown)}}" ${{masked ? "readonly" : ""}}>`;
+  if (key === "ADDRESS" || key === "QUALIFICATIONS" || key === "NOTES") return `<textarea data-key="${{key}}">${{esc(shown)}}</textarea>`;
+  return `<input type="${{esc(info.input_type || "text")}}" data-key="${{key}}" value="${{esc(shown)}}">`;
 }}
 function render() {{
   document.getElementById("nav").innerHTML = groups().map(g => `<button onclick="document.getElementById('${{esc(g)}}').scrollIntoView()">${{esc(g)}}</button>`).join("");
@@ -190,8 +191,8 @@ function updateSide() {{
   document.getElementById("count").textContent = `${{filled}}/${{required.length}}`;
   document.getElementById("progress").style.width = `${{Math.round((filled / required.length) * 100)}}%`;
   document.getElementById("missing").innerHTML = missing.length ? missing.map(k => `<li>${{esc(schema[k].label)}} <span class="key">${{esc(k)}}</span></li>`).join("") : "<li>不足項目なし</li>";
-  const d = derived();
-  document.getElementById("derived").innerHTML = Object.keys(derivedSchema).map(k => `<div>${{esc(derivedSchema[k])}}: <strong>${{esc(d[k] || "未生成")}}</strong></div>`).join("");
+  const d = masked ? null : derived();
+  document.getElementById("derived").innerHTML = Object.keys(derivedSchema).map(k => `<div>${{esc(derivedSchema[k])}}: <strong>${{masked ? "非表示" : esc(d[k] || "未生成")}}</strong></div>`).join("");
 }}
 async function loadConsentRequests() {{
   const data = await api("/api/consent/requests");
