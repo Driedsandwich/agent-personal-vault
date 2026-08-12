@@ -14,6 +14,8 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Reject short or known-predictable passphrases for new optional-encryption migrations unless the operator uses an explicit warned compatibility override; preserve access to existing encrypted vaults created under the earlier policy.
+- Require a dedicated plaintext-persistence acknowledgement before in-place decrypt replaces an encrypted vault with plain JSON.
 - Bind consent authorization to a SHA-256 digest of the exact NFKC-normalized purpose instead of the lossy display-redacted label, while keeping the binding out of CLI, MCP, GUI, list, and audit output.
 - Reject empty consent purposes and Unicode format controls before state or audit mutation, fail closed on unsafe restored state, and render any audit-only format controls as visible code-point markers.
 - Reject malformed persisted consent request IDs using the generated base64url grammar before they reach CLI, MCP, or GUI rendering and resolution paths.
@@ -25,6 +27,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add regressions proving weak new encryption and unacknowledged persistent decrypt fail before mutation, while explicit override/acknowledgement paths retain the supported round trip.
 - Add regressions for colliding redacted purpose labels, request-to-grant binding preservation, nonprinting control rejection, restored-state validation, and raw-free public projections.
 - Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.
 - Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.

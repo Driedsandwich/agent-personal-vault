@@ -9,11 +9,23 @@ from __future__ import annotations
 import base64
 import json
 import os
+import unicodedata
 from typing import Any
 
 ENCRYPTED_STORAGE = "encrypted-json-v1"
 KDF_NAME = "pbkdf2-hmac-sha256"
 KDF_ITERATIONS = 390_000
+MIN_NEW_PASSPHRASE_LENGTH = 12
+COMMON_WEAK_PASSPHRASES = frozenset(
+    {
+        "agentpersonalvault",
+        "letmein",
+        "password",
+        "password123",
+        "qwertyuiop",
+        "test passphrase",
+    }
+)
 
 
 class EncryptionUnavailableError(RuntimeError):
@@ -56,9 +68,22 @@ def _derive_key(passphrase: str, salt: bytes, iterations: int = KDF_ITERATIONS) 
     return kdf.derive(passphrase.encode("utf-8"))
 
 
-def encrypt_store_payload(store: dict, passphrase: str) -> dict:
+def passphrase_strength_issue(passphrase: str) -> str | None:
+    candidate = unicodedata.normalize("NFKC", passphrase).strip()
+    if len(candidate) < MIN_NEW_PASSPHRASE_LENGTH:
+        return f"use at least {MIN_NEW_PASSPHRASE_LENGTH} characters"
+    normalized = candidate.casefold()
+    if normalized in COMMON_WEAK_PASSPHRASES or len(set(candidate)) < 4:
+        return "choose a less predictable value"
+    return None
+
+
+def encrypt_store_payload(store: dict, passphrase: str, *, allow_weak_passphrase: bool = False) -> dict:
     if not passphrase:
         raise ValueError("passphrase is required")
+    strength_issue = passphrase_strength_issue(passphrase)
+    if strength_issue is not None and not allow_weak_passphrase:
+        raise ValueError(f"passphrase is too weak for new encryption: {strength_issue}")
     AESGCM, _PBKDF2HMAC, _crypto = _require_crypto()
     salt = os.urandom(16)
     nonce = os.urandom(12)

@@ -47,6 +47,7 @@ from agent_personal_vault.vault import (
     schema_context,
     store_path,
     store_path_warnings,
+    write_json_private,
     write_store,
 )
 
@@ -1898,7 +1899,7 @@ class VaultTests(unittest.TestCase):
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
             write_store(store, path)
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "test passphrase"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
             result = subprocess.run(
                 [
                     sys.executable,
@@ -1925,8 +1926,173 @@ class VaultTests(unittest.TestCase):
             encrypted_payload = json.loads(path.read_text(encoding="utf-8"))
             self.assertTrue(is_encrypted_payload(encrypted_payload))
             self.assertNotIn("山田", path.read_text(encoding="utf-8"))
-            loaded = load_store(path=path, passphrase="test passphrase")
+            loaded = load_store(path=path, passphrase="correct horse battery staple")
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
+
+    def test_new_encryption_rejects_weak_passphrase_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path)
+            before = path.read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "password123"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "encrypt",
+                    "--purpose",
+                    "enable encryption",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertIn("passphrase is too weak", result.stderr)
+            self.assertNotIn("password123", result.stdout + result.stderr)
+            self.assertFalse(any(event["action"] == "encrypt" for event in read_audit_events(path, limit=20)))
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_weak_passphrase_override_is_explicit_and_warned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "password123"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "encrypt",
+                    "--purpose",
+                    "compatibility override",
+                    "--allow-weak-passphrase",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(is_encrypted_payload(json.loads(path.read_text(encoding="utf-8"))))
+            self.assertIn("weak passphrase override", result.stderr)
+            self.assertNotIn("password123", result.stdout + result.stderr)
+
+    def test_cli_decrypt_requires_plaintext_persistence_ack_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            path.write_text(
+                json.dumps(
+                    {
+                        "app": "agent-personal-vault",
+                        "storage": crypto_store.ENCRYPTED_STORAGE,
+                        "version": 1,
+                        "cipher": "AES-256-GCM",
+                        "kdf": crypto_store.KDF_NAME,
+                        "iterations": crypto_store.KDF_ITERATIONS,
+                        "salt": "synthetic",
+                        "nonce": "synthetic",
+                        "ciphertext": "synthetic",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            before = path.read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "decrypt",
+                    "--purpose",
+                    "disable encryption",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertIn("--i-understand-plaintext-persistence", result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+            self.assertFalse(any(event["action"] == "decrypt" for event in read_audit_events(path, limit=20)))
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_cli_decrypt_with_plaintext_persistence_ack_roundtrips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "山田"
+            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "decrypt",
+                    "--purpose",
+                    "disable encryption",
+                    "--i-understand-plaintext-persistence",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(is_encrypted_payload(json.loads(path.read_text(encoding="utf-8"))))
+            self.assertEqual(load_store(path=path)["fields"]["FAMILY_NAME"], "山田")
+            self.assertTrue(any(event["action"] == "decrypt" for event in read_audit_events(path, limit=20)))
+
+    def test_encrypt_store_payload_rejects_weak_passphrase_by_default(self) -> None:
+        with self.assertRaisesRegex(ValueError, "passphrase is too weak"):
+            crypto_store.encrypt_store_payload(blank_store(), "password123")
+        with self.assertRaisesRegex(ValueError, "passphrase is too weak"):
+            crypto_store.encrypt_store_payload(blank_store(), "ｐａｓｓｗｏｒｄ１２３")
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_existing_weak_encrypted_store_remains_writable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = blank_store()
+            encrypted = crypto_store.encrypt_store_payload(store, "password123", allow_weak_passphrase=True)
+            write_json_private(path, encrypted)
+
+            loaded = load_store(path=path, passphrase="password123")
+            loaded["fields"]["FAMILY_NAME"] = "山田"
+            write_store(loaded, path, passphrase="password123")
+
+            self.assertTrue(is_encrypted_payload(json.loads(path.read_text(encoding="utf-8"))))
+            self.assertEqual(load_store(path=path, passphrase="password123")["fields"]["FAMILY_NAME"], "山田")
 
     def test_encrypted_store_decrypt_uses_payload_iterations(self) -> None:
         if not cryptography_available():
@@ -1935,10 +2101,10 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
-            write_store(store, path, passphrase="test passphrase", encrypted=True)
+            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
 
             with mock.patch.object(crypto_store, "KDF_ITERATIONS", crypto_store.KDF_ITERATIONS + 1):
-                loaded = load_store(path=path, passphrase="test passphrase")
+                loaded = load_store(path=path, passphrase="correct horse battery staple")
 
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
 

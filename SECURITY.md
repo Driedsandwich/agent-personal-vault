@@ -30,6 +30,8 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 ## Current Limitations
 
 - At-rest encryption is optional and off by default. It requires the optional `cryptography` dependency and a user-managed passphrase.
+- New encryption rejects short or known-predictable passphrases by default. The explicit weak-passphrase override is a compatibility escape hatch, not a recommendation.
+- Persistent decrypt requires a separate acknowledgement because it replaces the encrypted vault with plaintext that can propagate to backups, sync copies, and snapshots.
 - Do not store the encryption passphrase in logs, public issues, shell history, or repository files.
 - Plaintext vault files can be copied outside their file-permission boundary by backups, cloud sync, snapshots, archives, or manual copies. Keep real vaults out of shared/synced/public paths, and consider optional encryption when those copies cannot be controlled.
 - Existing custom vault directories are accepted only when they are owned by the current user and inaccessible to group/other users on POSIX systems. Vault, audit, consent, lock, and temporary files are opened without following links relative to that verified directory. Non-POSIX storage currently fails closed until equivalent ACL, reparse-point, and locking guarantees are implemented and tested. Move data into an owner-private directory instead of weakening this check.

@@ -19,7 +19,13 @@ from .consent import (
     resolve_consent_request,
     validate_and_consume_consent,
 )
-from .crypto_store import ENCRYPTED_STORAGE, EncryptionUnavailableError, cryptography_available, is_encrypted_payload
+from .crypto_store import (
+    ENCRYPTED_STORAGE,
+    EncryptionUnavailableError,
+    cryptography_available,
+    is_encrypted_payload,
+    passphrase_strength_issue,
+)
 from .private_io import private_file_exists, read_private_json
 from .schemas import DERIVED_FIELDS
 from .vault import (
@@ -241,13 +247,29 @@ def command_encryption(args: argparse.Namespace) -> None:
             confirm = read_passphrase("Confirm vault passphrase: ")
             if passphrase != confirm:
                 raise SystemExit("passphrases do not match")
-            write_store(store, path, passphrase=passphrase, encrypted=True)
+            strength_issue = passphrase_strength_issue(passphrase)
+            if strength_issue is not None and args.allow_weak_passphrase:
+                print(
+                    f"# WARNING: weak passphrase override: {strength_issue}; copied vault bytes are easier to guess offline.",
+                    file=sys.stderr,
+                )
+            write_store(
+                store,
+                path,
+                passphrase=passphrase,
+                encrypted=True,
+                allow_weak_passphrase=args.allow_weak_passphrase,
+            )
             write_audit_event(vault_path=path, actor="cli", action="encrypt", purpose=args.purpose)
             print("encrypted: true")
             return
         if args.encryption_command == "decrypt":
             if not encrypted:
                 raise SystemExit("vault is not encrypted")
+            if not args.i_understand_plaintext_persistence:
+                raise SystemExit(
+                    "decrypt requires --i-understand-plaintext-persistence because it replaces the encrypted vault with persistent plaintext"
+                )
             passphrase = read_passphrase()
             store = load_store(path=path, passphrase=passphrase)
             write_store(store, path, encrypted=False)
@@ -353,9 +375,19 @@ def build_parser() -> argparse.ArgumentParser:
     encryption_status.set_defaults(func=command_encryption)
     encryption_encrypt = encryption_sub.add_parser("encrypt", help="Encrypt the existing local vault with optional cryptography support.")
     encryption_encrypt.add_argument("--purpose", required=True, help="Raw-free migration purpose. Stored in audit log.")
+    encryption_encrypt.add_argument(
+        "--allow-weak-passphrase",
+        action="store_true",
+        help="Override the new-passphrase strength gate after accepting the offline-guessing risk.",
+    )
     encryption_encrypt.set_defaults(func=command_encryption)
     encryption_decrypt = encryption_sub.add_parser("decrypt", help="Decrypt the local vault back to plain JSON.")
     encryption_decrypt.add_argument("--purpose", required=True, help="Raw-free migration purpose. Stored in audit log.")
+    encryption_decrypt.add_argument(
+        "--i-understand-plaintext-persistence",
+        action="store_true",
+        help="Required acknowledgement that decrypt replaces the encrypted vault with persistent plaintext.",
+    )
     encryption_decrypt.set_defaults(func=command_encryption)
     consent = sub.add_parser(
         "consent",

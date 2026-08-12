@@ -226,24 +226,36 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
     return store
 
 
-def write_store(store: dict, path: Path | None = None, passphrase: str | None = None, encrypted: bool | None = None) -> None:
+def write_store(
+    store: dict,
+    path: Path | None = None,
+    passphrase: str | None = None,
+    encrypted: bool | None = None,
+    *,
+    allow_weak_passphrase: bool = False,
+) -> None:
     path = path or store_path()
     ensure_private_dir(path.parent)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     store["updated_at"] = now_iso()
+    existing_encrypted = False
+    if private_file_exists(path):
+        try:
+            existing_encrypted = is_encrypted_payload(read_private_json(path))
+        except json.JSONDecodeError:
+            existing_encrypted = False
     if encrypted is None:
-        encrypted = False
-        if private_file_exists(path):
-            try:
-                encrypted = is_encrypted_payload(read_private_json(path))
-            except json.JSONDecodeError:
-                encrypted = False
+        encrypted = existing_encrypted
     payload = store
     if encrypted:
         effective_passphrase = passphrase or default_passphrase()
         if not effective_passphrase:
             raise ValueError("Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase.")
-        payload = encrypt_store_payload(store, effective_passphrase)
+        payload = encrypt_store_payload(
+            store,
+            effective_passphrase,
+            allow_weak_passphrase=allow_weak_passphrase or existing_encrypted,
+        )
     write_json_private(path, payload)
 
 
