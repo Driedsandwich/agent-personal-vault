@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
 
@@ -11,6 +10,8 @@ try:
     from scripts.release_policy import SKIP_DIRS, ReleasePolicyError, is_within_root, scan_release_entry, scan_release_tree
 except ModuleNotFoundError:
     from release_policy import SKIP_DIRS, ReleasePolicyError, is_within_root, scan_release_entry, scan_release_tree
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def should_scan(path: Path) -> bool:
@@ -28,11 +29,8 @@ def scan_file(path: Path, root: Path | None = None) -> list[str]:
     return [finding.render() for finding in findings]
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Scan the complete release source inventory.")
-    parser.add_argument("root", nargs="?", default=".")
-    args = parser.parse_args()
-    root = Path(args.root)
+def main(root: Path | None = None) -> int:
+    root = ROOT if root is None else root
     try:
         findings = scan_release_tree(root)
     except (OSError, ReleasePolicyError) as exc:
@@ -48,4 +46,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 1:
+        print("usage: pii_scan.py", file=sys.stderr)
+        raise SystemExit(2)
     raise SystemExit(main())

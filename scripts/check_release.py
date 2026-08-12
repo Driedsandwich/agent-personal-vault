@@ -38,7 +38,7 @@ def main() -> int:
     test_env = os.environ.copy()
     test_env["PYTHONDONTWRITEBYTECODE"] = "1"
     run_step("unit tests", [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests"], env=test_env)
-    run_step("source privacy scan", [sys.executable, "-B", "scripts/pii_scan.py", "."], env=test_env)
+    run_step("source privacy scan", [sys.executable, "-B", "scripts/pii_scan.py"], env=test_env)
     print("release checks passed; existing build outputs were not modified")
     return 0
 

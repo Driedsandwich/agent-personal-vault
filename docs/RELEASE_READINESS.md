@@ -114,7 +114,7 @@ Commands run from this directory:
 ```sh
 python3 -m py_compile agent_personal_vault/*.py scripts/pii_scan.py
 python3 -m unittest discover -s tests
-python3 scripts/pii_scan.py .
+python3 scripts/pii_scan.py
 python3 scripts/check_release.py
 make release-check
 ```

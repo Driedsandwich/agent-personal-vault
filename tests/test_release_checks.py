@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import subprocess
@@ -15,6 +16,23 @@ from scripts import check_release, pii_scan, release_artifact_manifest, release_
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_release_scanner_clis_reject_path_arguments_without_echoing_them(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        private_path = "/" + "Users" + "/example/private"
+
+        for script in ("scripts/pii_scan.py", "scripts/scan_release_artifacts.py"):
+            result = subprocess.run(
+                [sys.executable, script, private_path],
+                cwd=root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("usage:", result.stderr)
+            self.assertNotIn(private_path, result.stderr)
+
     def _manifest_fixture(self, root: Path) -> tuple[Path, Path]:
         dist = root / "dist"
         dist.mkdir()
@@ -157,17 +175,14 @@ class ReleaseCheckTests(unittest.TestCase):
                 (root / filename).write_text(f"local path: {private_path}\n", encoding="utf-8")
             (root / "README.md").write_text("public docs only\n", encoding="utf-8")
 
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Potential private release content found:", result.stderr)
-            self.assertNotIn(private_path, result.stderr)
+            self.assertNotEqual(returncode, 0)
+            self.assertIn("Potential private release content found:", stderr.getvalue())
+            self.assertNotIn(private_path, stderr.getvalue())
 
     def test_release_checks_preserve_git_local_config_policy(self) -> None:
         self.assertEqual(pii_scan.SKIP_DIRS, release_policy.SKIP_DIRS)
@@ -299,16 +314,13 @@ class ReleaseCheckTests(unittest.TestCase):
             )
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
             self.assertEqual(files, {Path("README.md")})
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(returncode, 0, stderr.getvalue())
 
     def test_shared_policy_rejects_non_git_local_developer_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -390,17 +402,14 @@ class ReleaseCheckTests(unittest.TestCase):
             subprocess.run(["git", "add", "-f", ".codex/settings.json"], cwd=root, check=True)
 
             files = {path.relative_to(root) for path in release_policy.iter_release_files(root)}
-            result = subprocess.run(
-                [sys.executable, "scripts/pii_scan.py", str(root)],
-                cwd=Path(__file__).resolve().parent.parent,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                returncode = pii_scan.main(root)
 
             self.assertEqual(files, {Path(".codex/settings.json")})
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Potential private release content found:", result.stderr)
+            self.assertNotEqual(returncode, 0)
+            self.assertIn("Potential private release content found:", stderr.getvalue())
 
     def test_tracked_private_text_is_still_scanned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

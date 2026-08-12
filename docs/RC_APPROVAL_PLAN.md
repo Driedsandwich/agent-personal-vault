@@ -77,7 +77,7 @@ python3 -m venv "$dry_run_root/venv"
 python3 -m pip install --require-hashes --only-binary=:all: -r .github/release-requirements.txt
 python3 scripts/check_release.py
 python3 -m build --no-isolation --outdir "$dry_run_root/dist"
-python3 scripts/scan_release_artifacts.py "$dry_run_root/dist"
+(cd "$dry_run_root" && "$dry_run_root/venv/bin/python" "$dry_run_root/source/scripts/scan_release_artifacts.py")
 test -z "$(git status --porcelain --untracked-files=no)"
 ```
 

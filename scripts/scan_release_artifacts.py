@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import stat
 import sys
 import tarfile
@@ -84,12 +83,10 @@ def scan_artifacts(dist_dir: Path) -> list[PolicyFinding]:
     return findings
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Scan built release artifacts with the shared privacy policy.")
-    parser.add_argument("dist_dir", nargs="?", default="dist")
-    args = parser.parse_args()
+def main(dist_dir: Path | None = None) -> int:
+    dist_dir = Path.cwd() / "dist" if dist_dir is None else dist_dir
     try:
-        findings = scan_artifacts(Path(args.dist_dir))
+        findings = scan_artifacts(dist_dir)
     except (OSError, ReleasePolicyError, tarfile.TarError, zipfile.BadZipFile) as exc:
         print(f"release artifact scan incomplete: {exc}", file=sys.stderr)
         return 1
@@ -103,4 +100,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 1:
+        print("usage: scan_release_artifacts.py", file=sys.stderr)
+        raise SystemExit(2)
     raise SystemExit(main())

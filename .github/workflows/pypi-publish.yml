@@ -90,7 +90,7 @@ jobs:
       - name: Build distributions
         run: python -m build --no-isolation
       - name: Strict forbidden-file scan
-        run: python scripts/scan_release_artifacts.py dist
+        run: python scripts/scan_release_artifacts.py
       - name: Create canonical artifact bundle and approval manifest
         run: |
           set -euo pipefail
