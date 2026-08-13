@@ -514,3 +514,63 @@ def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str
             }
         )
     return output
+
+
+def prune_consent_records(
+    vault_path: Path,
+    *,
+    retention_days: int = 30,
+    now: datetime | None = None,
+) -> dict[str, int]:
+    """Remove expired or resolved consent metadata older than a retention window."""
+
+    if type(retention_days) is not int or retention_days < 1:
+        raise ConsentError("consent retention days must be a positive integer")
+    current_time = now or datetime.now(timezone.utc).replace(microsecond=0)
+    if current_time.tzinfo is None:
+        raise ConsentError("consent pruning time must include a timezone")
+    cutoff = current_time - timedelta(days=retention_days)
+    path = consent_path(vault_path)
+    with _state_lock(path):
+        if not private_file_exists(path):
+            return {"grants_removed": 0, "requests_removed": 0, "retained": 0}
+        state = _load_state(path)
+        grants = state["grants"]
+        requests = state["requests"]
+
+        retained_grants = []
+        for grant in grants:
+            terminal_at = None
+            if grant.get("used_at"):
+                terminal_at = _parse_expires_at(grant.get("used_at"))
+            else:
+                expires_at = _parse_expires_at(grant.get("expires_at"))
+                if current_time >= expires_at:
+                    terminal_at = expires_at
+            if terminal_at is None or terminal_at >= cutoff:
+                retained_grants.append(grant)
+
+        retained_requests = []
+        for request in requests:
+            status = request.get("status")
+            terminal_at = None
+            if status in {"approved", "denied"} and request.get("resolved_at"):
+                terminal_at = _parse_expires_at(request.get("resolved_at"))
+            elif status == "pending":
+                expires_at = _request_expires_at(request)
+                if current_time >= expires_at:
+                    terminal_at = expires_at
+            if terminal_at is None or terminal_at >= cutoff:
+                retained_requests.append(request)
+
+        grants_removed = len(grants) - len(retained_grants)
+        requests_removed = len(requests) - len(retained_requests)
+        state["grants"] = retained_grants
+        state["requests"] = retained_requests
+        if grants_removed or requests_removed:
+            _write_state(path, state)
+    return {
+        "grants_removed": grants_removed,
+        "requests_removed": requests_removed,
+        "retained": len(retained_grants) + len(retained_requests),
+    }

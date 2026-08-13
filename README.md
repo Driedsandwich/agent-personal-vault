@@ -156,7 +156,19 @@ agent-personal-vault --store /path/to/vault.json check
 
 可用性を守るため、保存JSONは12 MiB、各vault fieldは64 KiB、consent purposeは4 KiB、consent request/grantは合計2,000件、audit logは8 MiBまでに制限します。GUI request bodyは1 MiB、MCP messageは256 KiBまでです。JSON構造にも深さ32・20,000 nodeの上限があります。上限到達時は処理をfail-closedで拒否します。private stateが上限を超えて起動できない場合は、GUI/MCPを停止し、対象ファイルをowner-onlyの場所へbackupしてから、内容をIssueや外部AIへ貼らずに新しいdummy vaultで復旧手順を確認してください。これらはアプリケーションのメモリ・ディスク使用量を抑える安全策であり、OS quotaや複数ユーザー間の隔離ではありません。
 
-保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。誤って実データを入れた検証用vaultを丸ごと捨てる場合は、まず `check` で保存先を確認し、GUIやMCP serverを停止してから、そのvaultファイルだけを削除してください。削除対象が分からないまま `rm -rf` や親ディレクトリ削除を使わないでください。
+保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。古いconsent metadataとaudit eventは自動削除されません。GUIとMCP serverを停止してから、明示的な保持期間を指定して整理できます。既定はconsent 30日、audit 90日で、破損したaudit行は証拠を勝手に捨てないため保持します。
+
+```sh
+agent-personal-vault --store "$APV_STORE" privacy prune --consent-retention-days 30 --audit-retention-days 90
+```
+
+誤って実データを入れた検証用vaultを丸ごと捨てる場合は、まず `check` で対象を確認し、GUIとMCP serverを停止してから次を使います。このコマンドは、指定vaultと同じ保存先にある `vault.json`、`consents.json`、`audit.jsonl` の3データファイルだけを削除し、親ディレクトリや無関係なファイルは削除しません。空のlock fileは残る場合があります。バックアップ、同期先、snapshot、手動コピーは別途管理対象です。
+
+```sh
+agent-personal-vault --store "$APV_STORE" privacy dispose --confirm "delete local vault state"
+```
+
+削除対象が分からないまま `rm -rf` や親ディレクトリ削除を使わないでください。
 
 ## MCP Raw-Free Server
 
@@ -251,6 +263,20 @@ agent-personal-vault audit tail --limit 10
 ```
 
 監査ログの1行が中断や破損で不正になっていても、前後の有効なイベントは表示を続けます。CLIとGUIは不正な行の内容を表示せず、スキップした件数だけを警告します。監査ログは引き続き改ざん耐性のある証跡ではありません。
+
+古いprivate metadataを明示的に整理:
+
+```sh
+agent-personal-vault privacy prune --consent-retention-days 30 --audit-retention-days 90
+```
+
+vault、consent state、audit logをまとめて廃棄:
+
+```sh
+agent-personal-vault privacy dispose --confirm "delete local vault state"
+```
+
+どちらもGUIとMCP serverを先に停止してください。`dispose` は既知の3データファイルだけを対象にし、バックアップ、同期先、snapshot、手動コピーまでは削除しません。
 
 未使用のconsent tokenを確認:
 
