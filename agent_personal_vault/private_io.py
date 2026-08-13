@@ -62,7 +62,7 @@ def _validate_private_directory(fd: int) -> None:
             raise PermissionError("vault parent directory must not be accessible by group or other users")
 
 
-def _validate_private_file(fd: int) -> None:
+def _validate_private_file(fd: int, *, repair_mode: bool = False) -> None:
     info = os.fstat(fd)
     if not stat.S_ISREG(info.st_mode):
         raise PermissionError("vault state path must be a regular file")
@@ -71,8 +71,11 @@ def _validate_private_file(fd: int) -> None:
             raise PermissionError("vault state file must be owned by the current user")
         if info.st_nlink != 1:
             raise PermissionError("vault state file must have exactly one hard link")
-    if hasattr(os, "fchmod"):
-        os.fchmod(fd, PRIVATE_FILE_MODE)
+        if stat.S_IMODE(info.st_mode) & 0o077:
+            if repair_mode and hasattr(os, "fchmod"):
+                os.fchmod(fd, PRIVATE_FILE_MODE)
+            else:
+                raise PermissionError("vault state file must not be accessible by group or other users")
 
 
 @contextmanager
@@ -132,35 +135,48 @@ def _stat_at(path: Path, directory_fd: int) -> os.stat_result:
 
 
 def private_file_exists(path: Path) -> bool:
-    with private_directory_fd(path.parent) as directory_fd:
-        try:
-            info = _stat_at(path, directory_fd)
-        except FileNotFoundError:
-            return False
-        if not stat.S_ISREG(info.st_mode):
-            raise PermissionError("vault state path must be a regular file")
-        if _is_posix() and (info.st_uid != os.geteuid() or info.st_nlink != 1):
-            raise PermissionError("vault state file ownership or link count is unsafe")
-        return True
+    try:
+        with private_directory_fd(path.parent, create=False) as directory_fd:
+            try:
+                info = _stat_at(path, directory_fd)
+            except FileNotFoundError:
+                return False
+            if not stat.S_ISREG(info.st_mode):
+                raise PermissionError("vault state path must be a regular file")
+            if _is_posix() and (info.st_uid != os.geteuid() or info.st_nlink != 1):
+                raise PermissionError("vault state file ownership or link count is unsafe")
+            return True
+    except FileNotFoundError:
+        return False
 
 
 def private_file_stat(path: Path) -> os.stat_result | None:
     """Return validated file metadata without following links."""
 
-    with private_directory_fd(path.parent) as directory_fd:
-        try:
-            info = _stat_at(path, directory_fd)
-        except FileNotFoundError:
-            return None
-        if not stat.S_ISREG(info.st_mode):
-            raise PermissionError("vault state path must be a regular file")
-        if _is_posix() and (info.st_uid != os.geteuid() or info.st_nlink != 1):
-            raise PermissionError("vault state file ownership or link count is unsafe")
-        return info
+    try:
+        with private_directory_fd(path.parent, create=False) as directory_fd:
+            try:
+                info = _stat_at(path, directory_fd)
+            except FileNotFoundError:
+                return None
+            if not stat.S_ISREG(info.st_mode):
+                raise PermissionError("vault state path must be a regular file")
+            if _is_posix() and (info.st_uid != os.geteuid() or info.st_nlink != 1):
+                raise PermissionError("vault state file ownership or link count is unsafe")
+            return info
+    except FileNotFoundError:
+        return None
 
 
-def _open_file_fd(path: Path, flags: int, *, create_mode: int = PRIVATE_FILE_MODE) -> int:
-    with private_directory_fd(path.parent) as directory_fd:
+def _open_file_fd(
+    path: Path,
+    flags: int,
+    *,
+    create_mode: int = PRIVATE_FILE_MODE,
+    create_parent: bool = True,
+    repair_mode: bool = False,
+) -> int:
+    with private_directory_fd(path.parent, create=create_parent) as directory_fd:
         try:
             fd = os.open(_relative_name(path), _open_flags(flags), create_mode, dir_fd=directory_fd)
         except OSError as exc:
@@ -168,7 +184,7 @@ def _open_file_fd(path: Path, flags: int, *, create_mode: int = PRIVATE_FILE_MOD
                 raise PermissionError("vault state path must not be a symbolic link") from None
             raise
         try:
-            _validate_private_file(fd)
+            _validate_private_file(fd, repair_mode=repair_mode)
         except Exception:
             os.close(fd)
             raise
@@ -176,13 +192,13 @@ def _open_file_fd(path: Path, flags: int, *, create_mode: int = PRIVATE_FILE_MOD
 
 
 def read_private_text(path: Path) -> str:
-    fd = _open_file_fd(path, os.O_RDONLY)
+    fd = _open_file_fd(path, os.O_RDONLY, create_parent=False)
     with os.fdopen(fd, "r", encoding="utf-8") as handle:
         return handle.read()
 
 
 def read_private_bytes(path: Path) -> bytes:
-    fd = _open_file_fd(path, os.O_RDONLY)
+    fd = _open_file_fd(path, os.O_RDONLY, create_parent=False)
     with os.fdopen(fd, "rb") as handle:
         return handle.read()
 
@@ -214,7 +230,7 @@ def write_private_text(path: Path, text: str) -> None:
             dir_fd=directory_fd,
         )
         try:
-            _validate_private_file(fd)
+            _validate_private_file(fd, repair_mode=True)
             handle_fd = fd
             fd = -1
             with os.fdopen(handle_fd, "w", encoding="utf-8") as handle:
@@ -244,7 +260,7 @@ def append_private_line(path: Path, line: str) -> None:
     if "\n" in line or "\r" in line:
         raise ValueError("private line must not contain line breaks")
     payload = f"{line}\n".encode("utf-8")
-    fd = _open_file_fd(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT)
+    fd = _open_file_fd(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, repair_mode=True)
     try:
         written = os.write(fd, payload)
         if written != len(payload):
@@ -256,6 +272,6 @@ def append_private_line(path: Path, line: str) -> None:
 
 @contextmanager
 def open_private_lock(path: Path) -> Iterator[TextIO]:
-    fd = _open_file_fd(path, os.O_RDWR | os.O_APPEND | os.O_CREAT)
+    fd = _open_file_fd(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, repair_mode=True)
     with os.fdopen(fd, "a+", encoding="utf-8") as handle:
         yield handle

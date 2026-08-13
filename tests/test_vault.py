@@ -61,6 +61,7 @@ from agent_personal_vault.vault import (
     normalize_postal_code,
     normalize_value,
     planning_hints,
+    read_store,
     schema_context,
     store_path,
     store_path_warnings,
@@ -174,10 +175,23 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
             self.assertEqual(store["schema"], "job_hunting_profile")
 
+    @unittest.skipIf(os.name != "posix", "POSIX owner/mode enforcement")
+    def test_read_store_rejects_permissive_file_without_chmod(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            write_json_private(path, blank_store())
+            path.chmod(0o644)
+
+            with self.assertRaises(PermissionError):
+                read_store(path=path)
+
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o644)
+
     def test_cli_invalid_store_shape_is_traceback_free_and_path_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
             path.write_text("[]", encoding="utf-8")
+            path.chmod(0o600)
 
             result = subprocess.run(
                 [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "check"],
@@ -196,6 +210,7 @@ class VaultTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
             path.write_text("[]", encoding="utf-8")
+            path.chmod(0o600)
             message = {
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -378,6 +393,32 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(store_revision(migrated), 1)
             self.assertEqual(migrated["fields"]["EMAIL"], "kept@example.test")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["revision"], 1)
+
+    def test_read_store_normalizes_legacy_shape_without_mutating_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            legacy["fields"].pop("EMAIL")
+            legacy["fields"]["FULL_NAME"] = "derived value"
+            write_json_private(path, legacy)
+            before = path.read_bytes()
+
+            store = read_store(path=path)
+
+            self.assertEqual(store["revision"], 0)
+            self.assertEqual(store["fields"]["EMAIL"], "")
+            self.assertNotIn("FULL_NAME", store["fields"])
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_read_store_missing_path_does_not_create_parent_or_vault(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing-parent" / "vault.json"
+
+            with self.assertRaises(FileNotFoundError):
+                read_store(path=path)
+
+            self.assertFalse(path.parent.exists())
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_encrypted_store_rejects_stale_revision_without_mutation(self) -> None:
@@ -625,6 +666,25 @@ class VaultTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertFalse(payload["raw_values_included"])
             self.assertNotIn("山田", result.stdout)
+
+    def test_cli_metadata_reads_do_not_migrate_legacy_store(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            write_json_private(path, legacy)
+            before = path.read_bytes()
+
+            for command in ("check", "context", "list"):
+                with self.subTest(command=command):
+                    result = subprocess.run(
+                        [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), command],
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(path.read_bytes(), before)
 
     def test_cli_context_task_outputs_raw_free_planning_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1197,6 +1257,55 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("private.person@example.test", encoded)
             self.assertNotIn(str(path), encoded)
 
+    def test_gui_profile_view_does_not_create_or_migrate_vault(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "missing-parent" / "vault.json"
+            with self.assertRaises(FileNotFoundError):
+                profile_view_payload(missing, "job_hunting_profile")
+            self.assertFalse(missing.parent.exists())
+
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            write_json_private(path, legacy)
+            before = path.read_bytes()
+
+            payload = profile_view_payload(path, "job_hunting_profile")
+
+            self.assertEqual(payload["revision"], 0)
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_gui_profile_get_is_nonmutating_and_requires_audited_post(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            write_json_private(path, legacy)
+            before = path.read_bytes()
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/profile",
+                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    urllib.request.urlopen(request, timeout=5)
+                self.assertEqual(raised.exception.code, 405)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("audited POST action", body)
+                self.assertEqual(path.read_bytes(), before)
+                self.assertFalse(audit_path(path).exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_gui_http_rejects_malformed_json_without_token_or_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1241,8 +1350,13 @@ class VaultTests(unittest.TestCase):
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile"
-                request = urllib.request.Request(url, headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"})
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile/view"
+                request = urllib.request.Request(
+                    url,
+                    data=b"",
+                    method="POST",
+                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
                         urllib.request.urlopen(request, timeout=5)
@@ -1265,6 +1379,7 @@ class VaultTests(unittest.TestCase):
             root = Path(tmp)
             path = root / "vault.json"
             other_path = root / "other-vault.json"
+            load_store(create=True, path=path)
             token = "dummy-gui-token-private"
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
             configure_gui_server(server, path, "job_hunting_profile", session_token=token)
@@ -1274,8 +1389,13 @@ class VaultTests(unittest.TestCase):
             thread.start()
 
             def get_profile() -> dict:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile"
-                request = urllib.request.Request(url, headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"})
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile/view"
+                request = urllib.request.Request(
+                    url,
+                    data=b"",
+                    method="POST",
+                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
                 with urllib.request.urlopen(request, timeout=5) as response:
                     return json.loads(response.read().decode("utf-8"))
 
@@ -1402,12 +1522,19 @@ class VaultTests(unittest.TestCase):
                     self.assertNotIn("?token=", html_body)
                     self.assertNotIn("const TOKEN", html_body)
 
-                    profile_request = urllib.request.Request(base + "/api/profile", headers={"Cookie": cookie})
+                    profile_request = urllib.request.Request(
+                        base + "/api/profile/view",
+                        data=b"",
+                        method="POST",
+                        headers={"Cookie": cookie},
+                    )
                     with urllib.request.urlopen(profile_request, timeout=5) as response:
                         self.assertEqual(response.status, 200)
 
                     duplicate_cookie_request = urllib.request.Request(
-                        base + "/api/profile",
+                        base + "/api/profile/view",
+                        data=b"",
+                        method="POST",
                         headers={"Cookie": f"{cookie}; {cookie}"},
                     )
                     with self.assertRaises(urllib.error.HTTPError) as duplicate_cookie:
@@ -1421,7 +1548,9 @@ class VaultTests(unittest.TestCase):
                     replayed.exception.close()
 
                     query_only = urllib.request.Request(
-                        f"{base}/api/profile?token={bootstrap_token}",
+                        f"{base}/api/profile/view?token={bootstrap_token}",
+                        data=b"",
+                        method="POST",
                         headers={"Cookie": cookie},
                     )
                     with self.assertRaises(urllib.error.HTTPError) as rejected_query:
@@ -1817,6 +1946,7 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             load_store(create=True, path=path)
             consent_path(path).write_text("[]", encoding="utf-8")
+            consent_path(path).chmod(0o600)
 
             result = subprocess.run(
                 [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "consent", "list"],
@@ -1859,6 +1989,7 @@ class VaultTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            consent_path(path).chmod(0o600)
 
             with self.assertRaisesRegex(ConsentError, "consent request id is invalid"):
                 list_consent_requests(path)
@@ -2096,6 +2227,7 @@ class VaultTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            consent_path(path).chmod(0o600)
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
             configure_gui_server(server, path, "job_hunting_profile", session_token=token)
             server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
@@ -2877,6 +3009,35 @@ class VaultTests(unittest.TestCase):
             }
             self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
 
+    def test_mcp_metadata_reads_do_not_migrate_legacy_store(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy.pop("revision")
+            write_json_private(path, legacy)
+            before = path.read_bytes()
+            messages = [
+                {
+                    "jsonrpc": "2.0",
+                    "id": index,
+                    "method": "tools/call",
+                    "params": {"name": name, "arguments": {}},
+                }
+                for index, name in enumerate(("apv.context", "apv.check", "apv.list_masked"), start=1)
+            ]
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(result.stdout.splitlines()), 3)
+            self.assertEqual(path.read_bytes(), before)
+
     def test_mcp_context_redacts_raw_looking_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -3307,6 +3468,7 @@ class VaultTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            consent_path(path).chmod(0o600)
 
             with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
                 list_consent_requests(path)
@@ -3333,6 +3495,7 @@ class VaultTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            consent_path(path).chmod(0o600)
             with self.assertRaisesRegex(ConsentError, "consent purpose contains unsupported format controls"):
                 list_consents(path)
 
@@ -3361,6 +3524,7 @@ class VaultTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            consent_path(path).chmod(0o600)
 
             self.assertEqual(list_consents(path)[0]["purpose"], "review email")
             with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):

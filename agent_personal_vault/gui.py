@@ -30,6 +30,7 @@ from .vault import (
     load_store,
     local_user_path,
     normalize_value,
+    read_store,
     store_path,
     store_path_warnings,
     store_revision,
@@ -274,7 +275,7 @@ function scheduleSave() {{
   timer = setTimeout(() => save(false).catch(err => {{ plaintextAcknowledgedContext=""; setState(err.message); }}), 900);
 }}
 async function load() {{
-  const data = await api("/api/profile");
+  const data = await api("/api/profile/view", {{method:"POST"}});
   const nextContext = String(data.storage_context || "");
   if (storageContext && storageContext !== nextContext) plaintextAcknowledgedContext = "";
   storageContext = nextContext;
@@ -342,7 +343,7 @@ def save_profile_fields(path: Path, schema_name: str, incoming: dict, expected_r
 
 
 def profile_view_payload(path: Path, schema_name: str) -> dict:
-    store = load_store(create=True, path=path, schema_name=schema_name)
+    store = read_store(path=path, schema_name=schema_name)
     write_audit_event(
         vault_path=path,
         actor="gui",
@@ -508,15 +509,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
-            try:
-                payload = profile_view_payload(self.server.store_path, self.server.schema_name)
-                context, protection = self.current_storage_context()
-                payload["storage_context"] = context
-                payload["storage_protection"] = protection
-            except Exception:
-                self.send_internal_error()
-                return
-            self.send_json(HTTPStatus.OK, payload)
+            self.send_json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "profile view requires an audited POST action"})
             return
         if parsed.path == "/api/consent/requests":
             if not self.session_ok():
@@ -545,6 +538,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed_path = urlparse(self.path).path
+        if parsed_path == "/api/profile/view":
+            if not self.session_ok():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+                return
+            try:
+                payload = profile_view_payload(self.server.store_path, self.server.schema_name)
+                context, protection = self.current_storage_context()
+                payload["storage_context"] = context
+                payload["storage_protection"] = protection
+            except Exception:
+                self.send_internal_error()
+                return
+            self.send_json(HTTPStatus.OK, payload)
+            return
         if parsed_path == "/api/storage/acknowledge":
             if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})

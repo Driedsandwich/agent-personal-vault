@@ -336,16 +336,11 @@ def write_json_private(path: Path, payload: dict) -> None:
     write_private_json(path, payload)
 
 
-def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
-    path = path or store_path()
-    ensure_private_dir(path.parent)
-    if not private_file_exists(path):
-        if not create:
-            raise FileNotFoundError(f"Vault does not exist: {path}")
-        store = blank_store(schema_name)
-        write_store(store, path)
-        return store
-
+def _read_normalized_store(
+    path: Path,
+    schema_name: str,
+    passphrase: str | None,
+) -> tuple[dict, bool, str | None, bool]:
     payload = read_private_json(path)
     encrypted_payload = is_encrypted_payload(payload)
     effective_passphrase = passphrase or default_passphrase()
@@ -357,7 +352,9 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
         store = validate_store_shape(payload)
 
     schema = get_schema(str(store.get("schema") or schema_name))
-    fields = store.setdefault("fields", {})
+    store = dict(store)
+    fields = dict(store.get("fields", {}))
+    store["fields"] = fields
     changed = "revision" not in store
     store.setdefault("revision", 0)
     for key in schema:
@@ -368,6 +365,32 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
         if key in fields:
             fields.pop(key, None)
             changed = True
+    return store, encrypted_payload, effective_passphrase, changed
+
+
+def read_store(
+    path: Path | None = None,
+    schema_name: str = DEFAULT_SCHEMA,
+    passphrase: str | None = None,
+) -> dict:
+    """Read and normalize a store in memory without creating or rewriting files."""
+
+    path = path or store_path()
+    store, _encrypted, _passphrase, _changed = _read_normalized_store(path, schema_name, passphrase)
+    return store
+
+
+def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
+    path = path or store_path()
+    ensure_private_dir(path.parent)
+    if not private_file_exists(path):
+        if not create:
+            raise FileNotFoundError(f"Vault does not exist: {path}")
+        store = blank_store(schema_name)
+        write_store(store, path)
+        return store
+
+    store, encrypted_payload, effective_passphrase, changed = _read_normalized_store(path, schema_name, passphrase)
     if changed:
         write_store(store, path, passphrase=effective_passphrase, encrypted=encrypted_payload)
     return store
