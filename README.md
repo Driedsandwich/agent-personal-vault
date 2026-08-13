@@ -229,6 +229,8 @@ agent-personal-vault get FULL_NAME --purpose "prepare local draft for user revie
 
 `consent request` はrequest idを出力します。人間がGUIまたはhuman-operated CLIで承認すると、CLI `get` に渡すconsent idが発行されます。AIエージェントの通常導線では `consent approve` を実行させず、人間の承認操作として扱ってください。GUI承認後は画面に表示されたconsent idを使ってください。
 
+保留中のrequestは10分で失効します。承認で発行するone-time tokenの既定有効期間は300秒で、CLIの`--ttl-seconds`は1〜3600秒に制限されます。失効後は古いrequestやtokenを再利用せず、新しいrequestを作成してください。
+
 raw値のbulk export:
 
 `env` は複数のraw値をshell export形式で表示するhuman-only advanced commandです。public alphaの既定では使わず、AIエージェントの通常導線、MCP連携、Quickstart、release validationには含めません。まずは `context` / `apv.context` でrawなし計画を作り、必要な場合だけ `get <KEY>` で1 keyずつ取得してください。

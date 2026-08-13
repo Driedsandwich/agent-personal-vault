@@ -13,6 +13,7 @@ import unicodedata
 import urllib.error
 import urllib.request
 import unittest
+from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +23,8 @@ from agent_personal_vault import __version__, crypto_store
 from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
 from agent_personal_vault.audit import write_audit_event
 from agent_personal_vault.consent import (
+    MAX_TTL_SECONDS,
+    REQUEST_TTL_SECONDS,
     ConsentError,
     consent_path,
     create_consent_request,
@@ -1632,6 +1635,194 @@ class VaultTests(unittest.TestCase):
 
             self.assertRegex(request["id"], r"\Ar_[A-Za-z0-9_-]{24}\Z")
             self.assertEqual(list_consent_requests(path)[0]["id"], request["id"])
+            requested_at = datetime.fromisoformat(request["requested_at"])
+            expires_at = datetime.fromisoformat(request["expires_at"])
+            self.assertEqual(expires_at - requested_at, timedelta(seconds=REQUEST_TTL_SECONDS))
+
+    def test_consent_token_ttl_is_strictly_bounded_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+
+            for ttl_seconds in (0, -1, MAX_TTL_SECONDS + 1, True):
+                with self.subTest(ttl_seconds=ttl_seconds):
+                    with self.assertRaisesRegex(ConsentError, "TTL must be between"):
+                        issue_consent(
+                            vault_path=path,
+                            action="get",
+                            key="EMAIL",
+                            purpose="bounded synthetic access",
+                            ttl_seconds=ttl_seconds,
+                            actor="test",
+                        )
+
+            self.assertFalse(consent_path(path).exists())
+            self.assertEqual(read_audit_events(path, limit=20), [])
+            for ttl_seconds in (1, MAX_TTL_SECONDS):
+                grant = issue_consent(
+                    vault_path=path,
+                    action="get",
+                    key="EMAIL",
+                    purpose=f"bounded synthetic access {ttl_seconds}",
+                    ttl_seconds=ttl_seconds,
+                    actor="test",
+                )
+                issued_at = datetime.fromisoformat(grant["issued_at"])
+                expires_at = datetime.fromisoformat(grant["expires_at"])
+                self.assertEqual(expires_at - issued_at, timedelta(seconds=ttl_seconds))
+
+    def test_expired_pending_request_is_hidden_and_cannot_be_approved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose="time bounded synthetic request",
+                actor="test",
+            )
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            state["requests"][0]["expires_at"] = "2000-01-01T00:00:00+00:00"
+            consent_path(path).write_text(json.dumps(state), encoding="utf-8")
+
+            self.assertEqual(list_consent_requests(path), [])
+            resolved = list_consent_requests(path, include_resolved=True)
+            self.assertEqual(resolved[0]["status"], "expired")
+            with self.assertRaisesRegex(ConsentError, "request has expired"):
+                resolve_consent_request(
+                    vault_path=path,
+                    request_id=request["id"],
+                    approve=True,
+                    actor="test",
+                )
+
+            persisted = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            self.assertEqual(persisted["requests"][0]["status"], "pending")
+            self.assertEqual(persisted["grants"], [])
+
+    def test_approval_rejects_out_of_range_ttl_before_request_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose="bounded approval synthetic request",
+                actor="test",
+            )
+            before = consent_path(path).read_bytes()
+
+            with self.assertRaisesRegex(ConsentError, "TTL must be between"):
+                resolve_consent_request(
+                    vault_path=path,
+                    request_id=request["id"],
+                    approve=True,
+                    ttl_seconds=MAX_TTL_SECONDS + 1,
+                    actor="test",
+                )
+
+            self.assertEqual(consent_path(path).read_bytes(), before)
+            self.assertEqual(list_consent_requests(path)[0]["status"], "pending")
+            self.assertFalse(any(event["action"] == "consent_approve" for event in read_audit_events(path, limit=20)))
+
+    def test_legacy_pending_request_uses_requested_at_for_expiry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose="legacy synthetic request",
+                actor="test",
+            )
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            state["requests"][0].pop("expires_at")
+            state["requests"][0]["requested_at"] = "2000-01-01T00:00:00+00:00"
+            consent_path(path).write_text(json.dumps(state), encoding="utf-8")
+
+            self.assertEqual(list_consent_requests(path), [])
+            with self.assertRaisesRegex(ConsentError, "request has expired"):
+                resolve_consent_request(
+                    vault_path=path,
+                    request_id=request["id"],
+                    approve=True,
+                    actor="test",
+                )
+
+    def test_consent_token_expires_at_exact_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            purpose = "exact boundary synthetic access"
+            grant = issue_consent(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose=purpose,
+                actor="test",
+            )
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            state["grants"][0]["expires_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+            consent_path(path).write_text(json.dumps(state), encoding="utf-8")
+
+            with self.assertRaisesRegex(ConsentError, "token has expired"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id=grant["id"],
+                    action="get",
+                    key="EMAIL",
+                    purpose=purpose,
+                    actor="test",
+                )
+
+    def test_cli_rejects_out_of_range_consent_ttl_without_state_or_private_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            raw_purpose = "synthetic private.person@example.test"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "grant",
+                    "--action",
+                    "get",
+                    "--key",
+                    "EMAIL",
+                    "--purpose",
+                    raw_purpose,
+                    "--ttl-seconds",
+                    str(MAX_TTL_SECONDS + 1),
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr,
+                f"error: consent token TTL must be between 1 and {MAX_TTL_SECONDS} seconds\n",
+            )
+            self.assertNotIn("Traceback", combined)
+            self.assertNotIn(str(path), combined)
+            self.assertNotIn(raw_purpose, combined)
+            self.assertFalse(consent_path(path).exists())
+            self.assertEqual(read_audit_events(path, limit=20), [])
+
+    def test_gui_displays_pending_request_expiry(self) -> None:
+        html = page_html("dummy-token", "job_hunting_profile")
+
+        self.assertIn('期限: ${esc(req.expires_at || "")}', html)
 
     def test_resolve_rejects_invalid_request_id_before_state_lookup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

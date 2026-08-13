@@ -26,12 +26,20 @@ from .private_io import open_private_lock, private_file_exists, read_private_jso
 from .vault import now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
+MAX_TTL_SECONDS = 3600
+REQUEST_TTL_SECONDS = 600
 REQUEST_ID_PATTERN = re.compile(r"r_[A-Za-z0-9_-]{24}")
 PURPOSE_BINDING_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class ConsentError(ValueError):
     """Raised when a consent token is missing, invalid, expired, or mismatched."""
+
+
+def _validate_ttl_seconds(value: Any) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_TTL_SECONDS:
+        raise ConsentError(f"consent token TTL must be between 1 and {MAX_TTL_SECONDS} seconds")
+    return value
 
 
 def _validate_request_id(value: Any) -> str:
@@ -122,8 +130,9 @@ def _build_grant(
     else:
         purpose_binding = _validate_purpose_binding(purpose_binding)
         display_purpose = _validate_stored_purpose(purpose)
+    ttl_seconds = _validate_ttl_seconds(ttl_seconds)
     now = datetime.now(timezone.utc).replace(microsecond=0)
-    expires_at = now + timedelta(seconds=max(1, ttl_seconds))
+    expires_at = now + timedelta(seconds=ttl_seconds)
     return {
         "id": "c_" + secrets.token_urlsafe(18),
         "action": action,
@@ -180,6 +189,30 @@ def _parse_expires_at(value: Any) -> datetime:
     return expires_at
 
 
+def _request_expires_at(request: dict[str, Any]) -> datetime:
+    stored_expiry = request.get("expires_at")
+    if stored_expiry:
+        try:
+            expires_at = datetime.fromisoformat(str(stored_expiry))
+        except ValueError as exc:
+            raise ConsentError("consent request expiry is invalid") from exc
+        if expires_at.tzinfo is None:
+            raise ConsentError("consent request expiry is invalid")
+        return expires_at
+    try:
+        requested_at = datetime.fromisoformat(str(request.get("requested_at")))
+    except ValueError as exc:
+        raise ConsentError("consent request time is invalid") from exc
+    if requested_at.tzinfo is None:
+        raise ConsentError("consent request time is invalid")
+    return requested_at + timedelta(seconds=REQUEST_TTL_SECONDS)
+
+
+def _request_is_expired(request: dict[str, Any], *, now: datetime | None = None) -> bool:
+    current_time = now or datetime.now(timezone.utc).replace(microsecond=0)
+    return current_time >= _request_expires_at(request)
+
+
 def issue_consent(
     *,
     vault_path: Path,
@@ -232,13 +265,15 @@ def create_consent_request(
     actor: str = "cli",
 ) -> dict[str, Any]:
     normalized_purpose = _normalize_purpose(purpose)
+    requested_at = datetime.now(timezone.utc).replace(microsecond=0)
     request = {
         "id": "r_" + secrets.token_urlsafe(18),
         "action": action,
         "key": key,
         "purpose": _clean_text(normalized_purpose),
         "purpose_binding": _purpose_binding(normalized_purpose),
-        "requested_at": now_iso(),
+        "requested_at": requested_at.isoformat(),
+        "expires_at": (requested_at + timedelta(seconds=REQUEST_TTL_SECONDS)).isoformat(),
         "resolved_at": "",
         "status": "pending",
         "actor": actor,
@@ -278,14 +313,30 @@ def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> l
     for request in requests:
         if not isinstance(request, dict):
             continue
-        if request.get("status") != "pending" and not include_resolved:
+        status = request.get("status")
+        if status == "pending" and _request_is_expired(request):
+            status = "expired"
+        if status != "pending" and not include_resolved:
             continue
-        output.append(
-            {
-                key: redact_consent_id(str(request.get(key) or "")) if key == "consent_id" else request.get(key, "")
-                for key in ["id", "action", "key", "purpose", "requested_at", "resolved_at", "status", "actor", "consent_id"]
-            }
-        )
+        public_request = {
+            key: redact_consent_id(str(request.get(key) or "")) if key == "consent_id" else request.get(key, "")
+            for key in [
+                "id",
+                "action",
+                "key",
+                "purpose",
+                "requested_at",
+                "expires_at",
+                "resolved_at",
+                "status",
+                "actor",
+                "consent_id",
+            ]
+        }
+        public_request["status"] = status
+        if not public_request["expires_at"]:
+            public_request["expires_at"] = _request_expires_at(request).isoformat()
+        output.append(public_request)
     return output
 
 
@@ -298,6 +349,8 @@ def resolve_consent_request(
     actor: str = "cli",
 ) -> dict[str, Any]:
     request_id = _validate_request_id(request_id)
+    if approve:
+        ttl_seconds = _validate_ttl_seconds(ttl_seconds)
     path = consent_path(vault_path)
     audit_event: dict[str, Any] | None = None
     with _state_lock(path):
@@ -310,6 +363,8 @@ def resolve_consent_request(
                 continue
             if request.get("status") != "pending":
                 raise ConsentError("consent request is already resolved")
+            if _request_is_expired(request):
+                raise ConsentError("consent request has expired; create a new request")
             request["resolved_at"] = now_iso()
             request["resolved_by"] = actor
             request["resolution_source"] = "request_approval"
@@ -399,7 +454,7 @@ def validate_and_consume_consent(
             if not secrets.compare_digest(stored_binding, provided_binding):
                 raise ConsentError("consent token purpose mismatch")
             expires_at = _parse_expires_at(grant.get("expires_at"))
-            if datetime.now(timezone.utc).replace(microsecond=0) > expires_at:
+            if datetime.now(timezone.utc).replace(microsecond=0) >= expires_at:
                 raise ConsentError("consent token has expired")
             grant["used_at"] = now_iso()
             _write_state(path, state)

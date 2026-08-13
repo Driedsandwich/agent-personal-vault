@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Expire pending consent requests after 10 minutes, bound one-time consent token lifetimes to 1-3600 seconds, and treat the exact expiry boundary as expired.
 - Serialize vault writes with a private per-vault lock and revision compare-and-swap so stale CLI or GUI state fails closed instead of silently overwriting newer data.
 - Make GUI profile saves revision-bound partial updates so omitted fields remain intact and stale browser sessions receive a sanitized conflict response.
 - Narrow raw-free planning hints to directly relevant intent-specific keys instead of broad identity, contact, or education bundles.
@@ -35,6 +36,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add regressions for stale current and legacy consent requests, rejected out-of-range token lifetimes, accepted boundary lifetimes, and exact-boundary expiry.
 - Add concurrent writer, stale revision, partial GUI update, and sanitized HTTP conflict regressions for vault write consistency.
 - Add a GUI rendering regression that rejects prefix/suffix disclosure, raw option rendering, and derived-name output while mask mode is active.
 - Make local release checks non-destructive, require detached exact-commit dry-runs, and add regressions proving source/artifact policy parity, complete artifact-pair scanning, unsafe-entry rejection, stable diagnostics, and preservation of pre-existing build outputs.

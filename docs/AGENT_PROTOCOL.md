@@ -99,6 +99,8 @@ agent-personal-vault consent list
 
 Agents must not run approval commands for themselves. `consent approve`, `consent deny`, and direct `consent grant` are human-operated commands. Agents also must not use bulk raw export as a normal integration path.
 
+Pending consent requests expire after 10 minutes. Approved one-time tokens default to 300 seconds and accept only a 1-3600 second lifetime. Create a new request after expiry instead of attempting to reuse stale intent.
+
 ## MCP Raw-Free Tools
 
 The MCP stdio server exposes only raw-free tools:
