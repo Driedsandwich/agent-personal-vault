@@ -21,7 +21,7 @@ try:
 except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
-from .audit import redact_consent_id, redact_purpose, write_audit_event
+from .audit import AuditOperation, begin_audit_operation, redact_consent_id, redact_purpose
 from .private_io import open_private_lock, private_file_exists, read_private_json
 from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
 from .vault import now_iso, store_path, write_json_private
@@ -270,20 +270,20 @@ def issue_consent(
         if not isinstance(grants, list):
             raise ConsentError("consent grants are invalid")
         _require_record_capacity(state)
+        operation = begin_audit_operation(
+            vault_path=vault_path,
+            actor=actor,
+            action="consent_grant",
+            key=key,
+            purpose=purpose,
+            consent_id=grant["id"],
+            source=source,
+            human_operated=human_operated,
+        )
         grants.append(grant)
         _write_state(path, state)
-    write_audit_event(
-        vault_path=vault_path,
-        actor=actor,
-        action="consent_grant",
-        key=key,
-        raw_returned=False,
-        purpose=purpose,
-        outcome="allowed",
-        consent_id=grant["id"],
-        source=source,
-        human_operated=human_operated,
-    )
+    operation.committed()
+    operation.delivered()
     return _public_record(grant)
 
 
@@ -318,21 +318,21 @@ def create_consent_request(
         if not isinstance(requests, list):
             raise ConsentError("consent requests are invalid")
         _require_record_capacity(state)
+        operation = begin_audit_operation(
+            vault_path=vault_path,
+            actor=actor,
+            action="consent_request",
+            key=key,
+            purpose=purpose,
+            consent_id=request["id"],
+            source="request",
+            human_operated=False,
+            request_id=request["id"],
+        )
         requests.append(request)
         _write_state(path, state)
-    write_audit_event(
-        vault_path=vault_path,
-        actor=actor,
-        action="consent_request",
-        key=key,
-        raw_returned=False,
-        purpose=purpose,
-        outcome="pending",
-        consent_id=request["id"],
-        source="request",
-        human_operated=False,
-        request_id=request["id"],
-    )
+    operation.committed()
+    operation.delivered()
     return _public_record(request)
 
 
@@ -386,6 +386,7 @@ def resolve_consent_request(
         ttl_seconds = _validate_ttl_seconds(ttl_seconds)
     path = consent_path(vault_path)
     audit_event: dict[str, Any] | None = None
+    operation: AuditOperation | None = None
     with _state_lock(path):
         state = _load_state(path)
         requests = state.get("requests", [])
@@ -402,6 +403,17 @@ def resolve_consent_request(
             request["resolved_by"] = actor
             request["resolution_source"] = "request_approval"
             if not approve:
+                operation = begin_audit_operation(
+                    vault_path=vault_path,
+                    actor=actor,
+                    action="consent_deny",
+                    key=str(request.get("key") or ""),
+                    purpose=str(request.get("purpose") or ""),
+                    consent_id=request_id,
+                    source="request_denial",
+                    human_operated=actor in {"cli", "gui"},
+                    request_id=request_id,
+                )
                 request["status"] = "denied"
                 _write_state(path, state)
                 audit_event = {
@@ -435,6 +447,17 @@ def resolve_consent_request(
             if not isinstance(grants, list):
                 raise ConsentError("consent grants are invalid")
             _require_record_capacity(state)
+            operation = begin_audit_operation(
+                vault_path=vault_path,
+                actor=actor,
+                action="consent_approve",
+                key=str(request.get("key") or ""),
+                purpose=str(request.get("purpose") or ""),
+                consent_id=grant["id"],
+                source="request_approval",
+                human_operated=actor in {"cli", "gui"},
+                request_id=request_id,
+            )
             grants.append(grant)
             request["status"] = "approved"
             request["consent_id"] = grant["id"]
@@ -453,13 +476,14 @@ def resolve_consent_request(
             break
         else:
             raise ConsentError("consent request not found")
-    if audit_event is not None:
-        write_audit_event(vault_path=vault_path, actor=actor, raw_returned=False, **audit_event)
+    if audit_event is not None and operation is not None:
+        operation.committed()
+        operation.delivered()
         return result
     raise ConsentError("consent request not found")
 
 
-def validate_and_consume_consent(
+def prepare_consent_consumption(
     *,
     vault_path: Path,
     consent_id: str,
@@ -467,7 +491,7 @@ def validate_and_consume_consent(
     key: str,
     purpose: str,
     actor: str = "cli",
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], AuditOperation]:
     normalized_purpose = _normalize_purpose(purpose)
     provided_binding = _purpose_binding(normalized_purpose)
     path = consent_path(vault_path)
@@ -491,22 +515,42 @@ def validate_and_consume_consent(
             expires_at = _parse_expires_at(grant.get("expires_at"))
             if datetime.now(timezone.utc).replace(microsecond=0) >= expires_at:
                 raise ConsentError("consent token has expired")
+            operation = begin_audit_operation(
+                vault_path=vault_path,
+                actor=actor,
+                action="consent_consume",
+                key=key,
+                purpose=purpose,
+                consent_id=consent_id,
+            )
             grant["used_at"] = now_iso()
             _write_state(path, state)
             result = _public_record(grant)
             break
         else:
             raise ConsentError("consent token not found")
-    write_audit_event(
+    operation.committed()
+    return result, operation
+
+
+def validate_and_consume_consent(
+    *,
+    vault_path: Path,
+    consent_id: str,
+    action: str,
+    key: str,
+    purpose: str,
+    actor: str = "cli",
+) -> dict[str, Any]:
+    result, operation = prepare_consent_consumption(
         vault_path=vault_path,
-        actor=actor,
-        action="consent_consume",
-        key=key,
-        raw_returned=False,
-        purpose=purpose,
-        outcome="allowed",
         consent_id=consent_id,
+        action=action,
+        key=key,
+        purpose=purpose,
+        actor=actor,
     )
+    operation.delivered()
     return result
 
 

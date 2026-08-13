@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .audit import audit_summary, audit_tail, write_audit_event
+from .audit import AuditOperation, audit_summary, audit_tail, begin_audit_operation, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .crypto_store import is_encrypted_payload
 from .private_io import private_file_exists, read_private_json
@@ -321,7 +321,14 @@ load().catch(err => setState(err.message));
 </html>"""
 
 
-def save_profile_fields(path: Path, schema_name: str, incoming: dict, expected_revision: int) -> dict:
+def save_profile_fields(
+    path: Path,
+    schema_name: str,
+    incoming: dict,
+    expected_revision: int,
+    *,
+    return_operation: bool = False,
+) -> dict | tuple[dict, AuditOperation]:
     store = load_store(path=path, schema_name=schema_name)
     schema = get_schema(store["schema"])
     if store_revision(store) != expected_revision:
@@ -331,35 +338,44 @@ def save_profile_fields(path: Path, schema_name: str, incoming: dict, expected_r
         raise ValueError("fields contain unknown keys")
     for key, value in incoming.items():
         store["fields"][key] = normalize_value(key, str(value))
-    write_store(store, path)
-    write_audit_event(
+    operation = begin_audit_operation(
         vault_path=path,
         actor="gui",
         action="profile_save",
         key="*",
-        raw_returned=False,
-        purpose="gui profile save",
+        purpose="profile_update",
+        source="localhost_gui",
+        human_operated=True,
     )
+    write_store(store, path)
+    operation.committed()
+    if return_operation:
+        return store, operation
+    operation.delivered()
     return store
 
 
-def profile_view_payload(path: Path, schema_name: str) -> dict:
+def profile_view_payload(path: Path, schema_name: str, *, return_operation: bool = False) -> dict | tuple[dict, AuditOperation]:
     store = read_store(path=path, schema_name=schema_name)
-    write_audit_event(
+    operation = begin_audit_operation(
         vault_path=path,
         actor="gui",
         action="profile_view",
         key="*",
-        raw_returned=True,
-        purpose="gui profile view",
+        purpose="profile_update",
         source="localhost_gui",
         human_operated=True,
     )
-    return {
+    operation.committed()
+    payload = {
         "fields": store.get("fields", {}),
         "revision": store_revision(store),
         "summary": check_summary(store, path),
     }
+    if return_operation:
+        return payload, operation
+    operation.delivered(raw_returned=True)
+    return payload
 
 
 def storage_protection(path: Path) -> str:
@@ -552,15 +568,27 @@ class Handler(BaseHTTPRequestHandler):
             if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
+            operation: AuditOperation | None = None
             try:
-                payload = profile_view_payload(self.server.store_path, self.server.schema_name)
+                payload, operation = profile_view_payload(
+                    self.server.store_path,
+                    self.server.schema_name,
+                    return_operation=True,
+                )
                 context, protection = self.current_storage_context()
                 payload["storage_context"] = context
                 payload["storage_protection"] = protection
             except Exception:
+                if operation is not None:
+                    operation.try_outcome_unknown(raw_returned=True)
                 self.send_internal_error()
                 return
-            self.send_json(HTTPStatus.OK, payload)
+            try:
+                self.send_json(HTTPStatus.OK, payload)
+            except (BrokenPipeError, ConnectionError, OSError):
+                operation.try_outcome_unknown(raw_returned=True)
+                return
+            operation.try_delivered(raw_returned=True)
             return
         if parsed_path == "/api/storage/acknowledge":
             if not self.session_ok():
@@ -621,11 +649,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.PRECONDITION_REQUIRED, {"error": "plaintext storage acknowledgement required"})
             return
         try:
-            store = save_profile_fields(
+            store, operation = save_profile_fields(
                 self.server.store_path,
                 self.server.schema_name,
                 incoming,
                 expected_revision,
+                return_operation=True,
             )
         except (VaultConflictError, FileNotFoundError):
             self.send_json(HTTPStatus.CONFLICT, {"error": "vault changed; reload and retry"})
@@ -636,10 +665,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self.send_internal_error()
             return
-        self.send_json(
-            HTTPStatus.OK,
-            {"ok": True, "revision": store_revision(store), "summary": check_summary(store, self.server.store_path)},
-        )
+        try:
+            self.send_json(
+                HTTPStatus.OK,
+                {"ok": True, "revision": store_revision(store), "summary": check_summary(store, self.server.store_path)},
+            )
+        except (BrokenPipeError, ConnectionError, OSError):
+            operation.try_outcome_unknown()
+            return
+        operation.try_delivered()
 
 
 def configure_gui_server(

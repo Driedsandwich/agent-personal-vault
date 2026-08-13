@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 import unicodedata
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -21,6 +23,8 @@ from .vault import now_iso, store_path
 
 
 DEFAULT_LIMIT = 20
+OPERATION_ID_PATTERN = re.compile(r"o_[A-Za-z0-9_-]{24}")
+OPERATION_STATES = frozenset({"prepared", "committed", "delivered", "rejected", "outcome_unknown"})
 PURPOSE_CODES = frozenset(
     {
         "encryption_migration",
@@ -217,6 +221,104 @@ def redact_consent_id(value: str | None) -> str:
     return _clean_text(text)
 
 
+@dataclass(frozen=True)
+class AuditOperation:
+    """Durably correlate state, audit, and caller-delivery phases."""
+
+    vault_path: Path
+    operation_id: str
+    actor: str
+    action: str
+    key: str | None = None
+    purpose: str | None = None
+    consent_id: str | None = None
+    source: str | None = None
+    human_operated: bool | None = None
+    request_id: str | None = None
+
+    def _record(
+        self,
+        state: str,
+        *,
+        raw_returned: bool = False,
+        outcome: str,
+        action: str | None = None,
+    ) -> dict[str, Any]:
+        return write_audit_event(
+            vault_path=self.vault_path,
+            actor=self.actor,
+            action=action or self.action,
+            key=self.key,
+            raw_returned=raw_returned,
+            purpose=self.purpose,
+            outcome=outcome,
+            consent_id=self.consent_id,
+            source=self.source,
+            human_operated=self.human_operated,
+            request_id=self.request_id,
+            operation_id=self.operation_id,
+            operation_state=state,
+        )
+
+    def committed(self) -> dict[str, Any]:
+        return self._record("committed", outcome="committed")
+
+    def delivered(self, *, raw_returned: bool = False, action: str | None = None) -> dict[str, Any]:
+        return self._record("delivered", raw_returned=raw_returned, outcome="allowed", action=action)
+
+    def rejected(self) -> dict[str, Any]:
+        return self._record("rejected", outcome="denied")
+
+    def outcome_unknown(self, *, raw_returned: bool = False) -> dict[str, Any]:
+        return self._record("outcome_unknown", raw_returned=raw_returned, outcome="outcome_unknown")
+
+    def try_delivered(self, *, raw_returned: bool = False, action: str | None = None) -> bool:
+        """Finalize after caller output without leaking a late audit failure."""
+
+        try:
+            self.delivered(raw_returned=raw_returned, action=action)
+        except Exception:
+            return False
+        return True
+
+    def try_outcome_unknown(self, *, raw_returned: bool = False) -> bool:
+        """Record an uncertain outcome when an earlier durable phase is already present."""
+
+        try:
+            self.outcome_unknown(raw_returned=raw_returned)
+        except Exception:
+            return False
+        return True
+
+
+def begin_audit_operation(
+    *,
+    vault_path: Path,
+    actor: str,
+    action: str,
+    key: str | None = None,
+    purpose: str | None = None,
+    consent_id: str | None = None,
+    source: str | None = None,
+    human_operated: bool | None = None,
+    request_id: str | None = None,
+) -> AuditOperation:
+    operation = AuditOperation(
+        vault_path=vault_path,
+        operation_id="o_" + secrets.token_urlsafe(18),
+        actor=actor,
+        action=action,
+        key=key,
+        purpose=purpose,
+        consent_id=consent_id,
+        source=source,
+        human_operated=human_operated,
+        request_id=request_id,
+    )
+    operation._record("prepared", outcome="pending")
+    return operation
+
+
 def write_audit_event(
     *,
     vault_path: Path,
@@ -230,6 +332,8 @@ def write_audit_event(
     source: str | None = None,
     human_operated: bool | None = None,
     request_id: str | None = None,
+    operation_id: str | None = None,
+    operation_state: str | None = None,
 ) -> dict[str, Any]:
     path = audit_path(vault_path)
     event: dict[str, Any] = {
@@ -248,6 +352,13 @@ def write_audit_event(
         event["human_operated"] = bool(human_operated)
     if request_id is not None:
         event["request_id"] = _clean_text(request_id)
+    if operation_id is not None or operation_state is not None:
+        if not isinstance(operation_id, str) or OPERATION_ID_PATTERN.fullmatch(operation_id) is None:
+            raise ValueError("audit operation id is invalid")
+        if operation_state not in OPERATION_STATES:
+            raise ValueError("audit operation state is invalid")
+        event["operation_id"] = operation_id
+        event["operation_state"] = operation_state
     with exclusive_private_lock(audit_lock_path(vault_path)):
         append_private_line(
             path,
@@ -349,12 +460,23 @@ def audit_summary(vault_path: Path) -> dict[str, Any]:
     events = result["events"]
     by_action: dict[str, int] = {}
     raw_by_key: dict[str, int] = {}
+    operation_states: dict[str, str] = {}
     for event in events:
+        operation_id = event.get("operation_id")
+        operation_state = event.get("operation_state")
+        if isinstance(operation_id, str) and operation_state in OPERATION_STATES:
+            operation_states[operation_id] = str(operation_state)
+            if operation_state not in {"delivered", "rejected", "outcome_unknown"}:
+                continue
         action = str(event.get("action") or "")
         by_action[action] = by_action.get(action, 0) + 1
         if event.get("raw_returned"):
             key = str(event.get("key") or "")
             raw_by_key[key] = raw_by_key.get(key, 0) + 1
+    delivered_operations = sum(state == "delivered" for state in operation_states.values())
+    rejected_operations = sum(state == "rejected" for state in operation_states.values())
+    explicit_unknown = sum(state == "outcome_unknown" for state in operation_states.values())
+    incomplete_operations = sum(state in {"prepared", "committed"} for state in operation_states.values())
     return {
         "events": len(events),
         "by_action": by_action,
@@ -362,4 +484,10 @@ def audit_summary(vault_path: Path) -> dict[str, Any]:
         "raw_values_included": False,
         "malformed_records_skipped": result["malformed_records_skipped"],
         "integrity_warning": result["integrity_warning"],
+        "operation_outcomes": {
+            "delivered": delivered_operations,
+            "rejected": rejected_operations,
+            "outcome_unknown": explicit_unknown + incomplete_operations,
+        },
+        "incomplete_operations": incomplete_operations,
     }

@@ -15,7 +15,7 @@
 - `get` と `env` はraw個人情報を表示します。ログ、Issue、スクリーンショット、外部AI、Subagent指示へ貼らないでください。
 - `get` と `env` は事前に承認された一回限りのconsent tokenを要求します。
 - public alphaの通常導線は、1回のconsentで1 keyだけを取得するone-key raw retrievalです。bulk raw exportはAIエージェントの通常導線ではありません。
-- `get` / `env` / `set` / `unset` / `consent` / GUI保存はraw値なしの監査ログを書きます。入力した`--purpose`の全文は永続化せず、固定reason codeまたは`[redacted]`とexact-purpose照合用digestだけを保存します。それでも実個人情報は入力しないでください。
+- `get` / `env` / `set` / `unset` / `consent` / GUI操作はraw値なしの監査ログを書きます。状態変更・raw返却を伴う操作はrandom correlation IDで`prepared`、`committed`、`delivered`を記録し、途中失敗は`outcome_unknown`または未完了操作として可視化します。入力した`--purpose`の全文は永続化せず、固定reason codeまたは`[redacted]`とexact-purpose照合用digestだけを保存します。それでも実個人情報は入力しないでください。
 - consent tokenは、同一OSユーザーやシェル実行権限を持つagentに対する強いセキュリティ境界ではありません。信頼できないagentにこのCLIや保存先へのアクセスを渡さないでください。
 - 監査ログの `human_operated` はCLI/GUIなどの承認経路を示すメタデータであり、物理的に人間だけが操作したことの証明ではありません。
 - 保存時暗号化はoptionalです。使う場合は `agent-personal-vault[encrypted]` とpassphraseが必要です。
@@ -285,7 +285,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-`get` と `env` はraw値を出し、stderrに警告を表示します。ログ、公開Issue、外部AI、Subagent指示へ貼らないでください。`audit` と `consent` はkey名、action、固定purpose codeまたは`[redacted]`、rawを返したかどうかを記録します。exact purposeは照合用digestへ束縛しますが、全文もraw値も記録しません。表示可能なcodeは `local_draft`、`profile_setup`、`profile_update`、`profile_cleanup`、`encryption_migration`、`test_dummy` に限定されます。
+`get` と `env` はraw値を出し、stderrに警告を表示します。ログ、公開Issue、外部AI、Subagent指示へ貼らないでください。`audit` と `consent` はkey名、action、固定purpose codeまたは`[redacted]`、rawを返したかどうかを記録します。`audit summary`の`operation_outcomes`は完了したdelivery、拒否、判定不能を集計し、`incomplete_operations`は`prepared`または`committed`のまま止まった操作を示します。判定不能なraw操作は自動再試行せず、人間がstateとauditを確認してください。exact purposeは照合用digestへ束縛しますが、全文もraw値も記録しません。表示可能なcodeは `local_draft`、`profile_setup`、`profile_update`、`profile_cleanup`、`encryption_migration`、`test_dummy` に限定されます。
 
 保存時暗号化の状態確認:
 
