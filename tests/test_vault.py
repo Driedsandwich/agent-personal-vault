@@ -27,6 +27,7 @@ from agent_personal_vault.audit import (
     audit_tail,
     prune_audit_events,
     read_audit_events,
+    redact_purpose,
 )
 from agent_personal_vault.audit import write_audit_event
 from agent_personal_vault.consent import (
@@ -182,6 +183,70 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn(old, payload)
             self.assertIn(malformed, payload)
             self.assertIn(recent, payload)
+
+    def test_privacy_prune_rewrites_legacy_free_form_purpose_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            private_purpose = "synthetic private planning note that matches no PII detector"
+            state = {
+                "version": 1,
+                "grants": [
+                    {
+                        "id": "c_legacy",
+                        "action": "get",
+                        "key": "EMAIL",
+                        "purpose": private_purpose,
+                        "issued_at": "2026-08-13T00:00:00+00:00",
+                        "expires_at": "2099-08-13T00:00:00+00:00",
+                        "used_at": "",
+                        "actor": "test",
+                    }
+                ],
+                "requests": [
+                    {
+                        "id": "r_" + "A" * 24,
+                        "action": "get",
+                        "key": "EMAIL",
+                        "purpose": private_purpose,
+                        "requested_at": "2099-08-13T00:00:00+00:00",
+                        "expires_at": "2099-08-13T00:10:00+00:00",
+                        "resolved_at": "",
+                        "status": "pending",
+                        "actor": "test",
+                        "source": "request",
+                        "consent_id": "",
+                    }
+                ],
+            }
+            write_json_private(consent_path(path), state)
+            write_private_bytes(
+                audit_path(path),
+                (
+                    json.dumps(
+                        {
+                            "timestamp": "2099-08-13T00:00:00+00:00",
+                            "actor": "test",
+                            "action": "set",
+                            "purpose": private_purpose,
+                        }
+                    )
+                    + "\n"
+                ).encode("utf-8"),
+            )
+
+            self.assertEqual(list_consents(path)[0]["purpose"], "[redacted]")
+            self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
+            self.assertEqual(read_audit_events(path)[0]["purpose"], "[redacted]")
+
+            result = prune_private_metadata(path, consent_retention_days=30, audit_retention_days=90)
+            persisted = consent_path(path).read_text(encoding="utf-8") + audit_path(path).read_text(encoding="utf-8")
+
+            self.assertEqual(result["grants_removed"], 0)
+            self.assertEqual(result["requests_removed"], 0)
+            self.assertEqual(result["audit_removed"], 0)
+            self.assertNotIn(private_purpose, persisted)
+            self.assertEqual(json.loads(consent_path(path).read_text(encoding="utf-8"))["grants"][0]["purpose"], "[redacted]")
+            self.assertEqual(json.loads(audit_path(path).read_text(encoding="utf-8"))["purpose"], "[redacted]")
 
     def test_private_state_disposal_requires_confirmation_and_preserves_unrelated_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1003,6 +1068,58 @@ class VaultTests(unittest.TestCase):
 
         self.assertNotEqual(_clean_text("応募フォームの氏名とメール連絡先を下書きする"), "[redacted]")
 
+    def test_persisted_purpose_projection_is_a_finite_allowlist(self) -> None:
+        self.assertEqual(redact_purpose("local_draft"), "local_draft")
+        self.assertEqual(redact_purpose(" profile_update "), "profile_update")
+        self.assertEqual(redact_purpose("prepare local draft for user review"), "[redacted]")
+        self.assertEqual(redact_purpose("synthetic arbitrary private prose"), "[redacted]")
+
+    def test_arbitrary_free_form_purpose_is_bound_but_never_persisted_or_returned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            private_purpose = "synthetic planning context with no enumerated PII shape"
+
+            request = create_consent_request(
+                vault_path=path,
+                action="get",
+                key="EMAIL",
+                purpose=private_purpose,
+                actor="mcp",
+            )
+            approved = resolve_consent_request(
+                vault_path=path,
+                request_id=request["id"],
+                approve=True,
+                actor="gui",
+            )
+
+            persisted_consent = consent_path(path).read_text(encoding="utf-8")
+            persisted_audit = audit_path(path).read_text(encoding="utf-8")
+            public_projection = json.dumps(
+                {
+                    "requests": list_consent_requests(path, include_resolved=True),
+                    "grants": list_consents(path),
+                    "audit": read_audit_events(path, limit=20),
+                },
+                ensure_ascii=False,
+            )
+            self.assertEqual(request["purpose"], "[redacted]")
+            self.assertEqual(approved["grant"]["purpose"], "[redacted]")
+            self.assertNotIn(private_purpose, persisted_consent)
+            self.assertNotIn(private_purpose, persisted_audit)
+            self.assertNotIn(private_purpose, public_projection)
+            self.assertIn("sha256:", persisted_consent)
+
+            validate_and_consume_consent(
+                vault_path=path,
+                consent_id=approved["grant"]["id"],
+                action="get",
+                key="EMAIL",
+                purpose=private_purpose,
+                actor="test",
+            )
+
     def test_cli_list_does_not_return_raw_fragments(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1123,7 +1240,7 @@ class VaultTests(unittest.TestCase):
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
             write_store(store, path)
-            purpose = "local draft"
+            purpose = "local_draft"
             consent_id = self.grant_consent(path, "get", "FAMILY_NAME", purpose)
             subprocess.run(
                 [
@@ -1150,7 +1267,7 @@ class VaultTests(unittest.TestCase):
             events = read_audit_events(path, limit=10)
             encoded = json.dumps(events, ensure_ascii=False)
             self.assertIn("FAMILY_NAME", encoded)
-            self.assertIn("local draft", encoded)
+            self.assertIn("local_draft", encoded)
             self.assertNotIn(consent_id, encoded)
             self.assertIn("c_[redacted]", encoded)
             self.assertNotIn("山田", encoded)
@@ -3931,7 +4048,7 @@ class VaultTests(unittest.TestCase):
             )
             consent_path(path).chmod(0o600)
 
-            self.assertEqual(list_consents(path)[0]["purpose"], "review email")
+            self.assertEqual(list_consents(path)[0]["purpose"], "[redacted]")
             with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):
                 validate_and_consume_consent(
                     vault_path=path,

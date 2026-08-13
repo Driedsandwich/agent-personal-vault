@@ -21,7 +21,7 @@ try:
 except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
-from .audit import _clean_text, redact_consent_id, write_audit_event
+from .audit import redact_consent_id, redact_purpose, write_audit_event
 from .private_io import open_private_lock, private_file_exists, read_private_json
 from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
 from .vault import now_iso, store_path, write_json_private
@@ -87,7 +87,10 @@ def _validate_stored_purpose(value: Any) -> str:
 
 
 def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in record.items() if key != "purpose_binding"}
+    public = {key: value for key, value in record.items() if key != "purpose_binding"}
+    if "purpose" in public:
+        public["purpose"] = redact_purpose(public.get("purpose"))
+    return public
 
 
 def consent_path(vault_path: Path | None = None) -> Path:
@@ -131,10 +134,10 @@ def _build_grant(
     if purpose_binding is None:
         normalized_purpose = _normalize_purpose(purpose)
         purpose_binding = _purpose_binding(normalized_purpose)
-        display_purpose = _clean_text(normalized_purpose)
+        display_purpose = redact_purpose(normalized_purpose)
     else:
         purpose_binding = _validate_purpose_binding(purpose_binding)
-        display_purpose = _validate_stored_purpose(purpose)
+        display_purpose = redact_purpose(_validate_stored_purpose(purpose))
     ttl_seconds = _validate_ttl_seconds(ttl_seconds)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     expires_at = now + timedelta(seconds=ttl_seconds)
@@ -194,6 +197,15 @@ def _require_record_capacity(state: dict[str, Any], *, additional: int = 1) -> N
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
+    for collection_name in ("grants", "requests"):
+        collection = state.get(collection_name, [])
+        if not isinstance(collection, list):
+            raise ConsentError("consent state is invalid")
+        for record in collection:
+            if not isinstance(record, dict):
+                continue
+            if "purpose" in record:
+                record["purpose"] = redact_purpose(_validate_stored_purpose(record.get("purpose")))
     write_json_private(path, state)
 
 
@@ -289,7 +301,7 @@ def create_consent_request(
         "id": "r_" + secrets.token_urlsafe(18),
         "action": action,
         "key": key,
-        "purpose": _clean_text(normalized_purpose),
+        "purpose": redact_purpose(normalized_purpose),
         "purpose_binding": _purpose_binding(normalized_purpose),
         "requested_at": requested_at.isoformat(),
         "expires_at": (requested_at + timedelta(seconds=REQUEST_TTL_SECONDS)).isoformat(),
@@ -353,6 +365,7 @@ def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> l
                 "consent_id",
             ]
         }
+        public_request["purpose"] = redact_purpose(public_request["purpose"])
         public_request["status"] = status
         if not public_request["expires_at"]:
             public_request["expires_at"] = _request_expires_at(request).isoformat()
@@ -405,6 +418,7 @@ def resolve_consent_request(
                     key: request.get(key, "")
                     for key in ["id", "action", "key", "purpose", "requested_at", "resolved_at", "status", "actor", "consent_id"]
                 }
+                result["purpose"] = redact_purpose(result["purpose"])
                 break
 
             grant = _build_grant(
@@ -507,12 +521,12 @@ def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str
             continue
         if grant.get("used_at") and not include_used:
             continue
-        output.append(
-            {
-                key: redact_consent_id(str(grant.get(key) or "")) if key == "id" else grant.get(key, "")
-                for key in ["id", "action", "key", "purpose", "issued_at", "expires_at", "used_at", "actor"]
-            }
-        )
+        public_grant = {
+            key: redact_consent_id(str(grant.get(key) or "")) if key == "id" else grant.get(key, "")
+            for key in ["id", "action", "key", "purpose", "issued_at", "expires_at", "used_at", "actor"]
+        }
+        public_grant["purpose"] = redact_purpose(public_grant["purpose"])
+        output.append(public_grant)
     return output
 
 
@@ -567,8 +581,7 @@ def prune_consent_records(
         requests_removed = len(requests) - len(retained_requests)
         state["grants"] = retained_grants
         state["requests"] = retained_requests
-        if grants_removed or requests_removed:
-            _write_state(path, state)
+        _write_state(path, state)
     return {
         "grants_removed": grants_removed,
         "requests_removed": requests_removed,

@@ -21,6 +21,16 @@ from .vault import now_iso, store_path
 
 
 DEFAULT_LIMIT = 20
+PURPOSE_CODES = frozenset(
+    {
+        "encryption_migration",
+        "local_draft",
+        "profile_cleanup",
+        "profile_setup",
+        "profile_update",
+        "test_dummy",
+    }
+)
 EMAIL_TOKEN_STRIP = ".,;:()[]{}<>\"'"
 DOT_EQUIVALENTS = str.maketrans(
     {
@@ -187,6 +197,19 @@ def _clean_text(value: str | None) -> str:
     return text[:240]
 
 
+def redact_purpose(value: str | None) -> str:
+    """Project an arbitrary purpose into a finite, non-private display code."""
+
+    if value is None:
+        return ""
+    normalized = " ".join(unicodedata.normalize("NFKC", str(value)).split())
+    if not normalized:
+        return ""
+    if normalized in PURPOSE_CODES:
+        return normalized
+    return "[redacted]"
+
+
 def redact_consent_id(value: str | None) -> str:
     text = "" if value is None else " ".join(str(value).split())
     if text.startswith("c_"):
@@ -215,7 +238,7 @@ def write_audit_event(
         "action": action,
         "key": key or "",
         "raw_returned": bool(raw_returned),
-        "purpose": _clean_text(purpose),
+        "purpose": redact_purpose(purpose),
         "consent_id": redact_consent_id(consent_id),
         "outcome": outcome,
     }
@@ -269,7 +292,13 @@ def prune_audit_events(
             if timestamp < cutoff:
                 removed += 1
             else:
-                retained.append(raw_line)
+                purpose = payload.get("purpose")
+                sanitized_purpose = redact_purpose(purpose)
+                if "purpose" in payload and purpose != sanitized_purpose:
+                    payload["purpose"] = sanitized_purpose
+                    retained.append((json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
+                else:
+                    retained.append(raw_line)
         write_private_bytes(path, b"".join(retained))
     return {"removed": removed, "retained": len(retained), "malformed_retained": malformed_retained}
 
@@ -292,6 +321,8 @@ def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
         if not isinstance(payload, dict):
             malformed_records += 1
             continue
+        if "purpose" in payload:
+            payload["purpose"] = redact_purpose(payload.get("purpose"))
         events.append(payload)
     return events, malformed_records
 

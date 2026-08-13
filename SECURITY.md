@@ -15,7 +15,7 @@ Rules:
 - Do not commit real `vault.json` files.
 - Do not paste raw values into issues, pull requests, logs, screenshots, or public examples.
 - Do not send raw values to external AI services or agents without explicit user approval.
-- Do not include raw personal values in `--purpose`; purpose text is stored in the local audit log.
+- Do not include raw personal values in `--purpose`. The exact normalized purpose is used only for an approval-binding digest; persistent consent and audit projections contain a finite reason code or `[redacted]`, not the free-form text.
 - Do not commit `audit.jsonl` or `consents.json`; they are raw-free by design but still describe private usage patterns.
 - Treat form submission, registration, email sending, and upload as separate final actions that require human confirmation.
 
@@ -40,9 +40,9 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 - The MCP stdio server has no built-in authentication layer. It trusts the local process and MCP client connected to its stdin/stdout; do not expose it to untrusted agents, shared-user sessions, or unintended local processes.
 - Localhost GUI returns all fields to a browser tab after a one-time bootstrap URL establishes a 15-minute HttpOnly, SameSite session cookie. This remains a same-user localhost boundary, not protection from a process that can read or drive the user's browser session.
 - CLI `get` intentionally prints one raw value only after a matching one-time consent token is supplied and raw-free audit metadata is written. CLI `env` is a human-only bulk raw export escape hatch and is not part of the public-alpha agent or MCP path. Recommended agent flow is request, human approve or deny, then one-key raw retrieval with the approved token.
-- Audit logs record action, key, purpose, outcome, and whether raw data was returned. They do not intentionally record raw values, but user-provided purpose text must still be kept raw-free. They are not immutable, append-only, signed, or tamper-evident forensic logs.
-- Consent files record action, key, purpose, expiry, request resolution, and used status. They do not intentionally record raw values, but they are still local private metadata.
-- Consent and audit metadata is retained until the operator explicitly runs `privacy prune`; the default explicit windows are 30 days for terminal or expired consent records and 90 days for valid audit events. Malformed audit rows are preserved during pruning rather than silently discarded.
+- Audit logs record action, key, a finite purpose code or `[redacted]`, outcome, and whether raw data was returned. They do not persist free-form purpose text or raw field values. They are not immutable, append-only, signed, or tamper-evident forensic logs.
+- Consent files record action, key, a finite purpose code or `[redacted]`, an exact-purpose binding digest, expiry, request resolution, and used status. They do not intentionally record raw values, but they are still local private metadata.
+- Consent and audit metadata is retained until the operator explicitly runs `privacy prune`; the default explicit windows are 30 days for terminal or expired consent records and 90 days for valid audit events. Pruning also rewrites valid legacy free-form purpose metadata to the bounded projection. Malformed audit rows are preserved rather than interpreted or silently discarded.
 - `privacy dispose` removes the selected vault, consent state, and audit log only after an exact confirmation phrase. Stop GUI and MCP processes first. Empty lock files may remain, and backups, sync replicas, snapshots, archives, and manual copies remain outside this command's deletion boundary.
 - Application-level byte, depth, field, consent-record, and audit-file ceilings reject oversized local input or state before unbounded materialization. These are availability safeguards, not multi-user isolation or a substitute for host quotas.
 - On Windows, Unix-style `0600` permissions and `fcntl` locks do not apply as-is. A Windows locking fallback exists, but live Windows concurrency and permission behavior are not yet covered by this project's test suite.

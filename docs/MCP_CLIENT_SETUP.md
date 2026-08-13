@@ -115,7 +115,7 @@ args:
 2. `planning_hints.matched_hints[].candidate_keys` で必要候補keyを見る。
 3. raw値が必要な場合だけ、`apv.request_consent` で1 keyを要求する。
 4. 人間が `apv-gui --store /absolute/path/to/vault.json --open` またはhuman-operated CLIで承認/拒否する。AIエージェント自身に承認コマンドを実行させない。
-5. 承認後、人間の承認操作が表示したconsent idを使い、CLIで `agent-personal-vault --store /absolute/path/to/vault.json get <KEY> --purpose "<raw-free purpose>" --consent-id "<token>"` を実行する。GUIを閉じた場合は `agent-personal-vault --store /absolute/path/to/vault.json consent list` で未使用tokenを確認する。
+5. 承認後、人間の承認操作が表示したconsent idを使い、CLIで `agent-personal-vault --store /absolute/path/to/vault.json get <KEY> --purpose local_draft --consent-id "<token>"` を実行する。requestと取得には同じexact purposeを使う。GUIを閉じた場合は `agent-personal-vault --store /absolute/path/to/vault.json consent list` で未使用tokenを確認する。
 6. `agent-personal-vault --store /absolute/path/to/vault.json audit summary` または `audit tail` でrawなしの利用履歴を確認する。
 
 MCPには `get`、`env`、`set`、`unset`、外部送信、フォーム送信、メール送信、repository操作のtoolはありません。`apv.request_consent` もraw値を返しません。
@@ -137,7 +137,7 @@ MCP stdio server自体は認証layerを持ちません。ローカルのMCP clie
 | `apv.request_consent` がkeyを拒否する | `apv.context` の候補keyか、`agent-personal-vault schema` のkeyを使う。`FULL_NAME` などのderived keyも利用可能 |
 | raw値が返らない | 正常です。MCPはraw値を返しません。GUI/CLIで承認後、CLI `get` を使います |
 | GUIにpending requestがない | MCP clientとGUIが同じstore pathを見ているか確認する |
-| auditにraw値が出るのが心配 | `audit summary` と `audit tail` はraw値を意図的に記録しません。ただし `--purpose` にはraw値を書かないでください |
+| auditにraw値が出るのが心配 | `audit summary` と `audit tail` はraw値やfree-form purposeを意図的に記録しません。`--purpose`は固定reason codeまたは`[redacted]`として保存されますが、入力自体にもraw値を書かないでください |
 
 ## References
 

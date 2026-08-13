@@ -74,7 +74,10 @@ def tool_definitions() -> list[dict[str, Any]]:
                 "properties": {
                     "action": {"type": "string", "enum": ["get"]},
                     "key": {"type": "string", "description": "One schema key for a get request."},
-                    "purpose": {"type": "string", "description": "Raw-free reason shown to the human approver."},
+                    "purpose": {
+                        "type": "string",
+                        "description": "Exact reason bound to approval; only an allowlisted reason code or [redacted] is persisted and shown.",
+                    },
                 },
                 "required": ["action", "key", "purpose"],
                 "additionalProperties": False,
