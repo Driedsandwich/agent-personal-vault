@@ -9,7 +9,7 @@ import sys
 from getpass import getpass
 from pathlib import Path
 
-from .audit import audit_summary, audit_tail, write_audit_event
+from .audit import audit_summary, audit_tail, begin_audit_operation, write_audit_event
 from .consent import (
     MAX_TTL_SECONDS,
     ConsentError,
@@ -18,7 +18,7 @@ from .consent import (
     list_consent_requests,
     list_consents,
     resolve_consent_request,
-    validate_and_consume_consent,
+    prepare_consent_consumption,
 )
 from .crypto_store import (
     ENCRYPTED_STORAGE,
@@ -122,7 +122,7 @@ def command_get(args: argparse.Namespace) -> None:
     store = load_store(path=path)
     key = validate_key(args.key, store["schema"])
     try:
-        validate_and_consume_consent(
+        _grant, operation = prepare_consent_consumption(
             vault_path=path,
             consent_id=args.consent_id,
             action="get",
@@ -137,21 +137,19 @@ def command_get(args: argparse.Namespace) -> None:
     else:
         value = str(store["fields"].get(key, ""))
     if not value:
+        operation.try_outcome_unknown()
         raise SystemExit(f"{key} is empty")
-    print(
-        "# WARNING: this prints one raw personal value. Do not paste it into logs, public issues, or remote agents.",
-        file=sys.stderr,
-    )
-    write_audit_event(
-        vault_path=path,
-        actor="cli",
-        action="get",
-        key=key,
-        raw_returned=True,
-        purpose=args.purpose,
-        consent_id=args.consent_id,
-    )
-    print(value)
+    try:
+        print(
+            "# WARNING: this prints one raw personal value. Do not paste it into logs, public issues, or remote agents.",
+            file=sys.stderr,
+        )
+        print(value)
+    except (BrokenPipeError, OSError):
+        operation.try_outcome_unknown(raw_returned=True)
+        raise
+    if not operation.try_delivered(raw_returned=True, action="get"):
+        raise OSError("audit outcome finalization failed")
 
 
 def command_set(args: argparse.Namespace) -> None:
@@ -167,9 +165,16 @@ def command_set(args: argparse.Namespace) -> None:
     print_store_path_warnings(path)
     value = read_bounded_stdin() if args.stdin else getpass(f"{key} value: ")
     store["fields"][key] = normalize_value(key, value)
+    operation = begin_audit_operation(vault_path=path, actor="cli", action="set", key=key, purpose=args.purpose)
     write_store(store, path)
-    write_audit_event(vault_path=path, actor="cli", action="set", key=key, purpose=args.purpose)
-    print(f"saved: {key}")
+    operation.committed()
+    try:
+        print(f"saved: {key}")
+    except (BrokenPipeError, OSError):
+        operation.try_outcome_unknown()
+        raise
+    if not operation.try_delivered():
+        raise OSError("audit outcome finalization failed")
 
 
 def command_unset(args: argparse.Namespace) -> None:
@@ -179,9 +184,16 @@ def command_unset(args: argparse.Namespace) -> None:
     if key in DERIVED_FIELDS:
         raise SystemExit(f"{key} is derived. Clear component fields instead.")
     store["fields"][key] = ""
+    operation = begin_audit_operation(vault_path=path, actor="cli", action="unset", key=key, purpose=args.purpose)
     write_store(store, path)
-    write_audit_event(vault_path=path, actor="cli", action="unset", key=key, purpose=args.purpose)
-    print(f"cleared: {key}")
+    operation.committed()
+    try:
+        print(f"cleared: {key}")
+    except (BrokenPipeError, OSError):
+        operation.try_outcome_unknown()
+        raise
+    if not operation.try_delivered():
+        raise OSError("audit outcome finalization failed")
 
 
 def command_env(args: argparse.Namespace) -> None:
@@ -191,7 +203,7 @@ def command_env(args: argparse.Namespace) -> None:
         raise SystemExit("env bulk raw export requires --i-understand-bulk-raw-export")
     store = load_store(path=path)
     try:
-        validate_and_consume_consent(
+        _grant, operation = prepare_consent_consumption(
             vault_path=path,
             consent_id=args.consent_id,
             action="env",
@@ -201,21 +213,18 @@ def command_env(args: argparse.Namespace) -> None:
     except ConsentError as exc:
         write_audit_event(vault_path=path, actor="cli", action="env_bulk_export", key="*", purpose=args.purpose, outcome="denied")
         raise SystemExit(f"consent required: {exc}") from exc
-    print(
-        "# WARNING: this is a human-only bulk raw export. Do not paste it into logs, public issues, or remote agents.",
-        file=sys.stderr,
-    )
     lines = export_env_lines(store)
-    write_audit_event(
-        vault_path=path,
-        actor="cli",
-        action="env_bulk_export",
-        key="*",
-        raw_returned=bool(lines),
-        purpose=args.purpose,
-        consent_id=args.consent_id,
-    )
-    print("\n".join(lines))
+    try:
+        print(
+            "# WARNING: this is a human-only bulk raw export. Do not paste it into logs, public issues, or remote agents.",
+            file=sys.stderr,
+        )
+        print("\n".join(lines))
+    except (BrokenPipeError, OSError):
+        operation.try_outcome_unknown(raw_returned=bool(lines))
+        raise
+    if not operation.try_delivered(raw_returned=bool(lines), action="env_bulk_export"):
+        raise OSError("audit outcome finalization failed")
 
 
 def command_audit(args: argparse.Namespace) -> None:
@@ -270,15 +279,31 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "# WARNING: weak passphrase override accepted; copied vault bytes are easier to guess offline.",
                     file=sys.stderr,
                 )
-            write_store(
-                store,
-                path,
-                passphrase=passphrase,
-                encrypted=True,
-                allow_weak_passphrase=args.allow_weak_passphrase,
+            operation = begin_audit_operation(
+                vault_path=path,
+                actor="cli",
+                action="encrypt",
+                purpose=args.purpose,
             )
-            write_audit_event(vault_path=path, actor="cli", action="encrypt", purpose=args.purpose)
-            print("encrypted: true")
+            try:
+                write_store(
+                    store,
+                    path,
+                    passphrase=passphrase,
+                    encrypted=True,
+                    allow_weak_passphrase=args.allow_weak_passphrase,
+                )
+            except ValueError:
+                operation.rejected()
+                raise
+            operation.committed()
+            try:
+                print("encrypted: true")
+            except (BrokenPipeError, OSError):
+                operation.try_outcome_unknown()
+                raise
+            if not operation.try_delivered():
+                raise OSError("audit outcome finalization failed")
             return
         if args.encryption_command == "decrypt":
             if not encrypted:
@@ -289,9 +314,25 @@ def command_encryption(args: argparse.Namespace) -> None:
                 )
             passphrase = read_passphrase()
             store = load_store(path=path, passphrase=passphrase)
-            write_store(store, path, passphrase=passphrase, encrypted=False)
-            write_audit_event(vault_path=path, actor="cli", action="decrypt", purpose=args.purpose)
-            print("encrypted: false")
+            operation = begin_audit_operation(
+                vault_path=path,
+                actor="cli",
+                action="decrypt",
+                purpose=args.purpose,
+            )
+            try:
+                write_store(store, path, passphrase=passphrase, encrypted=False)
+            except ValueError:
+                operation.rejected()
+                raise
+            operation.committed()
+            try:
+                print("encrypted: false")
+            except (BrokenPipeError, OSError):
+                operation.try_outcome_unknown()
+                raise
+            if not operation.try_delivered():
+                raise OSError("audit outcome finalization failed")
             return
     except EncryptionUnavailableError as exc:
         raise SystemExit(str(exc)) from exc

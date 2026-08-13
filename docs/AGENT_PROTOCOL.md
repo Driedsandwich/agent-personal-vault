@@ -158,7 +158,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-Audit events include action, key, redacted consent id, raw-returned flag, a finite purpose code or `[redacted]`, and outcome. Agent-facing consent request and grant lists expose the same bounded purpose projection, expiry or resolution state, and used status; active raw-access grant ids and exact-purpose binding digests are hidden. They do not include free-form purpose text or raw stored values.
+Audit events include action, key, redacted consent id, raw-returned flag, a finite purpose code or `[redacted]`, and outcome. Profile, consent, encryption, and raw-delivery operations add a random non-capability correlation id and lifecycle state. `audit summary` treats `prepared` or `committed` without a terminal `delivered`, `rejected`, or `outcome_unknown` record as outcome unknown. Agents must not retry a one-time raw operation from that condition; a human must reconcile the consent state and audit metadata. Agent-facing consent request and grant lists expose the same bounded purpose projection, expiry or resolution state, and used status; active raw-access grant ids and exact-purpose binding digests are hidden. They do not include free-form purpose text or raw stored values.
 
 ## Subagents
 

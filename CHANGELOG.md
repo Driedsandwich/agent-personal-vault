@@ -17,6 +17,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Journal profile, consent, encryption, and raw-delivery operations through durable prepared, committed, delivered, rejected, or outcome-unknown audit phases so partial failures remain explicitly reconcilable without unsafe automatic retry.
 - Persist and display only a finite purpose reason code or `[redacted]`, keep exact free-form purpose text ephemeral behind its existing approval-binding digest, and make explicit metadata pruning rewrite valid legacy purpose prose to the bounded projection.
 - Separate side-effect-free store reads from explicit create/migrate operations, keep CLI/MCP metadata reads from rewriting legacy vaults, and expose GUI raw profile viewing as an explicitly audited POST action rather than a mutating GET.
 - Exchange the localhost GUI's five-minute, one-time bootstrap URL for a queryless 15-minute `HttpOnly` and `SameSite=Strict` cookie session, and reject bootstrap replay, API query-token authentication, and expired sessions.

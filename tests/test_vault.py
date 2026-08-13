@@ -13,13 +13,14 @@ import unicodedata
 import urllib.error
 import urllib.request
 import unittest
+from argparse import Namespace
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from agent_personal_vault import __version__, crypto_store
+from agent_personal_vault import __version__, cli as cli_module, crypto_store
 from agent_personal_vault.audit import (
     _clean_text,
     audit_path,
@@ -1312,6 +1313,116 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(payload["by_action"]["env_bulk_export"], 1)
             self.assertNotIn("taro@example.test", result.stdout)
 
+    def test_operation_journal_records_successful_state_and_delivery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            args = Namespace(store=str(path), schema="job_hunting_profile", key="EMAIL", stdin=True, purpose="profile_update")
+            with mock.patch.object(cli_module, "read_bounded_stdin", return_value="dummy@example.test"):
+                cli_module.command_set(args)
+
+            events = read_audit_events(path, limit=0)
+            operation_ids = {event.get("operation_id") for event in events if event.get("action") == "set"}
+            self.assertEqual(len(operation_ids), 1)
+            states = [event.get("operation_state") for event in events if event.get("action") == "set"]
+            self.assertEqual(states, ["prepared", "committed", "delivered"])
+            summary = audit_summary(path)
+            self.assertEqual(summary["operation_outcomes"], {"delivered": 1, "rejected": 0, "outcome_unknown": 0})
+            self.assertEqual(summary["by_action"]["set"], 1)
+
+    def test_operation_journal_marks_output_failure_unknown_without_rolling_back_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            args = Namespace(store=str(path), schema="job_hunting_profile", key="EMAIL", stdin=True, purpose="profile_update")
+            real_print = print
+
+            def fail_final_output(*values, **kwargs):
+                if values and values[0] == "saved: EMAIL":
+                    raise BrokenPipeError("synthetic output failure")
+                return real_print(*values, **kwargs)
+
+            with mock.patch.object(cli_module, "read_bounded_stdin", return_value="dummy@example.test"), mock.patch(
+                "builtins.print", side_effect=fail_final_output
+            ):
+                with self.assertRaises(BrokenPipeError):
+                    cli_module.command_set(args)
+
+            self.assertEqual(read_store(path=path)["fields"]["EMAIL"], "dummy@example.test")
+            states = [event.get("operation_state") for event in read_audit_events(path, limit=0) if event.get("action") == "set"]
+            self.assertEqual(states, ["prepared", "committed", "outcome_unknown"])
+            summary = audit_summary(path)
+            self.assertEqual(summary["operation_outcomes"]["outcome_unknown"], 1)
+            self.assertEqual(summary["incomplete_operations"], 0)
+
+    def test_operation_journal_surfaces_post_state_audit_failure_as_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            args = Namespace(store=str(path), schema="job_hunting_profile", key="EMAIL", stdin=True, purpose="profile_update")
+            with mock.patch.object(cli_module, "read_bounded_stdin", return_value="dummy@example.test"), mock.patch(
+                "agent_personal_vault.audit.AuditOperation.committed",
+                side_effect=OSError("synthetic audit failure"),
+            ):
+                with self.assertRaises(OSError):
+                    cli_module.command_set(args)
+
+            self.assertEqual(read_store(path=path)["fields"]["EMAIL"], "dummy@example.test")
+            summary = audit_summary(path)
+            self.assertEqual(summary["operation_outcomes"]["outcome_unknown"], 1)
+            self.assertEqual(summary["incomplete_operations"], 1)
+
+    def test_operation_journal_surfaces_terminal_audit_failure_without_leaking_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            args = Namespace(store=str(path), schema="job_hunting_profile", key="EMAIL", stdin=True, purpose="profile_update")
+            with mock.patch.object(cli_module, "read_bounded_stdin", return_value="dummy@example.test"), mock.patch(
+                "agent_personal_vault.audit.AuditOperation.delivered",
+                side_effect=OSError("synthetic private path /tmp/private-vault"),
+            ):
+                with self.assertRaisesRegex(OSError, "audit outcome finalization failed") as raised:
+                    cli_module.command_set(args)
+
+            self.assertNotIn(str(path), str(raised.exception))
+            self.assertNotIn("dummy@example.test", str(raised.exception))
+            summary = audit_summary(path)
+            self.assertEqual(summary["operation_outcomes"]["outcome_unknown"], 1)
+            self.assertEqual(summary["incomplete_operations"], 1)
+
+    def test_raw_delivery_failure_consumes_consent_once_and_records_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["EMAIL"] = "dummy@example.test"
+            write_store(store, path)
+            purpose = "local_draft"
+            grant = issue_consent(vault_path=path, action="get", key="EMAIL", purpose=purpose)
+            consent_id = str(grant["id"])
+            args = Namespace(store=str(path), key="EMAIL", purpose=purpose, consent_id=consent_id)
+            real_print = print
+
+            def fail_raw_output(*values, **kwargs):
+                if values and values[0] == "dummy@example.test":
+                    raise BrokenPipeError("synthetic output failure")
+                return real_print(*values, **kwargs)
+
+            with mock.patch("builtins.print", side_effect=fail_raw_output):
+                with self.assertRaises(BrokenPipeError):
+                    cli_module.command_get(args)
+            with self.assertRaisesRegex(ConsentError, "already been used"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id=consent_id,
+                    action="get",
+                    key="EMAIL",
+                    purpose=purpose,
+                )
+
+            events = read_audit_events(path, limit=0)
+            lifecycle = [event for event in events if event.get("operation_id") and event.get("action") in {"consent_consume", "get"}]
+            self.assertEqual([event["operation_state"] for event in lifecycle], ["prepared", "committed", "outcome_unknown"])
+            encoded = json.dumps(lifecycle, ensure_ascii=False)
+            self.assertNotIn("dummy@example.test", encoded)
+            self.assertNotIn(consent_id, encoded)
+            self.assertNotIn(str(path), encoded)
+
     def test_audit_read_isolates_malformed_records_without_echoing_content(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1817,6 +1928,42 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(str(path), log_output)
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_profile_view_terminal_audit_failure_keeps_response_traceback_free(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            token = "dummy-gui-session-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/profile/view",
+                    data=b"",
+                    method="POST",
+                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
+                with mock.patch("agent_personal_vault.audit.AuditOperation.delivered", side_effect=OSError("synthetic")), mock.patch(
+                    "sys.stderr"
+                ) as stderr:
+                    with urllib.request.urlopen(request, timeout=5) as response:
+                        self.assertEqual(response.status, 200)
+                        payload = response.read().decode("utf-8")
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertNotIn("Traceback", log_output)
+                self.assertNotIn(token, log_output)
+                self.assertNotIn(str(path), log_output)
+                self.assertNotIn("dummy-gui-session-private", payload)
+                summary = audit_summary(path)
+                self.assertEqual(summary["operation_outcomes"]["outcome_unknown"], 1)
+                self.assertEqual(summary["incomplete_operations"], 1)
             finally:
                 server.shutdown()
                 server.server_close()
@@ -2744,7 +2891,18 @@ class VaultTests(unittest.TestCase):
             used = [grant for grant in state["grants"] if grant["id"] == consent_id and grant["used_at"]]
             self.assertEqual(len(used), 1)
             events = read_audit_events(path, limit=20)
-            self.assertEqual(sum(1 for event in events if event["action"] == "consent_consume" and event["outcome"] == "allowed"), 1)
+            self.assertEqual(
+                sum(
+                    1
+                    for event in events
+                    if event["action"] == "consent_consume" and event.get("operation_state") == "committed"
+                ),
+                1,
+            )
+            self.assertEqual(
+                sum(1 for event in events if event["action"] == "get" and event.get("operation_state") == "delivered"),
+                1,
+            )
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
 
     def test_cli_consent_token_cross_process_consume_allows_one_success(self) -> None:
@@ -2787,7 +2945,18 @@ class VaultTests(unittest.TestCase):
             used = [grant for grant in state["grants"] if grant["id"] == consent_id and grant["used_at"]]
             self.assertEqual(len(used), 1)
             events = read_audit_events(path, limit=30)
-            self.assertEqual(sum(1 for event in events if event["action"] == "consent_consume" and event["outcome"] == "allowed"), 1)
+            self.assertEqual(
+                sum(
+                    1
+                    for event in events
+                    if event["action"] == "consent_consume" and event.get("operation_state") == "committed"
+                ),
+                1,
+            )
+            self.assertEqual(
+                sum(1 for event in events if event["action"] == "get" and event.get("operation_state") == "delivered"),
+                1,
+            )
             self.assertNotIn("山田", json.dumps(events, ensure_ascii=False))
 
     def test_cli_consent_list_is_raw_free(self) -> None:
@@ -3208,7 +3377,9 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), before)
             self.assertIn("passphrase is too weak", result.stderr)
             self.assertNotIn("password123", result.stdout + result.stderr)
-            self.assertFalse(any(event["action"] == "encrypt" for event in read_audit_events(path, limit=20)))
+            encrypt_events = [event for event in read_audit_events(path, limit=20) if event["action"] == "encrypt"]
+            self.assertEqual([event.get("operation_state") for event in encrypt_events], ["prepared", "rejected"])
+            self.assertFalse(any(event.get("operation_state") == "delivered" for event in encrypt_events))
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_weak_passphrase_override_is_explicit_and_warned(self) -> None:
