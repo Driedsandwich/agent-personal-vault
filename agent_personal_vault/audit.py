@@ -8,7 +8,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
-from .private_io import append_private_line, private_file_exists, read_private_text
+from .private_io import append_private_line, private_file_exists, read_private_bytes
 from .vault import now_iso, store_path
 
 
@@ -217,25 +217,48 @@ def write_audit_event(
     return event
 
 
-def read_audit_events(vault_path: Path, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
+def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
     path = audit_path(vault_path)
     if not private_file_exists(path):
-        return []
+        return [], 0
     events: list[dict[str, Any]] = []
-    for line in read_private_text(path).splitlines():
-        line = line.strip()
-        if not line:
+    malformed_records = 0
+    for raw_line in read_private_bytes(path).splitlines():
+        raw_line = raw_line.strip()
+        if not raw_line:
             continue
-        payload = json.loads(line)
-        if isinstance(payload, dict):
-            events.append(payload)
+        try:
+            payload = json.loads(raw_line.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            malformed_records += 1
+            continue
+        if not isinstance(payload, dict):
+            malformed_records += 1
+            continue
+        events.append(payload)
+    return events, malformed_records
+
+
+def audit_tail(vault_path: Path, limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
+    events, malformed_records = _read_audit_records(vault_path)
     if limit <= 0:
-        return events
-    return events[-limit:]
+        selected = events
+    else:
+        selected = events[-limit:]
+    return {
+        "events": selected,
+        "malformed_records_skipped": malformed_records,
+        "integrity_warning": malformed_records > 0,
+    }
+
+
+def read_audit_events(vault_path: Path, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
+    return list(audit_tail(vault_path, limit=limit)["events"])
 
 
 def audit_summary(vault_path: Path) -> dict[str, Any]:
-    events = read_audit_events(vault_path, limit=0)
+    result = audit_tail(vault_path, limit=0)
+    events = result["events"]
     by_action: dict[str, int] = {}
     raw_by_key: dict[str, int] = {}
     for event in events:
@@ -249,4 +272,6 @@ def audit_summary(vault_path: Path) -> dict[str, Any]:
         "by_action": by_action,
         "raw_access_by_key": raw_by_key,
         "raw_values_included": False,
+        "malformed_records_skipped": result["malformed_records_skipped"],
+        "integrity_warning": result["integrity_warning"],
     }

@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from agent_personal_vault import __version__, crypto_store
-from agent_personal_vault.audit import _clean_text, audit_path, read_audit_events
+from agent_personal_vault.audit import _clean_text, audit_path, audit_summary, audit_tail, read_audit_events
 from agent_personal_vault.audit import write_audit_event
 from agent_personal_vault.consent import (
     MAX_TTL_SECONDS,
@@ -36,6 +36,7 @@ from agent_personal_vault.consent import (
 )
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
 from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
+from agent_personal_vault.private_io import append_private_line
 from agent_personal_vault.vault import (
     VaultConflictError,
     agent_context,
@@ -891,6 +892,80 @@ class VaultTests(unittest.TestCase):
             self.assertGreaterEqual(payload["events"], 1)
             self.assertEqual(payload["by_action"]["env_bulk_export"], 1)
             self.assertNotIn("taro@example.test", result.stdout)
+
+    def test_audit_read_isolates_malformed_records_without_echoing_content(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            valid_before = {
+                "timestamp": "2026-01-01T00:00:00Z",
+                "actor": "test",
+                "action": "before",
+                "key": "",
+                "raw_returned": False,
+                "outcome": "allowed",
+            }
+            valid_after = {
+                "timestamp": "2026-01-01T00:00:02Z",
+                "actor": "test",
+                "action": "after",
+                "key": "",
+                "raw_returned": False,
+                "outcome": "allowed",
+            }
+            log_path = audit_path(path)
+            malformed_marker = b"private-malformed-marker"
+            log_path.write_bytes(
+                json.dumps(valid_before).encode("utf-8")
+                + b"\n"
+                + b'{"timestamp":'
+                + malformed_marker
+                + b"\n"
+                + b"\xff\xfe\n"
+                + json.dumps(valid_before).encode("utf-8")
+                + json.dumps(valid_after).encode("utf-8")
+                + b"\n"
+                + b'["not-an-event"]\n'
+                + json.dumps(valid_after).encode("utf-8")
+                + b"\n"
+            )
+            os.chmod(log_path, 0o600)
+
+            tail = audit_tail(path, limit=10)
+            self.assertEqual([event["action"] for event in tail["events"]], ["before", "after"])
+            self.assertEqual(tail["malformed_records_skipped"], 4)
+            self.assertTrue(tail["integrity_warning"])
+            summary = audit_summary(path)
+            self.assertEqual(summary["events"], 2)
+            self.assertEqual(summary["malformed_records_skipped"], 4)
+            self.assertTrue(summary["integrity_warning"])
+
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "audit", "tail", "--limit", "10"],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            cli_events = [json.loads(line) for line in result.stdout.splitlines()]
+            self.assertEqual([event["action"] for event in cli_events], ["before", "after"])
+            self.assertEqual(result.stderr.strip(), "warning: skipped 4 malformed audit record(s)")
+            self.assertNotIn(malformed_marker.decode("ascii"), result.stdout + result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+            gui_payload = audit_view_payload(path)
+            self.assertEqual([event["action"] for event in gui_payload["events"]], ["before", "after"])
+            self.assertEqual(gui_payload["malformed_records_skipped"], 4)
+            self.assertTrue(gui_payload["integrity_warning"])
+            self.assertNotIn(malformed_marker.decode("ascii"), json.dumps(gui_payload))
+
+    def test_audit_append_rejects_embedded_line_breaks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            for unsafe_line in ("one\ntwo", "one\rtwo"):
+                with self.subTest(unsafe_line=repr(unsafe_line)):
+                    with self.assertRaisesRegex(ValueError, "must not contain line breaks"):
+                        append_private_line(audit_path(path), unsafe_line)
+            self.assertFalse(audit_path(path).exists())
 
     def test_cli_consent_env_requires_human_bulk_acknowledgement(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

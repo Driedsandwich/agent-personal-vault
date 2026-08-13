@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Isolate malformed audit rows so valid events before and after localized corruption remain inspectable, while CLI and GUI expose only a bounded skipped-record count.
 - Expire pending consent requests after 10 minutes, bound one-time consent token lifetimes to 1-3600 seconds, and treat the exact expiry boundary as expired.
 - Serialize vault writes with a private per-vault lock and revision compare-and-swap so stale CLI or GUI state fails closed instead of silently overwriting newer data.
 - Make GUI profile saves revision-bound partial updates so omitted fields remain intact and stale browser sessions receive a sanitized conflict response.
@@ -36,6 +37,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add regressions for truncated JSON, invalid UTF-8, interleaved JSON, non-object audit rows, raw-free recovery warnings, and embedded-line rejection.
 - Add regressions for stale current and legacy consent requests, rejected out-of-range token lifetimes, accepted boundary lifetimes, and exact-boundary expiry.
 - Add concurrent writer, stale revision, partial GUI update, and sanitized HTTP conflict regressions for vault write consistency.
 - Add a GUI rendering regression that rejects prefix/suffix disclosure, raw option rendering, and derived-name output while mask mode is active.
