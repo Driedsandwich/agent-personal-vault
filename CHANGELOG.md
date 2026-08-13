@@ -14,6 +14,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Security And Privacy Changes
 
+- Exchange the localhost GUI's five-minute, one-time bootstrap URL for a queryless 15-minute `HttpOnly` and `SameSite=Strict` cookie session, and reject bootstrap replay, API query-token authentication, and expired sessions.
 - Isolate malformed audit rows so valid events before and after localized corruption remain inspectable, while CLI and GUI expose only a bounded skipped-record count.
 - Expire pending consent requests after 10 minutes, bound one-time consent token lifetimes to 1-3600 seconds, and treat the exact expiry boundary as expired.
 - Serialize vault writes with a private per-vault lock and revision compare-and-swap so stale CLI or GUI state fails closed instead of silently overwriting newer data.
@@ -37,6 +38,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ### Tests And Release Governance
 
+- Add live HTTP regressions proving the GUI removes capabilities from subsequent URLs and HTML, rejects bootstrap replay and API query tokens, and expires the cookie session at its exact boundary.
 - Add regressions for truncated JSON, invalid UTF-8, interleaved JSON, non-object audit rows, raw-free recovery warnings, and embedded-line rejection.
 - Add regressions for stale current and legacy consent requests, rejected out-of-range token lifetimes, accepted boundary lifetimes, and exact-boundary expiry.
 - Add concurrent writer, stale revision, partial GUI update, and sanitized HTTP conflict regressions for vault write consistency.

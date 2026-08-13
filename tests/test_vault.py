@@ -35,7 +35,18 @@ from agent_personal_vault.consent import (
     validate_and_consume_consent,
 )
 from agent_personal_vault.crypto_store import cryptography_available, is_encrypted_payload
-from agent_personal_vault.gui import Handler, _redact_request_target, audit_view_payload, page_html, profile_view_payload, save_profile_fields
+from agent_personal_vault.gui import (
+    GUI_BOOTSTRAP_TTL_SECONDS,
+    GUI_SESSION_COOKIE,
+    GUI_SESSION_TTL_SECONDS,
+    Handler,
+    _redact_request_target,
+    audit_view_payload,
+    configure_gui_server,
+    page_html,
+    profile_view_payload,
+    save_profile_fields,
+)
 from agent_personal_vault.private_io import append_private_line
 from agent_personal_vault.vault import (
     VaultConflictError,
@@ -1191,18 +1202,17 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             token = "dummy-gui-token-private"
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-            server.gui_token = token  # type: ignore[attr-defined]
-            server.store_path = path  # type: ignore[attr-defined]
-            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile"
                 request = urllib.request.Request(
                     url,
                     data=b"{",
                     method="POST",
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
                 )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -1214,7 +1224,7 @@ class VaultTests(unittest.TestCase):
                 log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
                 self.assertNotIn(token, log_output)
                 self.assertNotIn("Traceback", log_output)
-                self.assertIn("token=[redacted]", log_output)
+                self.assertNotIn("token=", log_output)
             finally:
                 server.shutdown()
                 server.server_close()
@@ -1226,16 +1236,16 @@ class VaultTests(unittest.TestCase):
             path.write_text(json.dumps({"schema": "job_hunting_profile", "fields": []}), encoding="utf-8")
             token = "dummy-gui-token-private"
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-            server.gui_token = token  # type: ignore[attr-defined]
-            server.store_path = path  # type: ignore[attr-defined]
-            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile"
+                request = urllib.request.Request(url, headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"})
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
-                        urllib.request.urlopen(url, timeout=5)
+                        urllib.request.urlopen(request, timeout=5)
                 self.assertEqual(raised.exception.code, 500)
                 body = raised.exception.read().decode("utf-8")
                 raised.exception.close()
@@ -1244,7 +1254,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(token, log_output)
                 self.assertNotIn(str(path), log_output)
                 self.assertNotIn("Traceback", log_output)
-                self.assertIn("token=[redacted]", log_output)
+                self.assertNotIn("token=", log_output)
             finally:
                 server.shutdown()
                 server.server_close()
@@ -1257,26 +1267,25 @@ class VaultTests(unittest.TestCase):
             other_path = root / "other-vault.json"
             token = "dummy-gui-token-private"
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-            server.gui_token = token  # type: ignore[attr-defined]
-            server.store_path = path  # type: ignore[attr-defined]
-            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
             server.storage_context_secret = b"synthetic-storage-context-secret"  # type: ignore[attr-defined]
-            server.plaintext_acknowledged_context = None  # type: ignore[attr-defined]
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
 
             def get_profile() -> dict:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile?token={token}"
-                with urllib.request.urlopen(url, timeout=5) as response:
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/profile"
+                request = urllib.request.Request(url, headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"})
+                with urllib.request.urlopen(request, timeout=5) as response:
                     return json.loads(response.read().decode("utf-8"))
 
             def post_json(endpoint: str, payload: dict):
-                url = f"http://127.0.0.1:{server.server_address[1]}{endpoint}?token={token}"
+                url = f"http://127.0.0.1:{server.server_address[1]}{endpoint}"
                 request = urllib.request.Request(
                     url,
                     data=json.dumps(payload).encode("utf-8"),
                     method="POST",
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
                 )
                 return urllib.request.urlopen(request, timeout=5)
 
@@ -1342,6 +1351,165 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(redacted, "/api/profile?token=[redacted]")
         self.assertEqual(_redact_request_target("/api/profile?x=1"), "/api/profile?x=1")
 
+    def test_gui_bootstrap_is_single_use_and_exchanges_for_expiring_cookie_session(self) -> None:
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            bootstrap_token = "dummy-bootstrap-token-private"
+            session_token = "dummy-session-token-private"
+            clock = [100.0]
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(
+                server,
+                path,
+                "job_hunting_profile",
+                bootstrap_token=bootstrap_token,
+                session_token=session_token,
+                monotonic=lambda: clock[0],
+            )
+            self.assertEqual(server.gui_bootstrap_expires_at, clock[0] + GUI_BOOTSTRAP_TTL_SECONDS)  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_address[1]}"
+            bootstrap_url = f"{base}/?token={bootstrap_token}"
+            opener = urllib.request.build_opener(NoRedirect)
+            try:
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as redirected:
+                        opener.open(bootstrap_url, timeout=5)
+                    self.assertEqual(redirected.exception.code, 303)
+                    self.assertEqual(redirected.exception.headers["Location"], "/")
+                    cookie_header = redirected.exception.headers["Set-Cookie"]
+                    self.assertIn(f"{GUI_SESSION_COOKIE}={session_token}", cookie_header)
+                    self.assertIn("HttpOnly", cookie_header)
+                    self.assertIn("SameSite=Strict", cookie_header)
+                    self.assertIn("Path=/", cookie_header)
+                    self.assertIn(f"Max-Age={GUI_SESSION_TTL_SECONDS}", cookie_header)
+                    self.assertEqual(redirected.exception.headers["Referrer-Policy"], "no-referrer")
+                    redirected.exception.close()
+
+                    cookie = cookie_header.split(";", 1)[0]
+                    root_request = urllib.request.Request(base + "/", headers={"Cookie": cookie})
+                    with urllib.request.urlopen(root_request, timeout=5) as response:
+                        html_body = response.read().decode("utf-8")
+                        self.assertEqual(response.geturl(), base + "/")
+                    self.assertNotIn(bootstrap_token, html_body)
+                    self.assertNotIn(session_token, html_body)
+                    self.assertNotIn("?token=", html_body)
+                    self.assertNotIn("const TOKEN", html_body)
+
+                    profile_request = urllib.request.Request(base + "/api/profile", headers={"Cookie": cookie})
+                    with urllib.request.urlopen(profile_request, timeout=5) as response:
+                        self.assertEqual(response.status, 200)
+
+                    duplicate_cookie_request = urllib.request.Request(
+                        base + "/api/profile",
+                        headers={"Cookie": f"{cookie}; {cookie}"},
+                    )
+                    with self.assertRaises(urllib.error.HTTPError) as duplicate_cookie:
+                        urllib.request.urlopen(duplicate_cookie_request, timeout=5)
+                    self.assertEqual(duplicate_cookie.exception.code, 403)
+                    duplicate_cookie.exception.close()
+
+                    with self.assertRaises(urllib.error.HTTPError) as replayed:
+                        opener.open(bootstrap_url, timeout=5)
+                    self.assertEqual(replayed.exception.code, 403)
+                    replayed.exception.close()
+
+                    query_only = urllib.request.Request(
+                        f"{base}/api/profile?token={bootstrap_token}",
+                        headers={"Cookie": cookie},
+                    )
+                    with self.assertRaises(urllib.error.HTTPError) as rejected_query:
+                        urllib.request.urlopen(query_only, timeout=5)
+                    self.assertEqual(rejected_query.exception.code, 403)
+                    rejected_query.exception.close()
+
+                    clock[0] += GUI_SESSION_TTL_SECONDS
+                    with self.assertRaises(urllib.error.HTTPError) as expired:
+                        urllib.request.urlopen(profile_request, timeout=5)
+                    self.assertEqual(expired.exception.code, 403)
+                    expired.exception.close()
+
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertNotIn(bootstrap_token, log_output)
+                self.assertNotIn(session_token, log_output)
+                self.assertNotIn("Traceback", log_output)
+                self.assertIn("token=[redacted]", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_concurrent_bootstrap_exchange_allows_one_session(self) -> None:
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            bootstrap_token = "dummy-concurrent-bootstrap-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", bootstrap_token=bootstrap_token)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            url = f"http://127.0.0.1:{server.server_address[1]}/?token={bootstrap_token}"
+
+            def exchange() -> tuple[int, str]:
+                opener = urllib.request.build_opener(NoRedirect)
+                try:
+                    opener.open(url, timeout=5)
+                except urllib.error.HTTPError as response:
+                    try:
+                        return response.code, response.headers.get("Set-Cookie", "")
+                    finally:
+                        response.close()
+                raise AssertionError("bootstrap exchange unexpectedly followed redirect")
+
+            try:
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    results = list(executor.map(lambda _: exchange(), range(2)))
+                self.assertEqual(sorted(code for code, _cookie in results), [303, 403])
+                self.assertEqual(sum(bool(cookie) for _code, cookie in results), 1)
+                self.assertTrue(server.gui_bootstrap_used)  # type: ignore[attr-defined]
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_bootstrap_expires_at_exact_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            bootstrap_token = "dummy-expired-bootstrap-private"
+            clock = [100.0]
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(
+                server,
+                path,
+                "job_hunting_profile",
+                bootstrap_token=bootstrap_token,
+                monotonic=lambda: clock[0],
+            )
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                clock[0] += GUI_BOOTSTRAP_TTL_SECONDS
+                url = f"http://127.0.0.1:{server.server_address[1]}/?token={bootstrap_token}"
+                with self.assertRaises(urllib.error.HTTPError) as expired:
+                    urllib.request.urlopen(url, timeout=5)
+                self.assertEqual(expired.exception.code, 403)
+                expired.exception.close()
+                self.assertFalse(server.gui_bootstrap_used)  # type: ignore[attr-defined]
+                self.assertEqual(server.gui_session_expires_at, 0.0)  # type: ignore[attr-defined]
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
     def test_gui_audit_view_payload_omits_raw_values_and_purpose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -1382,7 +1550,7 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn("consent_id", encoded)
 
     def test_gui_page_shows_approved_consent_id_handoff(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn('id="consentResult"', html)
         self.assertIn("consent tokenは人間承認の受け渡し用", html)
@@ -1392,7 +1560,7 @@ class VaultTests(unittest.TestCase):
         self.assertIn("CLI get", html)
 
     def test_gui_mask_mode_renders_no_raw_fragments_options_or_derived_names(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn('function maskValue(v) { return v ? "••••" : ""; }', html)
         self.assertNotIn("v.slice(0,2)", html)
@@ -1406,7 +1574,7 @@ class VaultTests(unittest.TestCase):
         self.assertIn('masked ? "非表示" : esc(d[k] || "未生成")', html)
 
     def test_gui_consent_actions_use_dom_event_binding_not_inline_handlers(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertNotIn('onclick="decideConsent', html)
         self.assertIn('data-consent-id="${esc(req.id)}"', html)
@@ -1417,14 +1585,14 @@ class VaultTests(unittest.TestCase):
         self.assertIn("button.dataset.consentDecision", html)
 
     def test_gui_page_warns_on_bulk_consent_requests(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn("bulk-warning", html)
         self.assertIn("一括raw export", html)
         self.assertIn('req.action === "env" || req.key === "*"', html)
 
     def test_gui_manual_save_requires_alpha_storage_confirmation(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn("保存前の確認", html)
         self.assertIn("既定では保存データを暗号化しません", html)
@@ -1434,7 +1602,7 @@ class VaultTests(unittest.TestCase):
         self.assertIn('window.confirm', html)
 
     def test_gui_page_does_not_schedule_plaintext_autosave_before_acknowledgement(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn("requiresPlaintextAcknowledgement", html)
         self.assertIn("保存確認が必要", html)
@@ -1448,14 +1616,14 @@ class VaultTests(unittest.TestCase):
         self.assertLess(html.index("if (!ok)"), html.index("await acknowledgeStorage()"))
 
     def test_gui_page_shows_synced_store_warning_when_provided(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile", store_path_warnings(Path("/tmp/Dropbox/apv/vault.json")))
+        html = page_html("job_hunting_profile", store_path_warnings(Path("/tmp/Dropbox/apv/vault.json")))
 
         self.assertIn("common synced/cloud-backed folder", html)
         self.assertIn("Dropbox", html)
         self.assertNotIn("/tmp/Dropbox", html)
 
     def test_gui_page_warns_audit_is_not_tamper_evident(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn("監査ログはraw-free metadata", html)
         self.assertIn("改ざん不能", html)
@@ -1895,7 +2063,7 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(read_audit_events(path, limit=20), [])
 
     def test_gui_displays_pending_request_expiry(self) -> None:
-        html = page_html("dummy-token", "job_hunting_profile")
+        html = page_html("job_hunting_profile")
 
         self.assertIn('期限: ${esc(req.expires_at || "")}', html)
 
@@ -1929,16 +2097,16 @@ class VaultTests(unittest.TestCase):
                 encoding="utf-8",
             )
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-            server.gui_token = token  # type: ignore[attr-defined]
-            server.store_path = path  # type: ignore[attr-defined]
-            server.schema_name = "job_hunting_profile"  # type: ignore[attr-defined]
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                url = f"http://127.0.0.1:{server.server_address[1]}/api/consent/requests?token={token}"
+                url = f"http://127.0.0.1:{server.server_address[1]}/api/consent/requests"
+                request = urllib.request.Request(url, headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"})
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
-                        urllib.request.urlopen(url, timeout=5)
+                        urllib.request.urlopen(request, timeout=5)
                 self.assertEqual(raised.exception.code, 500)
                 body = raised.exception.read().decode("utf-8")
                 raised.exception.close()
@@ -1951,7 +2119,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(token, log_output)
                 self.assertNotIn(str(path), log_output)
                 self.assertNotIn("Traceback", log_output)
-                self.assertIn("token=[redacted]", log_output)
+                self.assertNotIn("token=", log_output)
             finally:
                 server.shutdown()
                 server.server_close()

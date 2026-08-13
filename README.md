@@ -292,7 +292,7 @@ agent-personal-vault check
 apv-gui --open
 ```
 
-GUIは `127.0.0.1` にだけbindし、起動ごとにtoken付きURLを発行します。必要な時だけ起動し、作業後は `Ctrl-C` で停止してください。保留中の同意リクエストはGUI右側で承認/拒否できます。マスク中は入力値の断片、選択値、派生氏名を表示しません。GUIでのプロフィール表示と保存は、raw値なしの監査ログに記録されます。
+GUIは `127.0.0.1` にだけbindし、起動ごとに5分間・1回限りのbootstrap URLを発行します。最初のアクセス後はtokenをURLから除去し、15分で失効するlocalhost session cookieへ切り替えます。session失効後に続ける場合はGUI processを再起動してください。必要な時だけ起動し、作業後は `Ctrl-C` で停止してください。保留中の同意リクエストはGUI右側で承認/拒否できます。マスク中は入力値の断片、選択値、派生氏名を表示しません。GUIでのプロフィール表示と保存は、raw値なしの監査ログに記録されます。
 
 ## AIエージェント向け安全手順
 
@@ -315,7 +315,7 @@ GUIは `127.0.0.1` にだけbindし、起動ごとにtoken付きURLを発行し�
 - 同じOSユーザーとしてシェル実行できるagentやプロセスからは、CLI操作そのものを強制的に止められません。consentとauditはワークフロー制御と記録のための仕組みです。
 - 既定では暗号化しません。optional extraでAES-256-GCM暗号化backendを使えますが、passphrase管理はユーザー責任です。macOS Keychain、Windows Credential Manager、libsecret対応は今後の候補です。
 - audit logはraw値なしの利用履歴であり、改ざん不能な証跡ではありません。同じOSユーザーや侵害済み端末は `audit.jsonl` を編集・削除できます。
-- ブラウザ履歴やターミナルログにtokenやraw値を残さない運用が必要です。
+- 起動時のbootstrap URLは一回限りですが、ターミナルログやスクリーンショットへ残さず、raw値もブラウザ履歴へ残さない運用が必要です。
 - Windowsなど非POSIX環境では、owner-privateな親ディレクトリとsymlink-safeなfd起点I/Oを同等に保証できないため、現在の保存操作はfail-closedで拒否します。Windows対応はACL・reparse point・競合lockを実機検証した後の別レーンです。
 - 暗号化、MCP連携、強い権限委譲が必要な用途では、既存のpersonal context vaultやsecret manager系OSSも比較してください。
 - このプロジェクトは現時点でalphaです。強いセキュリティ、法令遵守、エンタープライズ用途を主張しません。

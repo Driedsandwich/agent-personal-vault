@@ -9,8 +9,10 @@ import hmac
 import json
 import secrets
 import threading
+import time
 import webbrowser
 from http import HTTPStatus
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -35,6 +37,11 @@ from .vault import (
 )
 
 
+GUI_BOOTSTRAP_TTL_SECONDS = 300
+GUI_SESSION_TTL_SECONDS = 900
+GUI_SESSION_COOKIE = "apv_session"
+
+
 def schema_payload(schema_name: str) -> dict:
     return {
         key: {
@@ -50,7 +57,7 @@ def schema_payload(schema_name: str) -> dict:
     }
 
 
-def page_html(token: str, schema_name: str, store_warnings: list[str] | None = None) -> str:
+def page_html(schema_name: str, store_warnings: list[str] | None = None) -> str:
     warning_html = "".join(f'<p class="danger">{html.escape(warning)}</p>' for warning in (store_warnings or []))
     return f"""<!doctype html>
 <html lang="ja">
@@ -132,7 +139,6 @@ def page_html(token: str, schema_name: str, store_warnings: list[str] | None = N
   </aside>
 </div>
 <script>
-const TOKEN = "{html.escape(token, quote=True)}";
 const SCHEMA_NAME = "{html.escape(schema_name, quote=True)}";
 const schema = {json.dumps(schema_payload(schema_name), ensure_ascii=False)};
 const derivedSchema = {json.dumps(DERIVED_FIELDS, ensure_ascii=False)};
@@ -148,8 +154,7 @@ let revision = 0;
 
 function esc(value) {{ return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }}
 function api(path, options={{}}) {{
-  const sep = path.includes("?") ? "&" : "?";
-  return fetch(path + sep + "token=" + encodeURIComponent(TOKEN), options).then(async r => {{
+  return fetch(path, options).then(async r => {{
     const data = await r.json().catch(() => ({{}}));
     if (!r.ok) throw new Error(data.error || "request failed");
     return data;
@@ -407,9 +412,45 @@ class Handler(BaseHTTPRequestHandler):
         redacted_args = tuple(_redact_request_target(str(arg)) for arg in args)
         super().log_message(format, *redacted_args)
 
-    def token_ok(self) -> bool:
-        query = parse_qs(urlparse(self.path).query)
-        return query.get("token", [""])[0] == self.server.gui_token
+    def session_ok(self) -> bool:
+        cookie_header = self.headers.get("Cookie", "")
+        cookie_names = [part.partition("=")[0].strip() for part in cookie_header.split(";") if "=" in part]
+        if cookie_names.count(GUI_SESSION_COOKIE) != 1:
+            return False
+        if "token" in parse_qs(urlparse(self.path).query, keep_blank_values=True):
+            return False
+        try:
+            cookies = SimpleCookie(cookie_header)
+        except CookieError:
+            return False
+        session = cookies.get(GUI_SESSION_COOKIE)
+        if session is None or self.server.monotonic() >= self.server.gui_session_expires_at:
+            return False
+        return hmac.compare_digest(session.value, self.server.gui_session_token)
+
+    def exchange_bootstrap_token(self, query: str) -> str | None:
+        values = parse_qs(query, keep_blank_values=True).get("token", [])
+        if len(values) != 1:
+            return None
+        with self.server.gui_session_lock:
+            if self.server.gui_bootstrap_used or self.server.monotonic() >= self.server.gui_bootstrap_expires_at:
+                return None
+            if not hmac.compare_digest(values[0], self.server.gui_bootstrap_token):
+                return None
+            self.server.gui_bootstrap_used = True
+            self.server.gui_session_expires_at = self.server.monotonic() + GUI_SESSION_TTL_SECONDS
+            return self.server.gui_session_token
+
+    def send_bootstrap_redirect(self, session_token: str) -> None:
+        self.send_response(HTTPStatus.SEE_OTHER)
+        self.send_header("Location", "/")
+        self.send_header(
+            "Set-Cookie",
+            f"{GUI_SESSION_COOKIE}={session_token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={GUI_SESSION_TTL_SECONDS}",
+        )
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.end_headers()
 
     def current_storage_context(self) -> tuple[str, str]:
         return storage_context(self.server.store_path, self.server.storage_context_secret)
@@ -420,6 +461,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         self.wfile.write(body)
 
@@ -441,20 +483,29 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/":
-            if not self.token_ok():
+            if parsed.query:
+                session_token = self.exchange_bootstrap_token(parsed.query)
+                if session_token is None:
+                    self.send_response(HTTPStatus.FORBIDDEN)
+                    self.end_headers()
+                    return
+                self.send_bootstrap_redirect(session_token)
+                return
+            if not self.session_ok():
                 self.send_response(HTTPStatus.FORBIDDEN)
                 self.end_headers()
                 return
-            body = page_html(self.server.gui_token, self.server.schema_name, store_path_warnings(self.server.store_path)).encode("utf-8")
+            body = page_html(self.server.schema_name, store_path_warnings(self.server.store_path)).encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(body)
             return
         if parsed.path == "/api/profile":
-            if not self.token_ok():
+            if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             try:
@@ -468,7 +519,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/consent/requests":
-            if not self.token_ok():
+            if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             try:
@@ -479,7 +530,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/audit":
-            if not self.token_ok():
+            if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             try:
@@ -495,7 +546,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed_path = urlparse(self.path).path
         if parsed_path == "/api/storage/acknowledge":
-            if not self.token_ok():
+            if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             payload = self.read_json_body()
@@ -509,7 +560,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, {"ok": True})
             return
         if parsed_path in {"/api/consent/approve", "/api/consent/deny"}:
-            if not self.token_ok():
+            if not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
             payload = self.read_json_body()
@@ -531,7 +582,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed_path != "/api/profile":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
-        if not self.token_ok():
+        if not self.session_ok():
             self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return
         payload = self.read_json_body()
@@ -574,14 +625,33 @@ class Handler(BaseHTTPRequestHandler):
         )
 
 
-def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> None:
-    token = secrets.token_urlsafe(24)
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    server.gui_token = token  # type: ignore[attr-defined]
+def configure_gui_server(
+    server: ThreadingHTTPServer,
+    path: Path,
+    schema_name: str,
+    *,
+    bootstrap_token: str | None = None,
+    session_token: str | None = None,
+    monotonic=time.monotonic,
+) -> str:
+    token = bootstrap_token or secrets.token_urlsafe(24)
+    server.gui_bootstrap_token = token  # type: ignore[attr-defined]
+    server.gui_bootstrap_used = False  # type: ignore[attr-defined]
+    server.gui_bootstrap_expires_at = monotonic() + GUI_BOOTSTRAP_TTL_SECONDS  # type: ignore[attr-defined]
+    server.gui_session_token = session_token or secrets.token_urlsafe(32)  # type: ignore[attr-defined]
+    server.gui_session_expires_at = 0.0  # type: ignore[attr-defined]
+    server.gui_session_lock = threading.Lock()  # type: ignore[attr-defined]
+    server.monotonic = monotonic  # type: ignore[attr-defined]
     server.store_path = path  # type: ignore[attr-defined]
     server.schema_name = schema_name  # type: ignore[attr-defined]
     server.storage_context_secret = secrets.token_bytes(32)  # type: ignore[attr-defined]
     server.plaintext_acknowledged_context = None  # type: ignore[attr-defined]
+    return token
+
+
+def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> None:
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    token = configure_gui_server(server, path, schema_name)
     actual_port = server.server_address[1]
     url = f"http://127.0.0.1:{actual_port}/?token={token}"
     load_store(create=True, path=path, schema_name=schema_name)
