@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
+import json
 import re
 import secrets
 import unicodedata
@@ -22,15 +24,26 @@ except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
 from .audit import AuditOperation, begin_audit_operation, redact_consent_id, redact_purpose
-from .private_io import open_private_lock, private_file_exists, read_private_json
+from .private_io import open_private_lock, private_file_exists
 from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
-from .vault import now_iso, store_path, write_json_private
+from .sidecar_store import (
+    PreparedSidecarWrite,
+    commit_prepared_sidecar,
+    prepare_sidecar_write,
+    read_sidecar_json,
+    validate_sidecar_passphrase_binding,
+    write_sidecar_json,
+)
+from .vault import now_iso, store_path
 
 DEFAULT_TTL_SECONDS = 300
 MAX_TTL_SECONDS = 3600
 REQUEST_TTL_SECONDS = 600
 REQUEST_ID_PATTERN = re.compile(r"r_[A-Za-z0-9_-]{24}")
+CONSENT_ID_PATTERN = re.compile(r"c_[A-Za-z0-9_-]{24}")
+LEGACY_CONSENT_ID_PATTERN = re.compile(r"c_[A-Za-z0-9_-]{1,128}")
 PURPOSE_BINDING_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+TOKEN_DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class ConsentError(ValueError):
@@ -46,6 +59,25 @@ def _validate_ttl_seconds(value: Any) -> int:
 def _validate_request_id(value: Any) -> str:
     if not isinstance(value, str) or REQUEST_ID_PATTERN.fullmatch(value) is None:
         raise ConsentError("consent request id is invalid")
+    return value
+
+
+def _validate_consent_id(value: Any) -> str:
+    if not isinstance(value, str) or CONSENT_ID_PATTERN.fullmatch(value) is None:
+        raise ConsentError("consent token is invalid")
+    return value
+
+
+def _token_digest(consent_id: str) -> str:
+    if not isinstance(consent_id, str) or len(consent_id.encode("utf-8")) > 256:
+        raise ConsentError("consent token not found")
+    digest = hashlib.sha256(b"agent-personal-vault:consent-token:v1:" + consent_id.encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def _validate_token_digest(value: Any) -> str:
+    if not isinstance(value, str) or TOKEN_DIGEST_PATTERN.fullmatch(value) is None:
+        raise ConsentError("consent token digest is invalid")
     return value
 
 
@@ -87,7 +119,7 @@ def _validate_stored_purpose(value: Any) -> str:
 
 
 def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    public = {key: value for key, value in record.items() if key != "purpose_binding"}
+    public = {key: value for key, value in record.items() if key not in {"purpose_binding", "token_digest"}}
     if "purpose" in public:
         public["purpose"] = redact_purpose(public.get("purpose"))
     return public
@@ -156,10 +188,17 @@ def _build_grant(
     }
 
 
-def _load_state(path: Path) -> dict[str, Any]:
+def _stored_grant(grant: dict[str, Any]) -> dict[str, Any]:
+    consent_id = _validate_consent_id(grant.get("id"))
+    stored = {key: value for key, value in grant.items() if key != "id"}
+    stored["token_digest"] = _token_digest(consent_id)
+    return stored
+
+
+def _load_state(path: Path, *, vault_path: Path, passphrase: str | None = None) -> dict[str, Any]:
     if not private_file_exists(path):
-        return {"version": 1, "grants": [], "requests": []}
-    payload = read_private_json(path)
+        return {"version": 2, "grants": [], "requests": []}
+    payload = read_sidecar_json(path, vault_path=vault_path, kind="consent", passphrase=passphrase)
     if not isinstance(payload, dict):
         raise ConsentError("consent state is invalid")
     payload.setdefault("version", 1)
@@ -180,6 +219,13 @@ def _load_state(path: Path) -> dict[str, Any]:
                 _validate_stored_purpose(grant.get("purpose"))
                 if "purpose_binding" in grant:
                     _validate_purpose_binding(grant.get("purpose_binding"))
+                if "token_digest" in grant:
+                    _validate_token_digest(grant.get("token_digest"))
+                elif "id" in grant:
+                    if not isinstance(grant.get("id"), str) or LEGACY_CONSENT_ID_PATTERN.fullmatch(grant["id"]) is None:
+                        raise ConsentError("consent token verifier is invalid")
+                else:
+                    raise ConsentError("consent token verifier is invalid")
     if not isinstance(requests, list) or not isinstance(grants, list):
         raise ConsentError("consent state is invalid")
     if len(requests) + len(grants) > MAX_CONSENT_RECORDS:
@@ -196,7 +242,25 @@ def _require_record_capacity(state: dict[str, Any], *, additional: int = 1) -> N
         raise ConsentError("consent state has reached the supported record limit")
 
 
-def _write_state(path: Path, state: dict[str, Any]) -> None:
+def _write_state(
+    path: Path,
+    state: dict[str, Any],
+    *,
+    vault_path: Path,
+    passphrase: str | None = None,
+) -> None:
+    state = copy.deepcopy(state)
+    _normalize_state_for_storage(state)
+    write_sidecar_json(
+        path,
+        state,
+        vault_path=vault_path,
+        kind="consent",
+        passphrase=passphrase,
+    )
+
+
+def _normalize_state_for_storage(state: dict[str, Any]) -> None:
     for collection_name in ("grants", "requests"):
         collection = state.get(collection_name, [])
         if not isinstance(collection, list):
@@ -206,7 +270,44 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
                 continue
             if "purpose" in record:
                 record["purpose"] = redact_purpose(_validate_stored_purpose(record.get("purpose")))
-    write_json_private(path, state)
+            if collection_name == "grants" and "id" in record:
+                record["token_digest"] = _token_digest(record.pop("id"))
+            if collection_name == "requests" and str(record.get("consent_id") or "").startswith("c_"):
+                record["consent_id"] = "c_[redacted]"
+    state["version"] = 2
+
+
+def prepare_consent_sidecar_migration(
+    vault_path: Path,
+    *,
+    encrypted: bool,
+    passphrase: str,
+) -> PreparedSidecarWrite | None:
+    """Validate and encode consent state for a later coordinated transition."""
+
+    path = consent_path(vault_path)
+    passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
+    with _state_lock(path):
+        if not private_file_exists(path):
+            return None
+        state = copy.deepcopy(_load_state(path, vault_path=vault_path, passphrase=passphrase))
+        _normalize_state_for_storage(state)
+        encoded = (json.dumps(state, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        return prepare_sidecar_write(
+            path,
+            encoded,
+            kind="consent",
+            encrypted=encrypted,
+            passphrase=passphrase,
+        )
+
+
+def commit_consent_sidecar_migration(prepared: PreparedSidecarWrite | None) -> bool:
+    if prepared is None:
+        return False
+    with _state_lock(prepared.path):
+        commit_prepared_sidecar(prepared)
+    return True
 
 
 def _parse_expires_at(value: Any) -> datetime:
@@ -265,7 +366,7 @@ def issue_consent(
     )
     path = consent_path(vault_path)
     with _state_lock(path):
-        state = _load_state(path)
+        state = _load_state(path, vault_path=vault_path)
         grants = state.setdefault("grants", [])
         if not isinstance(grants, list):
             raise ConsentError("consent grants are invalid")
@@ -280,8 +381,8 @@ def issue_consent(
             source=source,
             human_operated=human_operated,
         )
-        grants.append(grant)
-        _write_state(path, state)
+        grants.append(_stored_grant(grant))
+        _write_state(path, state, vault_path=vault_path)
     operation.committed()
     operation.delivered()
     return _public_record(grant)
@@ -313,7 +414,7 @@ def create_consent_request(
     }
     path = consent_path(vault_path)
     with _state_lock(path):
-        state = _load_state(path)
+        state = _load_state(path, vault_path=vault_path)
         requests = state.setdefault("requests", [])
         if not isinstance(requests, list):
             raise ConsentError("consent requests are invalid")
@@ -330,14 +431,14 @@ def create_consent_request(
             request_id=request["id"],
         )
         requests.append(request)
-        _write_state(path, state)
+        _write_state(path, state, vault_path=vault_path)
     operation.committed()
     operation.delivered()
     return _public_record(request)
 
 
 def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> list[dict[str, Any]]:
-    state = _load_state(consent_path(vault_path))
+    state = _load_state(consent_path(vault_path), vault_path=vault_path)
     requests = state.get("requests", [])
     if not isinstance(requests, list):
         raise ConsentError("consent requests are invalid")
@@ -388,7 +489,7 @@ def resolve_consent_request(
     audit_event: dict[str, Any] | None = None
     operation: AuditOperation | None = None
     with _state_lock(path):
-        state = _load_state(path)
+        state = _load_state(path, vault_path=vault_path)
         requests = state.get("requests", [])
         if not isinstance(requests, list):
             raise ConsentError("consent requests are invalid")
@@ -415,7 +516,7 @@ def resolve_consent_request(
                     request_id=request_id,
                 )
                 request["status"] = "denied"
-                _write_state(path, state)
+                _write_state(path, state, vault_path=vault_path)
                 audit_event = {
                     "action": "consent_deny",
                     "key": str(request.get("key") or ""),
@@ -458,10 +559,10 @@ def resolve_consent_request(
                 human_operated=actor in {"cli", "gui"},
                 request_id=request_id,
             )
-            grants.append(grant)
+            grants.append(_stored_grant(grant))
             request["status"] = "approved"
-            request["consent_id"] = grant["id"]
-            _write_state(path, state)
+            request["consent_id"] = "c_[redacted]"
+            _write_state(path, state, vault_path=vault_path)
             audit_event = {
                 "action": "consent_approve",
                 "key": str(request.get("key") or ""),
@@ -496,12 +597,19 @@ def prepare_consent_consumption(
     provided_binding = _purpose_binding(normalized_purpose)
     path = consent_path(vault_path)
     with _state_lock(path):
-        state = _load_state(path)
+        state = _load_state(path, vault_path=vault_path)
         grants = state.get("grants", [])
         if not isinstance(grants, list):
             raise ConsentError("consent grants are invalid")
+        provided_token_digest = _token_digest(consent_id)
         for grant in grants:
-            if not isinstance(grant, dict) or grant.get("id") != consent_id:
+            if not isinstance(grant, dict):
+                continue
+            stored_token_digest = grant.get("token_digest")
+            if stored_token_digest is not None:
+                if not secrets.compare_digest(_validate_token_digest(stored_token_digest), provided_token_digest):
+                    continue
+            elif grant.get("id") != consent_id:
                 continue
             if grant.get("used_at"):
                 raise ConsentError("consent token has already been used")
@@ -524,7 +632,7 @@ def prepare_consent_consumption(
                 consent_id=consent_id,
             )
             grant["used_at"] = now_iso()
-            _write_state(path, state)
+            _write_state(path, state, vault_path=vault_path)
             result = _public_record(grant)
             break
         else:
@@ -555,7 +663,7 @@ def validate_and_consume_consent(
 
 
 def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str, Any]]:
-    state = _load_state(consent_path(vault_path))
+    state = _load_state(consent_path(vault_path), vault_path=vault_path)
     grants = state.get("grants", [])
     if not isinstance(grants, list):
         raise ConsentError("consent grants are invalid")
@@ -566,12 +674,29 @@ def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str
         if grant.get("used_at") and not include_used:
             continue
         public_grant = {
-            key: redact_consent_id(str(grant.get(key) or "")) if key == "id" else grant.get(key, "")
+            key: (
+                redact_consent_id(str(grant.get(key) or ""))
+                if key == "id" and "id" in grant
+                else "c_[redacted]"
+                if key == "id" and "token_digest" in grant
+                else grant.get(key, "")
+            )
             for key in ["id", "action", "key", "purpose", "issued_at", "expires_at", "used_at", "actor"]
         }
         public_grant["purpose"] = redact_purpose(public_grant["purpose"])
         output.append(public_grant)
     return output
+
+
+def migrate_consent_sidecar(vault_path: Path, *, encrypted: bool, passphrase: str) -> bool:
+    """Rewrite legacy consent state with token digests and selected sidecar protection."""
+
+    prepared = prepare_consent_sidecar_migration(
+        vault_path,
+        encrypted=encrypted,
+        passphrase=passphrase,
+    )
+    return commit_consent_sidecar_migration(prepared)
 
 
 def prune_consent_records(
@@ -592,7 +717,7 @@ def prune_consent_records(
     with _state_lock(path):
         if not private_file_exists(path):
             return {"grants_removed": 0, "requests_removed": 0, "retained": 0}
-        state = _load_state(path)
+        state = _load_state(path, vault_path=vault_path)
         grants = state["grants"]
         requests = state["requests"]
 
@@ -625,7 +750,7 @@ def prune_consent_records(
         requests_removed = len(requests) - len(retained_requests)
         state["grants"] = retained_grants
         state["requests"] = retained_requests
-        _write_state(path, state)
+        _write_state(path, state, vault_path=vault_path)
     return {
         "grants_removed": grants_removed,
         "requests_removed": requests_removed,

@@ -14,6 +14,7 @@ import unicodedata
 from typing import Any
 
 ENCRYPTED_STORAGE = "encrypted-json-v1"
+ENCRYPTED_SIDECAR_STORAGE = "encrypted-sidecar-json-v1"
 KDF_NAME = "pbkdf2-hmac-sha256"
 KDF_ITERATIONS = 390_000
 SUPPORTED_KDF_ITERATIONS = frozenset({KDF_ITERATIONS})
@@ -114,16 +115,23 @@ def _decode_envelope_component(
     return decoded
 
 
-def _validate_encrypted_payload(payload: dict) -> tuple[int, bytes, bytes, bytes]:
+def _validate_encrypted_payload(
+    payload: dict,
+    *,
+    expected_storage: str = ENCRYPTED_STORAGE,
+    expected_kind: str | None = None,
+) -> tuple[int, bytes, bytes, bytes]:
     version = payload.get("version")
     if (
         payload.get("app") != "agent-personal-vault"
-        or payload.get("storage") != ENCRYPTED_STORAGE
+        or payload.get("storage") != expected_storage
         or type(version) is not int
         or version != 1
         or payload.get("kdf") != KDF_NAME
         or payload.get("cipher") != "AES-256-GCM"
     ):
+        raise DecryptionError("unsupported encrypted store format")
+    if expected_kind is not None and payload.get("kind") != expected_kind:
         raise DecryptionError("unsupported encrypted store format")
     iterations = payload.get("iterations")
     if type(iterations) is not int or iterations not in SUPPORTED_KDF_ITERATIONS:
@@ -185,3 +193,56 @@ def decrypt_store_payload(payload: dict, passphrase: str) -> dict:
     if not isinstance(decoded, dict):
         raise DecryptionError("decrypted store is invalid")
     return decoded
+
+
+def encrypt_sidecar_payload(payload: bytes, passphrase: str, *, kind: str) -> dict:
+    """Encrypt one private metadata sidecar with a kind-bound AEAD envelope."""
+
+    if not passphrase:
+        raise ValueError("passphrase is required")
+    if kind not in {"audit", "consent"}:
+        raise ValueError("sidecar kind is invalid")
+    if len(payload) > MAX_ENCRYPTED_PLAINTEXT_BYTES:
+        raise ValueError("sidecar is too large for encrypted storage")
+    AESGCM, _PBKDF2HMAC, _crypto = _require_crypto()
+    salt = os.urandom(SALT_BYTES)
+    nonce = os.urandom(NONCE_BYTES)
+    key = _derive_key(passphrase, salt)
+    aad = f"agent-personal-vault:{ENCRYPTED_SIDECAR_STORAGE}:{kind}:v1".encode("ascii")
+    ciphertext = AESGCM(key).encrypt(nonce, payload, aad)
+    return {
+        "app": "agent-personal-vault",
+        "storage": ENCRYPTED_SIDECAR_STORAGE,
+        "kind": kind,
+        "version": 1,
+        "cipher": "AES-256-GCM",
+        "kdf": KDF_NAME,
+        "iterations": KDF_ITERATIONS,
+        "salt": base64.b64encode(salt).decode("ascii"),
+        "nonce": base64.b64encode(nonce).decode("ascii"),
+        "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
+    }
+
+
+def decrypt_sidecar_payload(payload: dict, passphrase: str, *, kind: str) -> bytes:
+    """Decrypt one metadata sidecar and reject cross-kind envelope swaps."""
+
+    if not passphrase:
+        raise ValueError("passphrase is required")
+    if kind not in {"audit", "consent"}:
+        raise ValueError("sidecar kind is invalid")
+    iterations, salt, nonce, ciphertext = _validate_encrypted_payload(
+        payload,
+        expected_storage=ENCRYPTED_SIDECAR_STORAGE,
+        expected_kind=kind,
+    )
+    AESGCM, _PBKDF2HMAC, crypto = _require_crypto()
+    _hashes, invalid_tag = crypto
+    aad = f"agent-personal-vault:{ENCRYPTED_SIDECAR_STORAGE}:{kind}:v1".encode("ascii")
+    try:
+        key = _derive_key(passphrase, salt, iterations=iterations)
+        return AESGCM(key).decrypt(nonce, ciphertext, aad)
+    except invalid_tag as exc:
+        raise DecryptionError("invalid passphrase or corrupted encrypted sidecar") from exc
+    except Exception as exc:
+        raise DecryptionError("failed to decrypt encrypted sidecar") from exc
