@@ -247,7 +247,7 @@ Issue #175への外部コメントでは、threat modelのasset inventoryとし�
 例:
 
 ```sh
-agent-personal-vault get EMAIL --purpose "prepare local draft for user review"
+agent-personal-vault get EMAIL --purpose local_draft
 ```
 
 MCPの場合:

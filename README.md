@@ -15,7 +15,7 @@
 - `get` と `env` はraw個人情報を表示します。ログ、Issue、スクリーンショット、外部AI、Subagent指示へ貼らないでください。
 - `get` と `env` は事前に承認された一回限りのconsent tokenを要求します。
 - public alphaの通常導線は、1回のconsentで1 keyだけを取得するone-key raw retrievalです。bulk raw exportはAIエージェントの通常導線ではありません。
-- `get` / `env` / `set` / `unset` / `consent` / GUI保存はraw値なしの監査ログを書きます。`--purpose` にも実個人情報を書かないでください。
+- `get` / `env` / `set` / `unset` / `consent` / GUI保存はraw値なしの監査ログを書きます。入力した`--purpose`の全文は永続化せず、固定reason codeまたは`[redacted]`とexact-purpose照合用digestだけを保存します。それでも実個人情報は入力しないでください。
 - consent tokenは、同一OSユーザーやシェル実行権限を持つagentに対する強いセキュリティ境界ではありません。信頼できないagentにこのCLIや保存先へのアクセスを渡さないでください。
 - 監査ログの `human_operated` はCLI/GUIなどの承認経路を示すメタデータであり、物理的に人間だけが操作したことの証明ではありません。
 - 保存時暗号化はoptionalです。使う場合は `agent-personal-vault[encrypted]` とpassphraseが必要です。
@@ -35,9 +35,9 @@ python3 -m pip install agent-personal-vault==0.1.16
 export APV_STORE="$(mktemp -d)/vault.json"
 
 agent-personal-vault --store "$APV_STORE" init
-printf 'Example\n' | agent-personal-vault --store "$APV_STORE" set FAMILY_NAME --stdin --purpose "dummy local quickstart"
-printf 'Taro\n' | agent-personal-vault --store "$APV_STORE" set GIVEN_NAME --stdin --purpose "dummy local quickstart"
-printf 'taro@example.test\n' | agent-personal-vault --store "$APV_STORE" set EMAIL --stdin --purpose "dummy local quickstart"
+printf 'Example\n' | agent-personal-vault --store "$APV_STORE" set FAMILY_NAME --stdin --purpose profile_setup
+printf 'Taro\n' | agent-personal-vault --store "$APV_STORE" set GIVEN_NAME --stdin --purpose profile_setup
+printf 'taro@example.test\n' | agent-personal-vault --store "$APV_STORE" set EMAIL --stdin --purpose profile_setup
 
 agent-personal-vault --store "$APV_STORE" context --task "応募フォームの氏名とメール連絡先を下書きする"
 ```
@@ -57,7 +57,7 @@ apv-gui --store "$APV_STORE" --open
 承認後、GUIに表示されるconsent idを使い、CLIでその1 keyだけを取得します。GUIを閉じた場合は `agent-personal-vault --store "$APV_STORE" consent list` で未使用のconsent idを確認できます。
 
 ```sh
-agent-personal-vault --store "$APV_STORE" get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<displayed-consent-id>"
+agent-personal-vault --store "$APV_STORE" get FULL_NAME --purpose local_draft --consent-id "<displayed-consent-id>"
 agent-personal-vault --store "$APV_STORE" audit summary
 agent-personal-vault --store "$APV_STORE" audit tail --limit 10
 ```
@@ -156,7 +156,7 @@ agent-personal-vault --store /path/to/vault.json check
 
 可用性を守るため、保存JSONは12 MiB、各vault fieldは64 KiB、consent purposeは4 KiB、consent request/grantは合計2,000件、audit logは8 MiBまでに制限します。GUI request bodyは1 MiB、MCP messageは256 KiBまでです。JSON構造にも深さ32・20,000 nodeの上限があります。上限到達時は処理をfail-closedで拒否します。private stateが上限を超えて起動できない場合は、GUI/MCPを停止し、対象ファイルをowner-onlyの場所へbackupしてから、内容をIssueや外部AIへ貼らずに新しいdummy vaultで復旧手順を確認してください。これらはアプリケーションのメモリ・ディスク使用量を抑える安全策であり、OS quotaや複数ユーザー間の隔離ではありません。
 
-保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。古いconsent metadataとaudit eventは自動削除されません。GUIとMCP serverを停止してから、明示的な保持期間を指定して整理できます。既定はconsent 30日、audit 90日で、破損したaudit行は証拠を勝手に捨てないため保持します。
+保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。古いconsent metadataとaudit eventは自動削除されません。GUIとMCP serverを停止してから、明示的な保持期間を指定して整理できます。既定はconsent 30日、audit 90日です。この処理は旧版が保存したfree-form purposeも固定projectionへ書き換えます。破損したaudit行は証拠を勝手に捨てないため保持します。
 
 ```sh
 agent-personal-vault --store "$APV_STORE" privacy prune --consent-retention-days 30 --audit-retention-days 90
@@ -231,14 +231,14 @@ agent-personal-vault list
 値を保存する。値はコマンド履歴に残さないため、実行後に入力します。
 
 ```sh
-agent-personal-vault set FAMILY_NAME --purpose "initial local profile setup"
+agent-personal-vault set FAMILY_NAME --purpose profile_setup
 ```
 
 必要なkeyだけ取得:
 
 ```sh
-agent-personal-vault consent request --action get --key FULL_NAME --purpose "prepare local draft for user review"
-agent-personal-vault get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<displayed-consent-id>"
+agent-personal-vault consent request --action get --key FULL_NAME --purpose local_draft
+agent-personal-vault get FULL_NAME --purpose local_draft --consent-id "<displayed-consent-id>"
 ```
 
 `consent request` はrequest idを出力します。人間がGUIまたはhuman-operated CLIで承認すると、CLI `get` に渡すconsent idが発行されます。AIエージェントの通常導線では `consent approve` を実行させず、人間の承認操作として扱ってください。GUI承認後は画面に表示されたconsent idを使ってください。
@@ -252,7 +252,7 @@ raw値のbulk export:
 値を消す:
 
 ```sh
-agent-personal-vault unset FAMILY_NAME --purpose "clear outdated value"
+agent-personal-vault unset FAMILY_NAME --purpose profile_cleanup
 ```
 
 raw値なしの監査ログを確認:
@@ -285,7 +285,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-`get` と `env` はraw値を出し、stderrに警告を表示します。ログ、公開Issue、外部AI、Subagent指示へ貼らないでください。`audit` と `consent` はkey名、action、purpose、rawを返したかどうかを記録しますが、raw値そのものは記録しません。
+`get` と `env` はraw値を出し、stderrに警告を表示します。ログ、公開Issue、外部AI、Subagent指示へ貼らないでください。`audit` と `consent` はkey名、action、固定purpose codeまたは`[redacted]`、rawを返したかどうかを記録します。exact purposeは照合用digestへ束縛しますが、全文もraw値も記録しません。表示可能なcodeは `local_draft`、`profile_setup`、`profile_update`、`profile_cleanup`、`encryption_migration`、`test_dummy` に限定されます。
 
 保存時暗号化の状態確認:
 
@@ -296,7 +296,7 @@ agent-personal-vault encryption status
 暗号化へ移行:
 
 ```sh
-agent-personal-vault encryption encrypt --purpose "enable local at-rest encryption"
+agent-personal-vault encryption encrypt --purpose encryption_migration
 ```
 
 新規暗号化では12文字以上かつ明白に予測しにくいpassphraseを要求します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。
@@ -304,7 +304,7 @@ agent-personal-vault encryption encrypt --purpose "enable local at-rest encrypti
 暗号化を解除すると同じ保存先が平文JSONへ置き換わり、backup、sync、snapshotにも平文が残り得ます。専用の確認flagなしでは実行されません。
 
 ```sh
-agent-personal-vault encryption decrypt --purpose "disable local at-rest encryption" --i-understand-plaintext-persistence
+agent-personal-vault encryption decrypt --purpose encryption_migration --i-understand-plaintext-persistence
 ```
 
 暗号化されたvaultを通常CLIで読む場合は、環境変数でpassphraseを渡します。値はログや公開Issueへ出さないでください。
@@ -328,7 +328,7 @@ GUIは `127.0.0.1` にだけbindし、起動ごとに5分間・1回限りのboot
 2. エージェントの計画には、まず `context` のraw値なしJSONを使う。用途が決まっていれば `context --task "<raw値を含まない用途>"` で必要候補keyを絞る。MCPクライアントでは `apv.context` を使う。
 3. raw値が必要な場合は、まず `consent request` で対象keyと目的を固定したリクエストを作る。
 4. 人間がGUIまたはhuman-operated CLIで承認・拒否する。AIエージェント自身に承認コマンドを実行させない。
-5. 承認された対象keyを1つずつ `get <KEY> --purpose "<raw値を含まない目的>" --consent-id "<token>"` で取得する。
+5. 承認された対象keyを1つずつ `get <KEY> --purpose local_draft --consent-id "<token>"` で取得する。承認requestと取得時は同じexact purposeを使う。
 6. raw値を最終報告、公開成果物、外部API、検索クエリ、GitHub、メール、SNS、応募サイトへ無断で送らない。
 7. 外部送信、応募、登録、アップロード、メール送信は final action として止める。
 8. Subagentやworkerへraw値を渡さない。必要なら親エージェントが最小限の取得と貼り付けを担当する。

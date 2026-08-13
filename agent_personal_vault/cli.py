@@ -367,7 +367,11 @@ def build_parser() -> argparse.ArgumentParser:
             cmd.add_argument("--include-path", action="store_true", help="Include the local store path in JSON output.")
             cmd.add_argument("--task", help="Optional raw-free task description for minimum-key planning hints.")
         if name == "env":
-            cmd.add_argument("--purpose", required=True, help="Raw access purpose. Stored in audit log without raw values.")
+            cmd.add_argument(
+                "--purpose",
+                required=True,
+                help="Exact purpose bound to the operation; only an allowlisted code or [redacted] is stored.",
+            )
             cmd.add_argument("--consent-id", required=True, help="One-time consent token from consent grant.")
             cmd.add_argument(
                 "--i-understand-bulk-raw-export",
@@ -377,17 +381,25 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.set_defaults(func=func)
     get = sub.add_parser("get", help="Print one raw value. Use only for the minimum required key.")
     get.add_argument("key")
-    get.add_argument("--purpose", required=True, help="Raw access purpose. Stored in audit log without raw values.")
+    get.add_argument(
+        "--purpose",
+        required=True,
+        help="Exact purpose bound to raw access; only an allowlisted code or [redacted] is stored.",
+    )
     get.add_argument("--consent-id", required=True, help="One-time consent token from consent grant.")
     get.set_defaults(func=command_get)
     set_cmd = sub.add_parser("set", help="Set one value without putting it in shell history.")
     set_cmd.add_argument("key")
     set_cmd.add_argument("--stdin", action="store_true", help="Read value from stdin.")
-    set_cmd.add_argument("--purpose", required=True, help="Change purpose. Stored in audit log without raw values.")
+    set_cmd.add_argument(
+        "--purpose", required=True, help="Change purpose; only an allowlisted code or [redacted] is stored."
+    )
     set_cmd.set_defaults(func=command_set)
     unset = sub.add_parser("unset", help="Clear one value.")
     unset.add_argument("key")
-    unset.add_argument("--purpose", required=True, help="Change purpose. Stored in audit log without raw values.")
+    unset.add_argument(
+        "--purpose", required=True, help="Change purpose; only an allowlisted code or [redacted] is stored."
+    )
     unset.set_defaults(func=command_unset)
     audit = sub.add_parser(
         "audit",
@@ -405,7 +417,9 @@ def build_parser() -> argparse.ArgumentParser:
     encryption_status = encryption_sub.add_parser("status", help="Show encryption metadata without reading raw values.")
     encryption_status.set_defaults(func=command_encryption)
     encryption_encrypt = encryption_sub.add_parser("encrypt", help="Encrypt the existing local vault with optional cryptography support.")
-    encryption_encrypt.add_argument("--purpose", required=True, help="Raw-free migration purpose. Stored in audit log.")
+    encryption_encrypt.add_argument(
+        "--purpose", required=True, help="Migration purpose; only an allowlisted code or [redacted] is stored."
+    )
     encryption_encrypt.add_argument(
         "--allow-weak-passphrase",
         action="store_true",
@@ -413,7 +427,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     encryption_encrypt.set_defaults(func=command_encryption)
     encryption_decrypt = encryption_sub.add_parser("decrypt", help="Decrypt the local vault back to plain JSON.")
-    encryption_decrypt.add_argument("--purpose", required=True, help="Raw-free migration purpose. Stored in audit log.")
+    encryption_decrypt.add_argument(
+        "--purpose", required=True, help="Migration purpose; only an allowlisted code or [redacted] is stored."
+    )
     encryption_decrypt.add_argument(
         "--i-understand-plaintext-persistence",
         action="store_true",
@@ -429,7 +445,11 @@ def build_parser() -> argparse.ArgumentParser:
     consent_grant = consent_sub.add_parser("grant", help="Grant a one-time raw access consent token.")
     consent_grant.add_argument("--action", choices=["get", "env"], required=True)
     consent_grant.add_argument("--key", default="*", help="Key for get. Use * for env.")
-    consent_grant.add_argument("--purpose", required=True, help="Raw-free purpose that must match the later raw command.")
+    consent_grant.add_argument(
+        "--purpose",
+        required=True,
+        help="Exact purpose that must match the later raw command; persisted as a code or [redacted].",
+    )
     consent_grant.add_argument(
         "--ttl-seconds",
         type=int,
@@ -445,7 +465,11 @@ def build_parser() -> argparse.ArgumentParser:
     consent_request = consent_sub.add_parser("request", help="Queue a raw access request for human approval.")
     consent_request.add_argument("--action", choices=["get", "env"], required=True)
     consent_request.add_argument("--key", default="*", help="Key for get. Use * for env.")
-    consent_request.add_argument("--purpose", required=True, help="Raw-free purpose for the requested access.")
+    consent_request.add_argument(
+        "--purpose",
+        required=True,
+        help="Exact purpose for requested access; persisted as a code or [redacted].",
+    )
     consent_request.add_argument(
         "--i-understand-bulk-raw-export",
         action="store_true",

@@ -38,8 +38,8 @@ agent-personal-vault context
 3. Ask for or use only the minimum raw key needed for the current local task.
 
 ```sh
-agent-personal-vault consent request --action get --key FULL_NAME --purpose "prepare local draft for user review"
-agent-personal-vault get FULL_NAME --purpose "prepare local draft for user review" --consent-id "<printed-consent-id>"
+agent-personal-vault consent request --action get --key FULL_NAME --purpose local_draft
+agent-personal-vault get FULL_NAME --purpose local_draft --consent-id "<printed-consent-id>"
 ```
 
 The approval step is intentionally out of band. A human may approve in the GUI or in a separate human-operated CLI session. Agents must not run `consent approve`, `consent deny`, or `consent grant` for themselves.
@@ -90,7 +90,7 @@ agent-personal-vault context
 agent-personal-vault schema
 agent-personal-vault check
 agent-personal-vault list
-agent-personal-vault consent request --action get --key <KEY> --purpose "<raw-free purpose>"
+agent-personal-vault consent request --action get --key <KEY> --purpose local_draft
 agent-personal-vault audit summary
 agent-personal-vault audit tail --limit 10
 agent-personal-vault consent requests
@@ -128,11 +128,11 @@ MCP clients must not treat consent tokens as MCP authentication or authorization
 After a human-operated approval, this command can print one raw personal value:
 
 ```sh
-agent-personal-vault consent request --action get --key <KEY> --purpose "<raw-free purpose>"
-agent-personal-vault get <KEY> --purpose "<raw-free purpose>" --consent-id "<printed-consent-id>"
+agent-personal-vault consent request --action get --key <KEY> --purpose local_draft
+agent-personal-vault get <KEY> --purpose local_draft --consent-id "<printed-consent-id>"
 ```
 
-Use it only after the agent has a concrete local purpose and the single key is necessary. The purpose is written to raw-free local consent and audit files, so it must not contain raw personal values. Consent requests can be approved or denied by a human in the GUI or a separate human-operated CLI session. Consent tokens are one-time tokens and must match action, key, and purpose.
+Use it only after the agent has a concrete local purpose and the single key is necessary. Use a documented finite reason code such as `local_draft`; arbitrary text is persisted only as `[redacted]`, while an undisclosed digest binds the exact normalized purpose to the one-time token. Consent requests can be approved or denied by a human in the GUI or a separate human-operated CLI session. Consent tokens must match action, key, and exact purpose.
 
 Consent tokens are not a substitute for OS permissions, process isolation, or MCP client authorization. Do not pass them to subagents, logs, issue reports, or MCP prompts; keep the full token in the human-operated handoff path only.
 
@@ -141,8 +141,8 @@ Consent tokens are not a substitute for OS permissions, process isolation, or MC
 These commands change stored values and also write raw-free audit events:
 
 ```sh
-agent-personal-vault set <KEY> --purpose "<raw-free purpose>"
-agent-personal-vault unset <KEY> --purpose "<raw-free purpose>"
+agent-personal-vault set <KEY> --purpose profile_update
+agent-personal-vault unset <KEY> --purpose profile_cleanup
 ```
 
 GUI profile views and saves also write raw-free audit events with actor `gui`.
@@ -158,7 +158,7 @@ agent-personal-vault consent requests
 agent-personal-vault consent list
 ```
 
-Audit events include action, key, redacted consent id, raw-returned flag, purpose, and outcome. Agent-facing consent request and grant lists include action, key, purpose, expiry or resolution state, and used status; active raw-access grant ids are redacted. They do not include raw stored values.
+Audit events include action, key, redacted consent id, raw-returned flag, a finite purpose code or `[redacted]`, and outcome. Agent-facing consent request and grant lists expose the same bounded purpose projection, expiry or resolution state, and used status; active raw-access grant ids and exact-purpose binding digests are hidden. They do not include free-form purpose text or raw stored values.
 
 ## Subagents
 
