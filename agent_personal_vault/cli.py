@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .audit import audit_summary, read_audit_events, write_audit_event
 from .consent import (
+    MAX_TTL_SECONDS,
     ConsentError,
     create_consent_request,
     issue_consent,
@@ -399,7 +400,12 @@ def build_parser() -> argparse.ArgumentParser:
     consent_grant.add_argument("--action", choices=["get", "env"], required=True)
     consent_grant.add_argument("--key", default="*", help="Key for get. Use * for env.")
     consent_grant.add_argument("--purpose", required=True, help="Raw-free purpose that must match the later raw command.")
-    consent_grant.add_argument("--ttl-seconds", type=int, default=300)
+    consent_grant.add_argument(
+        "--ttl-seconds",
+        type=int,
+        default=300,
+        help=f"Token lifetime in seconds (1-{MAX_TTL_SECONDS}; default: 300).",
+    )
     consent_grant.add_argument(
         "--i-understand-bulk-raw-export",
         action="store_true",
@@ -421,7 +427,12 @@ def build_parser() -> argparse.ArgumentParser:
     consent_requests.set_defaults(func=command_consent)
     consent_approve = consent_sub.add_parser("approve", help="Approve a pending consent request and issue a one-time token.")
     consent_approve.add_argument("request_id")
-    consent_approve.add_argument("--ttl-seconds", type=int, default=300)
+    consent_approve.add_argument(
+        "--ttl-seconds",
+        type=int,
+        default=300,
+        help=f"Token lifetime in seconds (1-{MAX_TTL_SECONDS}; default: 300).",
+    )
     consent_approve.set_defaults(func=command_consent)
     consent_deny = consent_sub.add_parser("deny", help="Deny a pending consent request.")
     consent_deny.add_argument("request_id")

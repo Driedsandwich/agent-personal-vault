@@ -215,7 +215,7 @@ async function loadConsentRequests() {{
   node.innerHTML = requests.map(req => `<div class="request">
     <div><strong>${{esc(req.action)}} ${{esc(req.key)}}</strong></div>
     <div class="hint">目的: ${{esc(req.purpose || "")}}</div>
-    <div class="hint">要求元: ${{esc(req.actor || "")}} / ${{esc(req.requested_at || "")}}</div>
+    <div class="hint">要求元: ${{esc(req.actor || "")}} / ${{esc(req.requested_at || "")}} / 期限: ${{esc(req.expires_at || "")}}</div>
     ${{(req.action === "env" || req.key === "*") ? `<div class="bulk-warning">一括raw exportの同意リクエストです。public alphaのAIエージェント通常導線ではありません。必要性を人間が確認してから判断してください。</div>` : ""}}
     <div class="request-actions">
       <button data-consent-id="${{esc(req.id)}}" data-consent-decision="approve">承認</button>
