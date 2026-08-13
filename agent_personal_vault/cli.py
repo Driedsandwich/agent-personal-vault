@@ -9,16 +9,25 @@ import sys
 from getpass import getpass
 from pathlib import Path
 
-from .audit import audit_path, audit_summary, audit_tail, begin_audit_operation, migrate_audit_sidecar, write_audit_event
+from .audit import (
+    audit_path,
+    audit_summary,
+    audit_tail,
+    begin_audit_operation,
+    commit_audit_sidecar_migration,
+    prepare_audit_sidecar_migration,
+    write_audit_event,
+)
 from .consent import (
     MAX_TTL_SECONDS,
     ConsentError,
+    commit_consent_sidecar_migration,
     consent_path,
     create_consent_request,
     issue_consent,
     list_consent_requests,
     list_consents,
-    migrate_consent_sidecar,
+    prepare_consent_sidecar_migration,
     resolve_consent_request,
     prepare_consent_consumption,
 )
@@ -290,6 +299,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "# WARNING: weak passphrase override accepted; copied vault bytes are easier to guess offline.",
                     file=sys.stderr,
                 )
+            prepare_consent_sidecar_migration(path, encrypted=True, passphrase=passphrase)
+            prepare_audit_sidecar_migration(path, encrypted=True, passphrase=passphrase)
             operation = begin_audit_operation(
                 vault_path=path,
                 actor="cli",
@@ -298,6 +309,16 @@ def command_encryption(args: argparse.Namespace) -> None:
                 sidecar_passphrase=passphrase,
             )
             try:
+                prepared_consent = prepare_consent_sidecar_migration(
+                    path,
+                    encrypted=True,
+                    passphrase=passphrase,
+                )
+                prepared_audit = prepare_audit_sidecar_migration(
+                    path,
+                    encrypted=True,
+                    passphrase=passphrase,
+                )
                 write_store(
                     store,
                     path,
@@ -305,8 +326,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                     encrypted=True,
                     allow_weak_passphrase=args.allow_weak_passphrase,
                 )
-                migrate_consent_sidecar(path, encrypted=True, passphrase=passphrase)
-                migrate_audit_sidecar(path, encrypted=True, passphrase=passphrase)
+                commit_consent_sidecar_migration(prepared_consent)
+                commit_audit_sidecar_migration(prepared_audit, vault_path=path)
             except ValueError:
                 operation.rejected()
                 raise
@@ -328,6 +349,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                 )
             passphrase = read_passphrase()
             store = load_store(path=path, passphrase=passphrase)
+            prepare_consent_sidecar_migration(path, encrypted=False, passphrase=passphrase)
+            prepare_audit_sidecar_migration(path, encrypted=False, passphrase=passphrase)
             operation = begin_audit_operation(
                 vault_path=path,
                 actor="cli",
@@ -336,9 +359,19 @@ def command_encryption(args: argparse.Namespace) -> None:
                 sidecar_passphrase=passphrase,
             )
             try:
+                prepared_consent = prepare_consent_sidecar_migration(
+                    path,
+                    encrypted=False,
+                    passphrase=passphrase,
+                )
+                prepared_audit = prepare_audit_sidecar_migration(
+                    path,
+                    encrypted=False,
+                    passphrase=passphrase,
+                )
                 write_store(store, path, passphrase=passphrase, encrypted=False)
-                migrate_consent_sidecar(path, encrypted=False, passphrase=passphrase)
-                migrate_audit_sidecar(path, encrypted=False, passphrase=passphrase)
+                commit_consent_sidecar_migration(prepared_consent)
+                commit_audit_sidecar_migration(prepared_audit, vault_path=path)
             except ValueError:
                 operation.rejected()
                 raise
@@ -356,6 +389,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                 raise SystemExit("sidecar protection requires an encrypted vault")
             passphrase = read_passphrase()
             load_store(path=path, passphrase=passphrase)
+            prepare_consent_sidecar_migration(path, encrypted=True, passphrase=passphrase)
+            prepare_audit_sidecar_migration(path, encrypted=True, passphrase=passphrase)
             operation = begin_audit_operation(
                 vault_path=path,
                 actor="cli",
@@ -363,8 +398,18 @@ def command_encryption(args: argparse.Namespace) -> None:
                 purpose=args.purpose,
                 sidecar_passphrase=passphrase,
             )
-            migrate_consent_sidecar(path, encrypted=True, passphrase=passphrase)
-            migrate_audit_sidecar(path, encrypted=True, passphrase=passphrase)
+            prepared_consent = prepare_consent_sidecar_migration(
+                path,
+                encrypted=True,
+                passphrase=passphrase,
+            )
+            prepared_audit = prepare_audit_sidecar_migration(
+                path,
+                encrypted=True,
+                passphrase=passphrase,
+            )
+            commit_consent_sidecar_migration(prepared_consent)
+            commit_audit_sidecar_migration(prepared_audit, vault_path=path)
             operation.committed()
             try:
                 print("sidecars_encrypted: true")

@@ -4,17 +4,27 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .crypto_store import (
     ENCRYPTED_SIDECAR_STORAGE,
+    decrypt_store_payload,
     decrypt_sidecar_payload,
     encrypt_sidecar_payload,
     is_encrypted_payload,
 )
-from .private_io import private_file_exists, read_private_bytes, read_private_json, write_private_bytes, write_private_json
-from .resource_limits import MAX_PRIVATE_JSON_BYTES, validate_json_resources
+from .private_io import private_file_exists, read_private_bytes, read_private_json, write_private_bytes
+from .resource_limits import MAX_PRIVATE_JSON_BYTES, ResourceLimitError, validate_json_resources
+
+
+@dataclass(frozen=True)
+class PreparedSidecarWrite:
+    """Fully encoded sidecar bytes that can be committed without more parsing or crypto."""
+
+    path: Path
+    payload: bytes
 
 
 def _passphrase(explicit: str | None = None) -> str:
@@ -26,6 +36,30 @@ def _passphrase(explicit: str | None = None) -> str:
 
 def vault_uses_encryption(vault_path: Path) -> bool:
     return private_file_exists(vault_path) and is_encrypted_payload(read_private_json(vault_path))
+
+
+def _validated_vault_passphrase(vault_payload: object, explicit: str | None = None) -> str:
+    passphrase = _passphrase(explicit)
+    if not is_encrypted_payload(vault_payload):
+        raise ValueError("vault encryption state changed; reload and retry")
+    decrypt_store_payload(vault_payload, passphrase)
+    return passphrase
+
+
+def _sidecar_protection(vault_path: Path, passphrase: str | None) -> tuple[bool, str | None]:
+    if not private_file_exists(vault_path):
+        return False, passphrase
+    vault_payload = read_private_json(vault_path)
+    if not is_encrypted_payload(vault_payload):
+        return False, passphrase
+    return True, _validated_vault_passphrase(vault_payload, passphrase)
+
+
+def validate_sidecar_passphrase_binding(vault_path: Path, passphrase: str | None = None) -> str | None:
+    """Prove the selected passphrase opens an encrypted vault before sidecar crypto."""
+
+    _encrypted, validated_passphrase = _sidecar_protection(vault_path, passphrase)
+    return validated_passphrase
 
 
 def is_encrypted_sidecar_payload(payload: object, *, kind: str | None = None) -> bool:
@@ -77,14 +111,46 @@ def write_sidecar_bytes(
     vault_path: Path,
     kind: str,
     passphrase: str | None = None,
-    encrypted: bool | None = None,
 ) -> None:
-    protect = vault_uses_encryption(vault_path) if encrypted is None else encrypted
-    if protect:
+    protect, passphrase = _sidecar_protection(vault_path, passphrase)
+    commit_prepared_sidecar(
+        prepare_sidecar_write(
+            path,
+            payload,
+            kind=kind,
+            encrypted=protect,
+            passphrase=passphrase,
+        )
+    )
+
+
+def prepare_sidecar_write(
+    path: Path,
+    payload: bytes,
+    *,
+    kind: str,
+    encrypted: bool,
+    passphrase: str | None,
+) -> PreparedSidecarWrite:
+    """Encode a complete target sidecar without changing filesystem state."""
+
+    if len(payload) > MAX_PRIVATE_JSON_BYTES:
+        raise ResourceLimitError("private state exceeds the supported size limit")
+    if encrypted:
         envelope = encrypt_sidecar_payload(payload, _passphrase(passphrase), kind=kind)
-        write_private_json(path, envelope)
+        validate_json_resources(envelope)
+        encoded = (json.dumps(envelope, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        if len(encoded) > MAX_PRIVATE_JSON_BYTES:
+            raise ResourceLimitError("private state exceeds the supported size limit")
     else:
-        write_private_bytes(path, payload)
+        encoded = payload
+    return PreparedSidecarWrite(path=path, payload=encoded)
+
+
+def commit_prepared_sidecar(prepared: PreparedSidecarWrite) -> None:
+    """Commit bytes that were fully parsed, validated, and transformed earlier."""
+
+    write_private_bytes(prepared.path, prepared.payload)
 
 
 def read_sidecar_json(
@@ -106,7 +172,6 @@ def write_sidecar_json(
     vault_path: Path,
     kind: str,
     passphrase: str | None = None,
-    encrypted: bool | None = None,
 ) -> None:
     validate_json_resources(payload)
     encoded = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -118,7 +183,36 @@ def write_sidecar_json(
         vault_path=vault_path,
         kind=kind,
         passphrase=passphrase,
+    )
+
+
+def prepare_sidecar_migration(
+    path: Path,
+    *,
+    vault_path: Path,
+    kind: str,
+    encrypted: bool,
+    passphrase: str,
+    max_bytes: int = MAX_PRIVATE_JSON_BYTES,
+) -> PreparedSidecarWrite | None:
+    """Read, decrypt, bound, and transform a sidecar without replacing it."""
+
+    passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
+    if not private_file_exists(path):
+        return None
+    plaintext = read_sidecar_bytes(
+        path,
+        vault_path=vault_path,
+        kind=kind,
+        passphrase=passphrase,
+        max_bytes=max_bytes,
+    )
+    return prepare_sidecar_write(
+        path,
+        plaintext,
+        kind=kind,
         encrypted=encrypted,
+        passphrase=passphrase,
     )
 
 
@@ -131,21 +225,15 @@ def migrate_sidecar(
     passphrase: str,
     max_bytes: int = MAX_PRIVATE_JSON_BYTES,
 ) -> bool:
-    if not private_file_exists(path):
-        return False
-    plaintext = read_sidecar_bytes(
+    prepared = prepare_sidecar_migration(
         path,
         vault_path=vault_path,
         kind=kind,
+        encrypted=encrypted,
         passphrase=passphrase,
         max_bytes=max_bytes,
     )
-    write_sidecar_bytes(
-        path,
-        plaintext,
-        vault_path=vault_path,
-        kind=kind,
-        passphrase=passphrase,
-        encrypted=encrypted,
-    )
+    if prepared is None:
+        return False
+    commit_prepared_sidecar(prepared)
     return True

@@ -15,8 +15,15 @@ from .private_io import (
     exclusive_private_lock,
     private_file_exists,
 )
-from .resource_limits import MAX_AUDIT_BYTES, ResourceLimitError
-from .sidecar_store import migrate_sidecar, read_sidecar_bytes, write_sidecar_bytes
+from .resource_limits import MAX_AUDIT_BYTES, ResourceLimitError, validate_json_resources
+from .sidecar_store import (
+    PreparedSidecarWrite,
+    commit_prepared_sidecar,
+    prepare_sidecar_write,
+    read_sidecar_bytes,
+    validate_sidecar_passphrase_binding,
+    write_sidecar_bytes,
+)
 from .vault import now_iso, store_path
 
 
@@ -534,13 +541,60 @@ def audit_summary(vault_path: Path, *, passphrase: str | None = None) -> dict[st
 def migrate_audit_sidecar(vault_path: Path, *, encrypted: bool, passphrase: str) -> bool:
     """Rewrite the audit log with the selected sidecar protection."""
 
+    prepared = prepare_audit_sidecar_migration(
+        vault_path,
+        encrypted=encrypted,
+        passphrase=passphrase,
+    )
+    return commit_audit_sidecar_migration(prepared, vault_path=vault_path)
+
+
+def prepare_audit_sidecar_migration(
+    vault_path: Path,
+    *,
+    encrypted: bool,
+    passphrase: str,
+) -> PreparedSidecarWrite | None:
+    """Validate every audit row and encode the target sidecar without mutation."""
+
     path = audit_path(vault_path)
+    passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
     with exclusive_private_lock(audit_lock_path(vault_path)):
-        return migrate_sidecar(
+        if not private_file_exists(path):
+            return None
+        plaintext = read_sidecar_bytes(
             path,
             vault_path=vault_path,
             kind="audit",
-            encrypted=encrypted,
             passphrase=passphrase,
             max_bytes=MAX_AUDIT_BYTES,
         )
+        for raw_line in plaintext.splitlines():
+            if not raw_line.strip():
+                continue
+            try:
+                event = json.loads(raw_line.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError("audit state is invalid") from exc
+            if not isinstance(event, dict):
+                raise ValueError("audit state is invalid")
+            validate_json_resources(event)
+        return prepare_sidecar_write(
+            path,
+            plaintext,
+            kind="audit",
+            encrypted=encrypted,
+            passphrase=passphrase,
+        )
+
+
+def commit_audit_sidecar_migration(
+    prepared: PreparedSidecarWrite | None,
+    *,
+    vault_path: Path,
+) -> bool:
+    if prepared is None:
+        return False
+    with exclusive_private_lock(audit_lock_path(vault_path)):
+        commit_prepared_sidecar(prepared)
+    return True

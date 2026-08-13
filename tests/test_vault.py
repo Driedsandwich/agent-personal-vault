@@ -61,7 +61,7 @@ from agent_personal_vault.gui import (
 from agent_personal_vault.private_io import append_private_line, remove_private_file, write_private_bytes
 from agent_personal_vault.private_io import read_private_json
 from agent_personal_vault.privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
-from agent_personal_vault.resource_limits import ResourceLimitError
+from agent_personal_vault.resource_limits import MAX_AUDIT_BYTES, ResourceLimitError
 from agent_personal_vault.sidecar_store import read_sidecar_bytes, read_sidecar_json, sidecar_is_encrypted
 from agent_personal_vault.vault import (
     VaultConflictError,
@@ -3488,6 +3488,230 @@ class VaultTests(unittest.TestCase):
         payload = crypto_store.encrypt_sidecar_payload(b"{}\n", "correct horse battery staple", kind="consent")
         with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
             crypto_store.decrypt_sidecar_payload(payload, "correct horse battery staple", kind="audit")
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypted_vault_rejects_wrong_sidecar_passphrase_before_env_grant_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            before_vault = path.read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "wrong horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "grant",
+                    "--action",
+                    "env",
+                    "--key",
+                    "*",
+                    "--purpose",
+                    "test_dummy",
+                    "--i-understand-bulk-raw-export",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before_vault)
+            self.assertFalse(consent_path(path).exists())
+            self.assertFalse(audit_path(path).exists())
+            self.assertNotIn("wrong horse battery staple", result.stdout + result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypted_vault_accepts_matching_sidecar_passphrase_for_env_grant(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "consent",
+                    "grant",
+                    "--action",
+                    "env",
+                    "--key",
+                    "*",
+                    "--purpose",
+                    "test_dummy",
+                    "--i-understand-bulk-raw-export",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(sidecar_is_encrypted(consent_path(path), kind="consent"))
+            self.assertTrue(sidecar_is_encrypted(audit_path(path), kind="audit"))
+            self.assertNotIn("correct horse battery staple", result.stdout + result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypt_rejects_malformed_consent_before_any_transition_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            write_private_bytes(consent_path(path), b'{"version":2,"grants":[')
+            before = {
+                path: path.read_bytes(),
+                consent_path(path): consent_path(path).read_bytes(),
+                audit_path(path): None,
+            }
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "encrypt",
+                    "--purpose",
+                    "encryption_migration",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before[path])
+            self.assertEqual(consent_path(path).read_bytes(), before[consent_path(path)])
+            self.assertFalse(audit_path(path).exists())
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypt_rejects_oversized_audit_before_any_transition_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            oversized = b"x" * (MAX_AUDIT_BYTES + 1)
+            write_private_bytes(audit_path(path), oversized)
+            before_vault = path.read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "encrypt",
+                    "--purpose",
+                    "encryption_migration",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before_vault)
+            self.assertEqual(audit_path(path).read_bytes(), oversized)
+            self.assertFalse(consent_path(path).exists())
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypt_rejects_malformed_audit_before_any_transition_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            malformed = b'{"timestamp":"synthetic"}\nnot-json\n'
+            write_private_bytes(audit_path(path), malformed)
+            before_vault = path.read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "encrypt",
+                    "--purpose",
+                    "encryption_migration",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before_vault)
+            self.assertEqual(audit_path(path).read_bytes(), malformed)
+            self.assertFalse(consent_path(path).exists())
+            self.assertNotIn("not-json", result.stdout + result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_decrypt_rejects_wrong_sidecar_key_before_any_transition_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            wrong_envelope = crypto_store.encrypt_sidecar_payload(
+                b'{"version":2,"grants":[],"requests":[]}\n',
+                "different horse battery staple",
+                kind="consent",
+            )
+            write_json_private(consent_path(path), wrong_envelope)
+            before_vault = path.read_bytes()
+            before_consent = consent_path(path).read_bytes()
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "encryption",
+                    "decrypt",
+                    "--purpose",
+                    "encryption_migration",
+                    "--i-understand-plaintext-persistence",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(path.read_bytes(), before_vault)
+            self.assertEqual(consent_path(path).read_bytes(), before_consent)
+            self.assertFalse(audit_path(path).exists())
+            self.assertNotIn("different horse battery staple", result.stdout + result.stderr)
+            self.assertNotIn(str(path), result.stdout + result.stderr)
 
     def test_new_encryption_rejects_weak_passphrase_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

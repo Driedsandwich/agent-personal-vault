@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
+import json
 import re
 import secrets
 import unicodedata
@@ -24,7 +26,14 @@ except ImportError:  # pragma: no cover - Unix fallback path
 from .audit import AuditOperation, begin_audit_operation, redact_consent_id, redact_purpose
 from .private_io import open_private_lock, private_file_exists
 from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
-from .sidecar_store import read_sidecar_json, write_sidecar_json
+from .sidecar_store import (
+    PreparedSidecarWrite,
+    commit_prepared_sidecar,
+    prepare_sidecar_write,
+    read_sidecar_json,
+    validate_sidecar_passphrase_binding,
+    write_sidecar_json,
+)
 from .vault import now_iso, store_path
 
 DEFAULT_TTL_SECONDS = 300
@@ -239,8 +248,19 @@ def _write_state(
     *,
     vault_path: Path,
     passphrase: str | None = None,
-    encrypted: bool | None = None,
 ) -> None:
+    state = copy.deepcopy(state)
+    _normalize_state_for_storage(state)
+    write_sidecar_json(
+        path,
+        state,
+        vault_path=vault_path,
+        kind="consent",
+        passphrase=passphrase,
+    )
+
+
+def _normalize_state_for_storage(state: dict[str, Any]) -> None:
     for collection_name in ("grants", "requests"):
         collection = state.get(collection_name, [])
         if not isinstance(collection, list):
@@ -255,14 +275,39 @@ def _write_state(
             if collection_name == "requests" and str(record.get("consent_id") or "").startswith("c_"):
                 record["consent_id"] = "c_[redacted]"
     state["version"] = 2
-    write_sidecar_json(
-        path,
-        state,
-        vault_path=vault_path,
-        kind="consent",
-        passphrase=passphrase,
-        encrypted=encrypted,
-    )
+
+
+def prepare_consent_sidecar_migration(
+    vault_path: Path,
+    *,
+    encrypted: bool,
+    passphrase: str,
+) -> PreparedSidecarWrite | None:
+    """Validate and encode consent state for a later coordinated transition."""
+
+    path = consent_path(vault_path)
+    passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
+    with _state_lock(path):
+        if not private_file_exists(path):
+            return None
+        state = copy.deepcopy(_load_state(path, vault_path=vault_path, passphrase=passphrase))
+        _normalize_state_for_storage(state)
+        encoded = (json.dumps(state, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        return prepare_sidecar_write(
+            path,
+            encoded,
+            kind="consent",
+            encrypted=encrypted,
+            passphrase=passphrase,
+        )
+
+
+def commit_consent_sidecar_migration(prepared: PreparedSidecarWrite | None) -> bool:
+    if prepared is None:
+        return False
+    with _state_lock(prepared.path):
+        commit_prepared_sidecar(prepared)
+    return True
 
 
 def _parse_expires_at(value: Any) -> datetime:
@@ -646,19 +691,12 @@ def list_consents(vault_path: Path, include_used: bool = False) -> list[dict[str
 def migrate_consent_sidecar(vault_path: Path, *, encrypted: bool, passphrase: str) -> bool:
     """Rewrite legacy consent state with token digests and selected sidecar protection."""
 
-    path = consent_path(vault_path)
-    with _state_lock(path):
-        if not private_file_exists(path):
-            return False
-        state = _load_state(path, vault_path=vault_path, passphrase=passphrase)
-        _write_state(
-            path,
-            state,
-            vault_path=vault_path,
-            passphrase=passphrase,
-            encrypted=encrypted,
-        )
-    return True
+    prepared = prepare_consent_sidecar_migration(
+        vault_path,
+        encrypted=encrypted,
+        passphrase=passphrase,
+    )
+    return commit_consent_sidecar_migration(prepared)
 
 
 def prune_consent_records(
