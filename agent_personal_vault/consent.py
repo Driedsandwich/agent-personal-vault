@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - Unix fallback path
 
 from .audit import _clean_text, redact_consent_id, write_audit_event
 from .private_io import open_private_lock, private_file_exists, read_private_json
+from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
 from .vault import now_iso, store_path, write_json_private
 
 DEFAULT_TTL_SECONDS = 300
@@ -59,6 +60,10 @@ def _normalize_purpose(value: Any) -> str:
     normalized = " ".join(normalized.split())
     if not normalized:
         raise ConsentError("consent purpose is required")
+    try:
+        require_text_limit(normalized, max_bytes=MAX_PURPOSE_BYTES, label="consent purpose")
+    except ResourceLimitError as exc:
+        raise ConsentError(str(exc)) from exc
     return normalized
 
 
@@ -172,7 +177,20 @@ def _load_state(path: Path) -> dict[str, Any]:
                 _validate_stored_purpose(grant.get("purpose"))
                 if "purpose_binding" in grant:
                     _validate_purpose_binding(grant.get("purpose_binding"))
+    if not isinstance(requests, list) or not isinstance(grants, list):
+        raise ConsentError("consent state is invalid")
+    if len(requests) + len(grants) > MAX_CONSENT_RECORDS:
+        raise ConsentError("consent state exceeds the supported record limit")
     return payload
+
+
+def _require_record_capacity(state: dict[str, Any], *, additional: int = 1) -> None:
+    requests = state.get("requests", [])
+    grants = state.get("grants", [])
+    if not isinstance(requests, list) or not isinstance(grants, list):
+        raise ConsentError("consent state is invalid")
+    if len(requests) + len(grants) + additional > MAX_CONSENT_RECORDS:
+        raise ConsentError("consent state has reached the supported record limit")
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
@@ -239,6 +257,7 @@ def issue_consent(
         grants = state.setdefault("grants", [])
         if not isinstance(grants, list):
             raise ConsentError("consent grants are invalid")
+        _require_record_capacity(state)
         grants.append(grant)
         _write_state(path, state)
     write_audit_event(
@@ -286,6 +305,7 @@ def create_consent_request(
         requests = state.setdefault("requests", [])
         if not isinstance(requests, list):
             raise ConsentError("consent requests are invalid")
+        _require_record_capacity(state)
         requests.append(request)
         _write_state(path, state)
     write_audit_event(
@@ -400,6 +420,7 @@ def resolve_consent_request(
             grants = state.setdefault("grants", [])
             if not isinstance(grants, list):
                 raise ConsentError("consent grants are invalid")
+            _require_record_capacity(state)
             grants.append(grant)
             request["status"] = "approved"
             request["consent_id"] = grant["id"]

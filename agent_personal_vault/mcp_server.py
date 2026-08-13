@@ -14,6 +14,7 @@ from typing import Any
 
 from . import __version__
 from .consent import create_consent_request
+from .resource_limits import MAX_MCP_MESSAGE_BYTES, validate_json_resources
 from .vault import agent_context, check_summary, get_schema, load_store, local_user_path, read_store, schema_context, store_path, validate_key
 
 PROTOCOL_VERSION = "2025-06-18"
@@ -214,16 +215,25 @@ class MCPServer:
         return self.error(request_id, -32601, "Method not found")
 
     def serve(self) -> None:
-        for line in sys.stdin:
-            line = line.strip()
-            if not line:
+        while True:
+            raw_line = sys.stdin.buffer.readline(MAX_MCP_MESSAGE_BYTES + 1)
+            if not raw_line:
+                break
+            if len(raw_line) > MAX_MCP_MESSAGE_BYTES:
+                while raw_line and not raw_line.endswith(b"\n"):
+                    raw_line = sys.stdin.buffer.readline(MAX_MCP_MESSAGE_BYTES + 1)
+                print(json.dumps(self.error(None, -32600, "Message too large")), flush=True)
+                continue
+            raw_line = raw_line.strip()
+            if not raw_line:
                 continue
             try:
-                message = json.loads(line)
+                message = json.loads(raw_line.decode("utf-8"))
+                validate_json_resources(message)
                 if not isinstance(message, dict):
                     raise ValueError("message must be an object")
                 response = self.handle(message)
-            except json.JSONDecodeError:
+            except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
                 response = self.error(None, -32700, "Parse error")
             except ValueError:
                 response = self.error(None, -32700, "Invalid message")

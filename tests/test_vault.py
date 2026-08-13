@@ -48,6 +48,8 @@ from agent_personal_vault.gui import (
     save_profile_fields,
 )
 from agent_personal_vault.private_io import append_private_line
+from agent_personal_vault.private_io import read_private_json
+from agent_personal_vault.resource_limits import ResourceLimitError
 from agent_personal_vault.vault import (
     VaultConflictError,
     agent_context,
@@ -137,6 +139,77 @@ class VaultTests(unittest.TestCase):
                     os.environ.pop("AGENT_PERSONAL_VAULT_HOME", None)
                 else:
                     os.environ["AGENT_PERSONAL_VAULT_HOME"] = old
+
+    def test_private_json_rejects_oversized_and_deep_state_before_use(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            with mock.patch("agent_personal_vault.private_io.MAX_PRIVATE_JSON_BYTES", 32):
+                path.write_text(json.dumps({"value": "x" * 64}), encoding="utf-8")
+                path.chmod(0o600)
+                with self.assertRaisesRegex(ResourceLimitError, "size limit"):
+                    read_private_json(path)
+
+            nested: object = "leaf"
+            for _ in range(33):
+                nested = [nested]
+            path.write_text(json.dumps(nested), encoding="utf-8")
+            path.chmod(0o600)
+            with self.assertRaisesRegex(ResourceLimitError, "depth limit"):
+                read_private_json(path)
+
+    def test_vault_field_limit_rejects_input_without_writing_or_echoing_raw_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-marker" / "vault.json"
+            raw_value = "synthetic-private-value-too-large"
+            with mock.patch("agent_personal_vault.vault.MAX_FIELD_VALUE_BYTES", 8):
+                store = load_store(create=True, path=path)
+                before = path.read_bytes()
+                with self.assertRaisesRegex(ResourceLimitError, "vault field exceeds") as raised:
+                    store["fields"]["FAMILY_NAME"] = normalize_value("FAMILY_NAME", raw_value)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertNotIn(raw_value, str(raised.exception))
+            self.assertNotIn(str(path), str(raised.exception))
+
+    def test_vault_resource_limit_preserves_bounded_unknown_legacy_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            legacy = blank_store()
+            legacy["fields"]["LEGACY_EXTENSION"] = "bounded synthetic value"
+            write_json_private(path, legacy)
+
+            store = read_store(path=path)
+
+            self.assertEqual(store["fields"]["LEGACY_EXTENSION"], "bounded synthetic value")
+
+    def test_consent_record_and_purpose_limits_fail_before_state_or_audit_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            with mock.patch("agent_personal_vault.consent.MAX_CONSENT_RECORDS", 1):
+                create_consent_request(vault_path=path, action="get", key="EMAIL", purpose="first request")
+                state_before = consent_path(path).read_bytes()
+                audit_before = audit_path(path).read_bytes()
+                with self.assertRaisesRegex(ConsentError, "record limit"):
+                    create_consent_request(vault_path=path, action="get", key="EMAIL", purpose="second request")
+                self.assertEqual(consent_path(path).read_bytes(), state_before)
+                self.assertEqual(audit_path(path).read_bytes(), audit_before)
+
+            raw_purpose = "synthetic private purpose value"
+            with mock.patch("agent_personal_vault.consent.MAX_PURPOSE_BYTES", 8):
+                with self.assertRaisesRegex(ConsentError, "size limit") as raised:
+                    create_consent_request(vault_path=path, action="get", key="EMAIL", purpose=raw_purpose)
+            self.assertNotIn(raw_purpose, str(raised.exception))
+
+    def test_audit_limit_rejects_append_without_partial_record_or_sensitive_echo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            raw_purpose = "synthetic-private-purpose"
+            with mock.patch("agent_personal_vault.audit.MAX_AUDIT_BYTES", 1):
+                with self.assertRaisesRegex(ResourceLimitError, "size limit") as raised:
+                    write_audit_event(vault_path=path, actor="cli", action="set", purpose=raw_purpose)
+            self.assertEqual(audit_path(path).read_bytes(), b"")
+            self.assertNotIn(raw_purpose, str(raised.exception))
 
     def test_local_user_path_resolves_explicit_store_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1334,6 +1407,106 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(token, log_output)
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_http_rejects_oversized_body_before_read_without_sensitive_echo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/profile",
+                    data=b"synthetic-oversized-body",
+                    method="POST",
+                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
+                with mock.patch("agent_personal_vault.gui.MAX_GUI_BODY_BYTES", 8), mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(request, timeout=5)
+                self.assertEqual(raised.exception.code, 413)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                combined = body + "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertIn("request body too large", body)
+                self.assertNotIn(token, combined)
+                self.assertNotIn(str(path), combined)
+                self.assertNotIn("Traceback", combined)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_http_rejects_excessive_json_depth_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            nested: object = "leaf"
+            for _ in range(33):
+                nested = [nested]
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/profile",
+                    data=json.dumps({"fields": nested}).encode("utf-8"),
+                    method="POST",
+                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(request, timeout=5)
+                self.assertEqual(raised.exception.code, 400)
+                body = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                self.assertIn("invalid json", body)
+                self.assertNotIn("Traceback", "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args))
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_gui_http_sanitizes_decoder_recursion_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                body = (b"[" * 400_000) + b"0" + (b"]" * 400_000)
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/profile",
+                    data=body,
+                    method="POST",
+                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                )
+                with mock.patch("sys.stderr") as stderr:
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(request, timeout=5)
+                self.assertEqual(raised.exception.code, 400)
+                response = raised.exception.read().decode("utf-8")
+                raised.exception.close()
+                combined = response + "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertIn("invalid json", response)
+                self.assertNotIn(token, combined)
+                self.assertNotIn(str(path), combined)
+                self.assertNotIn("Traceback", combined)
             finally:
                 server.shutdown()
                 server.server_close()
@@ -3008,6 +3181,80 @@ class VaultTests(unittest.TestCase):
                 for item in hint["candidate_keys"]
             }
             self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
+
+    def test_mcp_rejects_oversized_frame_and_processes_next_bounded_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            load_store(create=True, path=path)
+            oversized = b"{" + (b"x" * (256 * 1024)) + b"}\n"
+            valid = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}).encode("utf-8") + b"\n"
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=oversized + valid,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            responses = [json.loads(line) for line in result.stdout.decode("utf-8").splitlines()]
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(responses[0]["error"], {"code": -32600, "message": "Message too large"})
+            self.assertIn("tools", responses[1]["result"])
+            combined = result.stdout.decode("utf-8") + result.stderr.decode("utf-8")
+            self.assertNotIn(str(path), combined)
+            self.assertNotIn("Traceback", combined)
+
+    def test_mcp_rejects_excessive_json_depth_and_remains_available(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            nested: object = "leaf"
+            for _ in range(33):
+                nested = [nested]
+            messages = [
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": nested},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            ]
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input="\n".join(json.dumps(message) for message in messages) + "\n",
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(responses[0]["error"], {"code": -32700, "message": "Invalid message"})
+            self.assertIn("tools", responses[1]["result"])
+            self.assertEqual(result.stderr, "")
+
+    def test_cli_stdin_limit_is_fixed_and_does_not_write_or_echo_input(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-path-marker" / "vault.json"
+            raw_value = "x" * ((64 * 1024) + 1)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "set",
+                    "FAMILY_NAME",
+                    "--stdin",
+                    "--purpose",
+                    "bounded synthetic input",
+                ],
+                input=raw_value,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            combined = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("supported resource limit", combined)
+            self.assertNotIn(raw_value, combined)
+            self.assertNotIn(str(path), combined)
+            store = read_store(path=path)
+            self.assertEqual(store["fields"]["FAMILY_NAME"], "")
 
     def test_mcp_metadata_reads_do_not_migrate_legacy_store(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

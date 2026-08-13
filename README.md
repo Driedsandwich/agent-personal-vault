@@ -154,6 +154,8 @@ agent-personal-vault --store /path/to/vault.json check
 
 新規作成する保存ディレクトリは `0700`、保存ファイルは `0600` に設定されます。POSIX環境で既存のcustom親ディレクトリを指定した場合、現在のOSユーザー所有でgroup/otherからアクセスできない場所だけを受け入れます。権限は自動変更せず、安全でない場合は保存を拒否します。保存状態ファイルと一時ファイルは、検証済みの親ディレクトリに対するfd起点で開き、symbolic linkと複数hard linkを追従しません。共有・同期・公開される場所を保存先にしないでください。既定の平文JSONは、バックアップ、クラウド同期、Time Machineや仮想環境スナップショット、手動コピーに含まれると、元ファイルの権限境界の外へ複製されます。実データを保存する場合は、その保存先がバックアップ・同期対象かを確認し、必要ならoptional encryptionを有効にしてください。
 
+可用性を守るため、保存JSONは12 MiB、各vault fieldは64 KiB、consent purposeは4 KiB、consent request/grantは合計2,000件、audit logは8 MiBまでに制限します。GUI request bodyは1 MiB、MCP messageは256 KiBまでです。JSON構造にも深さ32・20,000 nodeの上限があります。上限到達時は処理をfail-closedで拒否します。private stateが上限を超えて起動できない場合は、GUI/MCPを停止し、対象ファイルをowner-onlyの場所へbackupしてから、内容をIssueや外部AIへ貼らずに新しいdummy vaultで復旧手順を確認してください。これらはアプリケーションのメモリ・ディスク使用量を抑える安全策であり、OS quotaや複数ユーザー間の隔離ではありません。
+
 保存した値を消す場合は、通常は `unset <KEY>` で1 keyずつ空にします。誤って実データを入れた検証用vaultを丸ごと捨てる場合は、まず `check` で保存先を確認し、GUIやMCP serverを停止してから、そのvaultファイルだけを削除してください。削除対象が分からないまま `rm -rf` や親ディレクトリ削除を使わないでください。
 
 ## MCP Raw-Free Server
