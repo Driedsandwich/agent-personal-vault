@@ -248,6 +248,8 @@ agent-personal-vault audit summary
 agent-personal-vault audit tail --limit 10
 ```
 
+監査ログの1行が中断や破損で不正になっていても、前後の有効なイベントは表示を続けます。CLIとGUIは不正な行の内容を表示せず、スキップした件数だけを警告します。監査ログは引き続き改ざん耐性のある証跡ではありません。
+
 未使用のconsent tokenを確認:
 
 ```sh

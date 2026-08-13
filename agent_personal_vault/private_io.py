@@ -181,6 +181,12 @@ def read_private_text(path: Path) -> str:
         return handle.read()
 
 
+def read_private_bytes(path: Path) -> bytes:
+    fd = _open_file_fd(path, os.O_RDONLY)
+    with os.fdopen(fd, "rb") as handle:
+        return handle.read()
+
+
 def read_private_json(path: Path) -> object:
     return json.loads(read_private_text(path))
 
@@ -235,12 +241,17 @@ def write_private_json(path: Path, payload: dict) -> None:
 
 
 def append_private_line(path: Path, line: str) -> None:
+    if "\n" in line or "\r" in line:
+        raise ValueError("private line must not contain line breaks")
+    payload = f"{line}\n".encode("utf-8")
     fd = _open_file_fd(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT)
-    with os.fdopen(fd, "a", encoding="utf-8") as handle:
-        handle.write(line)
-        handle.write("\n")
-        handle.flush()
-        os.fsync(handle.fileno())
+    try:
+        written = os.write(fd, payload)
+        if written != len(payload):
+            raise OSError("incomplete private line append")
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 @contextmanager

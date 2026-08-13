@@ -9,7 +9,7 @@ import sys
 from getpass import getpass
 from pathlib import Path
 
-from .audit import audit_summary, read_audit_events, write_audit_event
+from .audit import audit_summary, audit_tail, write_audit_event
 from .consent import (
     MAX_TTL_SECONDS,
     ConsentError,
@@ -213,7 +213,13 @@ def command_audit(args: argparse.Namespace) -> None:
     if args.audit_command == "summary":
         print(json.dumps(audit_summary(path), ensure_ascii=False, indent=2, sort_keys=True))
         return
-    for event in read_audit_events(path, limit=args.limit):
+    result = audit_tail(path, limit=args.limit)
+    if result["integrity_warning"]:
+        print(
+            f"warning: skipped {result['malformed_records_skipped']} malformed audit record(s)",
+            file=sys.stderr,
+        )
+    for event in result["events"]:
         print(json.dumps(event, ensure_ascii=False, sort_keys=True))
 
 

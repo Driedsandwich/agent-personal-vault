@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .audit import audit_summary, read_audit_events, write_audit_event
+from .audit import audit_summary, audit_tail, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .crypto_store import is_encrypted_payload
 from .private_io import private_file_exists, read_private_json
@@ -253,6 +253,7 @@ async function loadAudit() {{
   document.getElementById("auditSummary").innerHTML = `
     <div>events: <strong>${{esc(summary.events || 0)}}</strong></div>
     <div>raw values included: <strong>${{esc(summary.raw_values_included)}}</strong></div>
+    ${{summary.integrity_warning ? `<div class="danger">破損した監査レコードを ${{esc(summary.malformed_records_skipped || 0)}} 件スキップしました。</div>` : ""}}
     <div class="hint">actions: ${{esc(JSON.stringify(byAction))}}</div>
     <div class="hint">raw access by key: ${{esc(JSON.stringify(rawByKey))}}</div>
   `;
@@ -367,8 +368,9 @@ def storage_context(path: Path, secret: bytes) -> tuple[str, str]:
 
 
 def audit_view_payload(path: Path, limit: int = 10) -> dict:
+    tail = audit_tail(path, limit=limit)
     events = []
-    for event in read_audit_events(path, limit=limit):
+    for event in tail["events"]:
         events.append(
             {
                 "timestamp": event.get("timestamp", ""),
@@ -383,6 +385,8 @@ def audit_view_payload(path: Path, limit: int = 10) -> dict:
         "summary": audit_summary(path),
         "events": events,
         "raw_values_included": False,
+        "malformed_records_skipped": tail["malformed_records_skipped"],
+        "integrity_warning": tail["integrity_warning"],
     }
 
 
