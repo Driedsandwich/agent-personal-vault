@@ -40,6 +40,7 @@ from .vault import (
     load_store,
     masked,
     normalize_value,
+    read_store,
     schema_context,
     store_path,
     store_path_warnings,
@@ -75,7 +76,7 @@ def command_init(args: argparse.Namespace) -> None:
 
 def command_check(args: argparse.Namespace) -> None:
     path = resolve_path(args)
-    store = load_store(path=path)
+    store = read_store(path=path)
     summary = check_summary(store, path)
     print(f"store: {summary['path']}")
     print(f"mode: {summary['mode']}")
@@ -91,7 +92,7 @@ def command_check(args: argparse.Namespace) -> None:
 
 def command_context(args: argparse.Namespace) -> None:
     path = resolve_path(args)
-    store = load_store(path=path)
+    store = read_store(path=path)
     print(json.dumps(agent_context(store, include_path=args.include_path, path=path, task=args.task), ensure_ascii=False, indent=2))
 
 
@@ -100,7 +101,7 @@ def command_schema(args: argparse.Namespace) -> None:
 
 
 def command_list(args: argparse.Namespace) -> None:
-    store = load_store(path=resolve_path(args))
+    store = read_store(path=resolve_path(args))
     schema = get_schema(store["schema"])
     for key, spec in schema.items():
         value = str(store["fields"].get(key, ""))

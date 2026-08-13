@@ -14,7 +14,7 @@ from typing import Any
 
 from . import __version__
 from .consent import create_consent_request
-from .vault import agent_context, check_summary, get_schema, load_store, local_user_path, schema_context, store_path, validate_key
+from .vault import agent_context, check_summary, get_schema, load_store, local_user_path, read_store, schema_context, store_path, validate_key
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "agent-personal-vault"
@@ -122,16 +122,16 @@ class MCPServer:
         if name == "apv.schema":
             return text_json(schema_context(self.schema_name))
         if name == "apv.context":
-            store = load_store(path=self.path)
+            store = read_store(path=self.path)
             return text_json(agent_context(store, include_path=False, path=self.path, task=str(arguments.get("task") or "")))
         if name == "apv.check":
-            store = load_store(path=self.path)
+            store = read_store(path=self.path)
             summary = check_summary(store, self.path)
             summary["raw_values_included"] = False
             summary.pop("path", None)
             return text_json(summary)
         if name == "apv.list_masked":
-            store = load_store(path=self.path)
+            store = read_store(path=self.path)
             schema = get_schema(store["schema"])
             fields = store.get("fields", {})
             payload = {
