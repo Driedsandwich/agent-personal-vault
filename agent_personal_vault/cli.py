@@ -9,14 +9,16 @@ import sys
 from getpass import getpass
 from pathlib import Path
 
-from .audit import audit_summary, audit_tail, begin_audit_operation, write_audit_event
+from .audit import audit_path, audit_summary, audit_tail, begin_audit_operation, migrate_audit_sidecar, write_audit_event
 from .consent import (
     MAX_TTL_SECONDS,
     ConsentError,
+    consent_path,
     create_consent_request,
     issue_consent,
     list_consent_requests,
     list_consents,
+    migrate_consent_sidecar,
     resolve_consent_request,
     prepare_consent_consumption,
 )
@@ -31,6 +33,7 @@ from .private_io import private_file_exists, read_private_json
 from .privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
 from .resource_limits import MAX_FIELD_VALUE_BYTES, ResourceLimitError
 from .schemas import DERIVED_FIELDS
+from .sidecar_store import sidecar_is_encrypted
 from .vault import (
     DEFAULT_SCHEMA,
     agent_context,
@@ -249,6 +252,8 @@ def command_encryption(args: argparse.Namespace) -> None:
     if store_exists:
         encrypted = is_encrypted_payload(read_private_json(path))
     if args.encryption_command == "status":
+        audit_exists = private_file_exists(audit_path(path))
+        consent_exists = private_file_exists(consent_path(path))
         print(
             json.dumps(
                 {
@@ -256,6 +261,12 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "storage": ENCRYPTED_STORAGE if encrypted else "plain-json",
                     "encrypted": encrypted,
                     "cryptography_available": cryptography_available(),
+                    "audit_sidecar_exists": audit_exists,
+                    "audit_sidecar_encrypted": audit_exists
+                    and sidecar_is_encrypted(audit_path(path), kind="audit"),
+                    "consent_sidecar_exists": consent_exists,
+                    "consent_sidecar_encrypted": consent_exists
+                    and sidecar_is_encrypted(consent_path(path), kind="consent"),
                     "raw_values_included": False,
                 },
                 ensure_ascii=False,
@@ -284,6 +295,7 @@ def command_encryption(args: argparse.Namespace) -> None:
                 actor="cli",
                 action="encrypt",
                 purpose=args.purpose,
+                sidecar_passphrase=passphrase,
             )
             try:
                 write_store(
@@ -293,6 +305,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                     encrypted=True,
                     allow_weak_passphrase=args.allow_weak_passphrase,
                 )
+                migrate_consent_sidecar(path, encrypted=True, passphrase=passphrase)
+                migrate_audit_sidecar(path, encrypted=True, passphrase=passphrase)
             except ValueError:
                 operation.rejected()
                 raise
@@ -319,15 +333,41 @@ def command_encryption(args: argparse.Namespace) -> None:
                 actor="cli",
                 action="decrypt",
                 purpose=args.purpose,
+                sidecar_passphrase=passphrase,
             )
             try:
                 write_store(store, path, passphrase=passphrase, encrypted=False)
+                migrate_consent_sidecar(path, encrypted=False, passphrase=passphrase)
+                migrate_audit_sidecar(path, encrypted=False, passphrase=passphrase)
             except ValueError:
                 operation.rejected()
                 raise
             operation.committed()
             try:
                 print("encrypted: false")
+            except (BrokenPipeError, OSError):
+                operation.try_outcome_unknown()
+                raise
+            if not operation.try_delivered():
+                raise OSError("audit outcome finalization failed")
+            return
+        if args.encryption_command == "protect-sidecars":
+            if not encrypted:
+                raise SystemExit("sidecar protection requires an encrypted vault")
+            passphrase = read_passphrase()
+            load_store(path=path, passphrase=passphrase)
+            operation = begin_audit_operation(
+                vault_path=path,
+                actor="cli",
+                action="protect_sidecars",
+                purpose=args.purpose,
+                sidecar_passphrase=passphrase,
+            )
+            migrate_consent_sidecar(path, encrypted=True, passphrase=passphrase)
+            migrate_audit_sidecar(path, encrypted=True, passphrase=passphrase)
+            operation.committed()
+            try:
+                print("sidecars_encrypted: true")
             except (BrokenPipeError, OSError):
                 operation.try_outcome_unknown()
                 raise
@@ -477,6 +517,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Required acknowledgement that decrypt replaces the encrypted vault with persistent plaintext.",
     )
     encryption_decrypt.set_defaults(func=command_encryption)
+    encryption_sidecars = encryption_sub.add_parser(
+        "protect-sidecars",
+        help="Encrypt existing consent and audit sidecars for an encrypted vault.",
+    )
+    encryption_sidecars.add_argument(
+        "--purpose", required=True, help="Migration purpose; only an allowlisted code or [redacted] is stored."
+    )
+    encryption_sidecars.set_defaults(func=command_encryption)
     consent = sub.add_parser(
         "consent",
         help="Create or inspect raw-free consent tokens. Not an authentication boundary.",

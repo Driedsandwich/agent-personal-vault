@@ -41,6 +41,7 @@ This changelog records released and unreleased project changes. It does not auth
 - Reject existing custom POSIX storage directories that are not owned by the current user or are accessible by group/other users, without silently changing their permissions; fail closed on non-POSIX storage until equivalent guarantees exist.
 - Open vault, audit, consent, lock, and unique temporary files relative to a held directory descriptor; reject symbolic links, unsafe hard links, and target swaps before replacement.
 - Bind the OIDC publish job to one canonical build-job artifact bundle using an exact-version, SHA-256-pinned toolchain plus a source/tag/embedded-metadata/file-size/artifact-SHA-256 manifest recomputed from the same tag checkout immediately before publish.
+- Extend optional vault encryption to consent and audit sidecars with kind-bound AES-GCM envelopes, provide an explicit migration command for previously encrypted vaults, and persist one-time consent tokens only as verifier digests.
 
 ### Tests And Release Governance
 
@@ -55,6 +56,7 @@ This changelog records released and unreleased project changes. It does not auth
 - Add regressions proving malformed or oversized encrypted envelopes fail closed before key derivation while supported v1 encrypted vaults remain readable.
 - Require Python 3.11-3.13 CI to build and install the wheel with the encrypted extra, fail on skipped encryption regressions, and reject a tampered synthetic ciphertext through the installed artifact.
 - Add regressions proving weak new encryption and unacknowledged persistent decrypt fail before mutation, while explicit override/acknowledgement paths retain the supported round trip.
+- Add encrypted-extra regressions for sidecar migration, plaintext-decrypt round trips, persisted token minimization, and cross-kind envelope rejection.
 - Add regressions for colliding redacted purpose labels, request-to-grant binding preservation, nonprinting control rejection, restored-state validation, and raw-free public projections.
 - Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.
 - Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.

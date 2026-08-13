@@ -6,19 +6,17 @@ import json
 import re
 import secrets
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from .private_io import (
-    append_private_line,
     exclusive_private_lock,
     private_file_exists,
-    read_private_bytes,
-    write_private_bytes,
 )
-from .resource_limits import MAX_AUDIT_BYTES
+from .resource_limits import MAX_AUDIT_BYTES, ResourceLimitError
+from .sidecar_store import migrate_sidecar, read_sidecar_bytes, write_sidecar_bytes
 from .vault import now_iso, store_path
 
 
@@ -235,6 +233,7 @@ class AuditOperation:
     source: str | None = None
     human_operated: bool | None = None
     request_id: str | None = None
+    sidecar_passphrase: str | None = field(default=None, repr=False)
 
     def _record(
         self,
@@ -258,6 +257,7 @@ class AuditOperation:
             request_id=self.request_id,
             operation_id=self.operation_id,
             operation_state=state,
+            sidecar_passphrase=self.sidecar_passphrase,
         )
 
     def committed(self) -> dict[str, Any]:
@@ -302,6 +302,7 @@ def begin_audit_operation(
     source: str | None = None,
     human_operated: bool | None = None,
     request_id: str | None = None,
+    sidecar_passphrase: str | None = None,
 ) -> AuditOperation:
     operation = AuditOperation(
         vault_path=vault_path,
@@ -314,6 +315,7 @@ def begin_audit_operation(
         source=source,
         human_operated=human_operated,
         request_id=request_id,
+        sidecar_passphrase=sidecar_passphrase,
     )
     operation._record("prepared", outcome="pending")
     return operation
@@ -334,6 +336,7 @@ def write_audit_event(
     request_id: str | None = None,
     operation_id: str | None = None,
     operation_state: str | None = None,
+    sidecar_passphrase: str | None = None,
 ) -> dict[str, Any]:
     path = audit_path(vault_path)
     event: dict[str, Any] = {
@@ -360,10 +363,26 @@ def write_audit_event(
         event["operation_id"] = operation_id
         event["operation_state"] = operation_state
     with exclusive_private_lock(audit_lock_path(vault_path)):
-        append_private_line(
+        existing = (
+            read_sidecar_bytes(
+                path,
+                vault_path=vault_path,
+                kind="audit",
+                passphrase=sidecar_passphrase,
+                max_bytes=MAX_AUDIT_BYTES,
+            )
+            if private_file_exists(path)
+            else b""
+        )
+        line = (json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        if len(existing) + len(line) > MAX_AUDIT_BYTES:
+            raise ResourceLimitError("private log has reached the supported size limit")
+        write_sidecar_bytes(
             path,
-            json.dumps(event, ensure_ascii=False, sort_keys=True),
-            max_file_bytes=MAX_AUDIT_BYTES,
+            existing + line,
+            vault_path=vault_path,
+            kind="audit",
+            passphrase=sidecar_passphrase,
         )
     return event
 
@@ -373,6 +392,7 @@ def prune_audit_events(
     *,
     retention_days: int = 90,
     now: datetime | None = None,
+    passphrase: str | None = None,
 ) -> dict[str, int]:
     """Remove valid audit events older than the explicit retention window."""
 
@@ -389,7 +409,13 @@ def prune_audit_events(
         retained: list[bytes] = []
         removed = 0
         malformed_retained = 0
-        for raw_line in read_private_bytes(path, max_bytes=MAX_AUDIT_BYTES).splitlines(keepends=True):
+        for raw_line in read_sidecar_bytes(
+            path,
+            vault_path=vault_path,
+            kind="audit",
+            passphrase=passphrase,
+            max_bytes=MAX_AUDIT_BYTES,
+        ).splitlines(keepends=True):
             candidate = raw_line.strip()
             try:
                 payload = json.loads(candidate.decode("utf-8"))
@@ -410,17 +436,29 @@ def prune_audit_events(
                     retained.append((json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
                 else:
                     retained.append(raw_line)
-        write_private_bytes(path, b"".join(retained))
+        write_sidecar_bytes(
+            path,
+            b"".join(retained),
+            vault_path=vault_path,
+            kind="audit",
+            passphrase=passphrase,
+        )
     return {"removed": removed, "retained": len(retained), "malformed_retained": malformed_retained}
 
 
-def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
+def _read_audit_records(vault_path: Path, *, passphrase: str | None = None) -> tuple[list[dict[str, Any]], int]:
     path = audit_path(vault_path)
     if not private_file_exists(path):
         return [], 0
     events: list[dict[str, Any]] = []
     malformed_records = 0
-    for raw_line in read_private_bytes(path, max_bytes=MAX_AUDIT_BYTES).splitlines():
+    for raw_line in read_sidecar_bytes(
+        path,
+        vault_path=vault_path,
+        kind="audit",
+        passphrase=passphrase,
+        max_bytes=MAX_AUDIT_BYTES,
+    ).splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
             continue
@@ -438,8 +476,8 @@ def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
     return events, malformed_records
 
 
-def audit_tail(vault_path: Path, limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
-    events, malformed_records = _read_audit_records(vault_path)
+def audit_tail(vault_path: Path, limit: int = DEFAULT_LIMIT, *, passphrase: str | None = None) -> dict[str, Any]:
+    events, malformed_records = _read_audit_records(vault_path, passphrase=passphrase)
     if limit <= 0:
         selected = events
     else:
@@ -451,12 +489,12 @@ def audit_tail(vault_path: Path, limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
     }
 
 
-def read_audit_events(vault_path: Path, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
-    return list(audit_tail(vault_path, limit=limit)["events"])
+def read_audit_events(vault_path: Path, limit: int = DEFAULT_LIMIT, *, passphrase: str | None = None) -> list[dict[str, Any]]:
+    return list(audit_tail(vault_path, limit=limit, passphrase=passphrase)["events"])
 
 
-def audit_summary(vault_path: Path) -> dict[str, Any]:
-    result = audit_tail(vault_path, limit=0)
+def audit_summary(vault_path: Path, *, passphrase: str | None = None) -> dict[str, Any]:
+    result = audit_tail(vault_path, limit=0, passphrase=passphrase)
     events = result["events"]
     by_action: dict[str, int] = {}
     raw_by_key: dict[str, int] = {}
@@ -491,3 +529,18 @@ def audit_summary(vault_path: Path) -> dict[str, Any]:
         },
         "incomplete_operations": incomplete_operations,
     }
+
+
+def migrate_audit_sidecar(vault_path: Path, *, encrypted: bool, passphrase: str) -> bool:
+    """Rewrite the audit log with the selected sidecar protection."""
+
+    path = audit_path(vault_path)
+    with exclusive_private_lock(audit_lock_path(vault_path)):
+        return migrate_sidecar(
+            path,
+            vault_path=vault_path,
+            kind="audit",
+            encrypted=encrypted,
+            passphrase=passphrase,
+            max_bytes=MAX_AUDIT_BYTES,
+        )

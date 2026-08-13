@@ -18,7 +18,7 @@
 - `get` / `env` / `set` / `unset` / `consent` / GUI操作はraw値なしの監査ログを書きます。状態変更・raw返却を伴う操作はrandom correlation IDで`prepared`、`committed`、`delivered`を記録し、途中失敗は`outcome_unknown`または未完了操作として可視化します。入力した`--purpose`の全文は永続化せず、固定reason codeまたは`[redacted]`とexact-purpose照合用digestだけを保存します。それでも実個人情報は入力しないでください。
 - consent tokenは、同一OSユーザーやシェル実行権限を持つagentに対する強いセキュリティ境界ではありません。信頼できないagentにこのCLIや保存先へのアクセスを渡さないでください。
 - 監査ログの `human_operated` はCLI/GUIなどの承認経路を示すメタデータであり、物理的に人間だけが操作したことの証明ではありません。
-- 保存時暗号化はoptionalです。使う場合は `agent-personal-vault[encrypted]` とpassphraseが必要です。
+- 保存時暗号化はoptionalです。使う場合は `agent-personal-vault[encrypted]` とpassphraseが必要です。暗号化へ移行するとvault本体に加えてconsent/audit sidecarも保護されます。
 - 法令遵守、本人確認、応募、送信、アップロード、契約、金融、医療、企業利用の安全性は保証しません。
 - GitHub IssueやDiscussionに、氏名、住所、電話番号、メール、顔写真、証明書、実データのスクリーンショットを投稿しないでください。
 
@@ -299,7 +299,15 @@ agent-personal-vault encryption status
 agent-personal-vault encryption encrypt --purpose encryption_migration
 ```
 
-新規暗号化では12文字以上かつ明白に予測しにくいpassphraseを要求します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。
+新規暗号化では12文字以上かつ明白に予測しにくいpassphraseを要求します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。新たに発行したconsent tokenは呼び出し元へ一度だけ返し、保存時は照合用digestだけを保持します。
+
+過去版ですでに暗号化したvaultをupgradeした場合は、既存のconsent/audit sidecarを明示的に移行してください。GUIとMCP serverを停止し、backupを確認してから次を実行します。
+
+```sh
+agent-personal-vault encryption protect-sidecars --purpose encryption_migration
+```
+
+`encryption status` では、存在するsidecarについて対応する `*_sidecar_encrypted` が `true` になることを確認してください。`*_sidecar_exists` が `false` なら、その種類のmetadata fileはまだありません。backup、sync replica、snapshot、手動コピーはこの移行の対象外です。
 
 暗号化を解除すると同じ保存先が平文JSONへ置き換わり、backup、sync、snapshotにも平文が残り得ます。専用の確認flagなしでは実行されません。
 
