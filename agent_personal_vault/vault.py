@@ -32,6 +32,7 @@ from .private_io import (
     write_private_json,
 )
 from .schemas import DERIVED_FIELDS, FieldSpec, SCHEMAS
+from .resource_limits import MAX_FIELD_VALUE_BYTES, require_text_limit
 
 APP_NAME = "agent-personal-vault"
 DEFAULT_SCHEMA = "job_hunting_profile"
@@ -285,6 +286,11 @@ def validate_store_shape(store: object) -> dict:
     fields = store.get("fields")
     if fields is not None and not isinstance(fields, dict):
         raise ValueError("vault store is invalid")
+    if isinstance(fields, dict):
+        for value in fields.values():
+            if not isinstance(value, str):
+                raise ValueError("vault store is invalid")
+            require_text_limit(value, max_bytes=MAX_FIELD_VALUE_BYTES, label="vault field")
     revision = store.get("revision", 0)
     if type(revision) is not int or revision < 0:
         raise ValueError("vault store is invalid")
@@ -507,6 +513,7 @@ def normalize_date_like(value: str) -> str:
 
 
 def normalize_value(key: str, value: str) -> str:
+    require_text_limit(value, max_bytes=MAX_FIELD_VALUE_BYTES, label="vault field")
     if key == "POSTAL_CODE":
         return normalize_postal_code(value)
     if key == "PHONE":

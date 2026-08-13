@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .private_io import append_private_line, private_file_exists, read_private_bytes
+from .resource_limits import MAX_AUDIT_BYTES
 from .vault import now_iso, store_path
 
 
@@ -213,7 +214,11 @@ def write_audit_event(
         event["human_operated"] = bool(human_operated)
     if request_id is not None:
         event["request_id"] = _clean_text(request_id)
-    append_private_line(path, json.dumps(event, ensure_ascii=False, sort_keys=True))
+    append_private_line(
+        path,
+        json.dumps(event, ensure_ascii=False, sort_keys=True),
+        max_file_bytes=MAX_AUDIT_BYTES,
+    )
     return event
 
 
@@ -223,7 +228,7 @@ def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
         return [], 0
     events: list[dict[str, Any]] = []
     malformed_records = 0
-    for raw_line in read_private_bytes(path).splitlines():
+    for raw_line in read_private_bytes(path, max_bytes=MAX_AUDIT_BYTES).splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
             continue

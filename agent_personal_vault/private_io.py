@@ -12,6 +12,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, TextIO
 
+from .resource_limits import MAX_PRIVATE_JSON_BYTES, ResourceLimitError, validate_json_resources
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - storage is already fail-closed off POSIX
+    fcntl = None  # type: ignore[assignment]
+
 
 PRIVATE_DIR_MODE = 0o700
 PRIVATE_FILE_MODE = 0o600
@@ -191,20 +198,35 @@ def _open_file_fd(
         return fd
 
 
-def read_private_text(path: Path) -> str:
-    fd = _open_file_fd(path, os.O_RDONLY, create_parent=False)
-    with os.fdopen(fd, "r", encoding="utf-8") as handle:
-        return handle.read()
-
-
-def read_private_bytes(path: Path) -> bytes:
+def read_private_text(path: Path, *, max_bytes: int | None = None) -> str:
+    if max_bytes is None:
+        max_bytes = MAX_PRIVATE_JSON_BYTES
     fd = _open_file_fd(path, os.O_RDONLY, create_parent=False)
     with os.fdopen(fd, "rb") as handle:
-        return handle.read()
+        payload = handle.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise ResourceLimitError("private state exceeds the supported size limit")
+    return payload.decode("utf-8")
+
+
+def read_private_bytes(path: Path, *, max_bytes: int | None = None) -> bytes:
+    if max_bytes is None:
+        max_bytes = MAX_PRIVATE_JSON_BYTES
+    fd = _open_file_fd(path, os.O_RDONLY, create_parent=False)
+    with os.fdopen(fd, "rb") as handle:
+        payload = handle.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise ResourceLimitError("private state exceeds the supported size limit")
+    return payload
 
 
 def read_private_json(path: Path) -> object:
-    return json.loads(read_private_text(path))
+    try:
+        payload = json.loads(read_private_text(path))
+    except RecursionError as exc:
+        raise ResourceLimitError("JSON state exceeds the supported depth limit") from exc
+    validate_json_resources(payload)
+    return payload
 
 
 def _validate_replace_target(path: Path, directory_fd: int) -> None:
@@ -252,21 +274,30 @@ def write_private_text(path: Path, text: str) -> None:
 
 
 def write_private_json(path: Path, payload: dict) -> None:
+    validate_json_resources(payload)
     text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    if len(text.encode("utf-8")) > MAX_PRIVATE_JSON_BYTES:
+        raise ResourceLimitError("private state exceeds the supported size limit")
     write_private_text(path, text)
 
 
-def append_private_line(path: Path, line: str) -> None:
+def append_private_line(path: Path, line: str, *, max_file_bytes: int | None = None) -> None:
     if "\n" in line or "\r" in line:
         raise ValueError("private line must not contain line breaks")
     payload = f"{line}\n".encode("utf-8")
     fd = _open_file_fd(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, repair_mode=True)
     try:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        if max_file_bytes is not None and os.fstat(fd).st_size + len(payload) > max_file_bytes:
+            raise ResourceLimitError("private log has reached the supported size limit")
         written = os.write(fd, payload)
         if written != len(payload):
             raise OSError("incomplete private line append")
         os.fsync(fd)
     finally:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
 

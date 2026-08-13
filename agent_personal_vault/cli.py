@@ -28,6 +28,7 @@ from .crypto_store import (
     passphrase_strength_issue,
 )
 from .private_io import private_file_exists, read_private_json
+from .resource_limits import MAX_FIELD_VALUE_BYTES, ResourceLimitError
 from .schemas import DERIVED_FIELDS
 from .vault import (
     DEFAULT_SCHEMA,
@@ -63,6 +64,13 @@ def read_passphrase(prompt: str = "Vault passphrase: ") -> str:
 def print_store_path_warnings(path: Path) -> None:
     for warning in store_path_warnings(path):
         print(f"# WARNING: {warning}", file=sys.stderr)
+
+
+def read_bounded_stdin() -> str:
+    payload = sys.stdin.buffer.read(MAX_FIELD_VALUE_BYTES + 1)
+    if len(payload) > MAX_FIELD_VALUE_BYTES:
+        raise ResourceLimitError("vault field exceeds the supported size limit")
+    return payload.decode("utf-8").rstrip("\n")
 
 
 def command_init(args: argparse.Namespace) -> None:
@@ -156,7 +164,7 @@ def command_set(args: argparse.Namespace) -> None:
         file=sys.stderr,
     )
     print_store_path_warnings(path)
-    value = sys.stdin.read().rstrip("\n") if args.stdin else getpass(f"{key} value: ")
+    value = read_bounded_stdin() if args.stdin else getpass(f"{key} value: ")
     store["fields"][key] = normalize_value(key, value)
     write_store(store, path)
     write_audit_event(vault_path=path, actor="cli", action="set", key=key, purpose=args.purpose)
@@ -461,6 +469,8 @@ def safe_cli_error(exc: Exception) -> str:
         return "vault parent path is not a directory"
     if isinstance(exc, PermissionError):
         return "permission denied"
+    if isinstance(exc, (ResourceLimitError, UnicodeDecodeError)):
+        return "input or state exceeds the supported resource limit"
     message = str(exc)
     if message.startswith("Unknown key: "):
         return "Unknown key"

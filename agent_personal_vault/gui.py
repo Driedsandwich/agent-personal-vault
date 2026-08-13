@@ -21,6 +21,7 @@ from .audit import audit_summary, audit_tail, write_audit_event
 from .consent import ConsentError, list_consent_requests, resolve_consent_request
 from .crypto_store import is_encrypted_payload
 from .private_io import private_file_exists, read_private_json
+from .resource_limits import MAX_GUI_BODY_BYTES, validate_json_resources
 from .schemas import DERIVED_FIELDS
 from .vault import (
     VaultConflictError,
@@ -472,8 +473,17 @@ class Handler(BaseHTTPRequestHandler):
     def read_json_body(self) -> dict | None:
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            if length < 0:
+                raise ValueError
+            if length > MAX_GUI_BODY_BYTES:
+                self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "request body too large"})
+                return None
+            raw_body = self.rfile.read(length)
+            if len(raw_body) != length:
+                raise ValueError
+            payload = json.loads(raw_body.decode("utf-8"))
+            validate_json_resources(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid json"})
             return None
         if not isinstance(payload, dict):

@@ -12,6 +12,8 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+- Bound local MCP, GUI, CLI, JSON state, vault fields, consent records, and audit storage before unbounded materialization or retention.
+
 ### Security And Privacy Changes
 
 - Separate side-effect-free store reads from explicit create/migrate operations, keep CLI/MCP metadata reads from rewriting legacy vaults, and expose GUI raw profile viewing as an explicitly audited POST action rather than a mutating GET.
