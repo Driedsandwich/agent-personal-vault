@@ -299,8 +299,9 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "# WARNING: weak passphrase override accepted; copied vault bytes are easier to guess offline.",
                     file=sys.stderr,
                 )
-            prepare_consent_sidecar_migration(path, encrypted=True, passphrase=passphrase)
-            prepare_audit_sidecar_migration(path, encrypted=True, passphrase=passphrase)
+            if strength_issue is None or args.allow_weak_passphrase:
+                prepare_consent_sidecar_migration(path, encrypted=True, passphrase=passphrase)
+                prepare_audit_sidecar_migration(path, encrypted=True, passphrase=passphrase)
             operation = begin_audit_operation(
                 vault_path=path,
                 actor="cli",
@@ -309,6 +310,8 @@ def command_encryption(args: argparse.Namespace) -> None:
                 sidecar_passphrase=passphrase,
             )
             try:
+                if strength_issue is not None and not args.allow_weak_passphrase:
+                    raise ValueError(f"passphrase is too weak for new encryption: {strength_issue}")
                 prepared_consent = prepare_consent_sidecar_migration(
                     path,
                     encrypted=True,
