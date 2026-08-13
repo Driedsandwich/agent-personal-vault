@@ -28,6 +28,7 @@ from .crypto_store import (
     passphrase_strength_issue,
 )
 from .private_io import private_file_exists, read_private_json
+from .privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
 from .resource_limits import MAX_FIELD_VALUE_BYTES, ResourceLimitError
 from .schemas import DERIVED_FIELDS
 from .vault import (
@@ -334,6 +335,20 @@ def command_consent(args: argparse.Namespace) -> None:
         print(json.dumps(grant, ensure_ascii=False, sort_keys=True))
 
 
+def command_privacy(args: argparse.Namespace) -> None:
+    path = resolve_path(args)
+    if args.privacy_command == "prune":
+        result = prune_private_metadata(
+            path,
+            consent_retention_days=args.consent_retention_days,
+            audit_retention_days=args.audit_retention_days,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+    result = dispose_private_state(path, confirmation=args.confirm)
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Alpha local personal-data utility for AI agents.")
     parser.add_argument("--store", help="Override vault path. Defaults to AGENT_PERSONAL_VAULT_HOME or XDG data dir.")
@@ -455,6 +470,22 @@ def build_parser() -> argparse.ArgumentParser:
     consent_list = consent_sub.add_parser("list", help="List unconsumed consent tokens without raw values.")
     consent_list.add_argument("--include-used", action="store_true")
     consent_list.set_defaults(func=command_consent)
+    privacy = sub.add_parser(
+        "privacy",
+        help="Prune or dispose local private state. Stop GUI and MCP processes first.",
+    )
+    privacy_sub = privacy.add_subparsers(dest="privacy_command", required=True)
+    privacy_prune = privacy_sub.add_parser("prune", help="Remove expired or resolved private metadata beyond retention windows.")
+    privacy_prune.add_argument("--consent-retention-days", type=int, default=30)
+    privacy_prune.add_argument("--audit-retention-days", type=int, default=90)
+    privacy_prune.set_defaults(func=command_privacy)
+    privacy_dispose = privacy_sub.add_parser("dispose", help="Remove the vault, consent state, and audit log.")
+    privacy_dispose.add_argument(
+        "--confirm",
+        required=True,
+        help=f'Required exact phrase: "{DISPOSE_CONFIRMATION}"',
+    )
+    privacy_dispose.set_defaults(func=command_privacy)
     return parser
 
 

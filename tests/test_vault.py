@@ -20,7 +20,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from agent_personal_vault import __version__, crypto_store
-from agent_personal_vault.audit import _clean_text, audit_path, audit_summary, audit_tail, read_audit_events
+from agent_personal_vault.audit import (
+    _clean_text,
+    audit_path,
+    audit_summary,
+    audit_tail,
+    prune_audit_events,
+    read_audit_events,
+)
 from agent_personal_vault.audit import write_audit_event
 from agent_personal_vault.consent import (
     MAX_TTL_SECONDS,
@@ -31,6 +38,7 @@ from agent_personal_vault.consent import (
     issue_consent,
     list_consents,
     list_consent_requests,
+    prune_consent_records,
     resolve_consent_request,
     validate_and_consume_consent,
 )
@@ -47,8 +55,9 @@ from agent_personal_vault.gui import (
     profile_view_payload,
     save_profile_fields,
 )
-from agent_personal_vault.private_io import append_private_line
+from agent_personal_vault.private_io import append_private_line, remove_private_file, write_private_bytes
 from agent_personal_vault.private_io import read_private_json
+from agent_personal_vault.privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
 from agent_personal_vault.resource_limits import ResourceLimitError
 from agent_personal_vault.vault import (
     VaultConflictError,
@@ -127,6 +136,155 @@ class VaultTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
         return str(json.loads(result.stdout)["id"])
+
+    def test_consent_prune_removes_only_stale_terminal_records(self) -> None:
+        now = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            old_used = issue_consent(vault_path=path, action="get", key="EMAIL", purpose="old used")
+            recent_used = issue_consent(vault_path=path, action="get", key="EMAIL", purpose="recent used")
+            active = issue_consent(vault_path=path, action="get", key="EMAIL", purpose="active")
+            old_request = create_consent_request(vault_path=path, action="get", key="EMAIL", purpose="old request")
+            pending = create_consent_request(vault_path=path, action="get", key="EMAIL", purpose="pending")
+
+            state_path = consent_path(path)
+            state = read_private_json(state_path)
+            grants = {grant["id"]: grant for grant in state["grants"]}
+            grants[old_used["id"]]["used_at"] = "2025-12-01T00:00:00+00:00"
+            grants[recent_used["id"]]["used_at"] = "2026-01-15T00:00:00+00:00"
+            grants[active["id"]]["expires_at"] = "2026-02-02T00:00:00+00:00"
+            requests = {request["id"]: request for request in state["requests"]}
+            requests[old_request["id"]]["status"] = "denied"
+            requests[old_request["id"]]["resolved_at"] = "2025-12-01T00:00:00+00:00"
+            requests[pending["id"]]["expires_at"] = "2026-02-02T00:00:00+00:00"
+            write_json_private(state_path, state)
+
+            result = prune_consent_records(path, retention_days=30, now=now)
+            pruned = read_private_json(state_path)
+
+            self.assertEqual(result, {"grants_removed": 1, "requests_removed": 1, "retained": 3})
+            self.assertEqual({grant["id"] for grant in pruned["grants"]}, {recent_used["id"], active["id"]})
+            self.assertEqual({request["id"] for request in pruned["requests"]}, {pending["id"]})
+
+    def test_audit_prune_preserves_recent_and_malformed_records(self) -> None:
+        now = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            old = json.dumps({"timestamp": "2025-01-01T00:00:00+00:00", "action": "old"}).encode()
+            recent = json.dumps({"timestamp": "2026-01-15T00:00:00+00:00", "action": "recent"}).encode()
+            malformed = b"not-json-private-metadata"
+            write_private_bytes(audit_path(path), old + b"\n" + malformed + b"\n" + recent + b"\n")
+
+            result = prune_audit_events(path, retention_days=30, now=now)
+            payload = audit_path(path).read_bytes()
+
+            self.assertEqual(result, {"removed": 1, "retained": 2, "malformed_retained": 1})
+            self.assertNotIn(old, payload)
+            self.assertIn(malformed, payload)
+            self.assertIn(recent, payload)
+
+    def test_private_state_disposal_requires_confirmation_and_preserves_unrelated_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            write_json_private(path, blank_store())
+            issue_consent(vault_path=path, action="get", key="EMAIL", purpose="dummy")
+            write_audit_event(vault_path=path, actor="test", action="dummy", purpose="dummy")
+            sentinel = Path(tmp) / "keep.txt"
+            sentinel.write_text("keep", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "exact confirmation phrase"):
+                dispose_private_state(path, confirmation="no")
+            self.assertTrue(path.exists())
+            self.assertTrue(consent_path(path).exists())
+            self.assertTrue(audit_path(path).exists())
+
+            result = dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION)
+
+            self.assertEqual(result, {"vault_removed": True, "consent_removed": True, "audit_removed": True})
+            self.assertFalse(path.exists())
+            self.assertFalse(consent_path(path).exists())
+            self.assertFalse(audit_path(path).exists())
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
+    def test_private_state_disposal_refuses_symlink_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "target.json"
+            target.write_text("private", encoding="utf-8")
+            target.chmod(0o600)
+            link = Path(tmp) / "vault.json"
+            link.symlink_to(target)
+
+            with self.assertRaises(PermissionError):
+                remove_private_file(link)
+            self.assertEqual(target.read_text(encoding="utf-8"), "private")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
+    def test_private_state_disposal_preflights_all_targets_before_removal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            write_json_private(path, blank_store())
+            target = Path(tmp) / "outside-consent.json"
+            target.write_text("private", encoding="utf-8")
+            target.chmod(0o600)
+            consent_path(path).symlink_to(target)
+
+            with self.assertRaises(PermissionError):
+                dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION)
+
+            self.assertTrue(path.exists())
+            self.assertEqual(target.read_text(encoding="utf-8"), "private")
+
+    def test_cli_privacy_dispose_error_is_path_free_and_changes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "private-marker" / "vault.json"
+            write_json_private(path, blank_store())
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "privacy",
+                    "dispose",
+                    "--confirm",
+                    "wrong",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("exact confirmation phrase", result.stderr)
+            self.assertNotIn(str(path), result.stderr)
+            self.assertNotIn("private-marker", result.stderr)
+            self.assertTrue(path.exists())
+
+    def test_private_state_disposal_does_not_create_missing_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "missing"
+            path = parent / "vault.json"
+
+            result = dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION)
+
+            self.assertEqual(result, {"vault_removed": False, "consent_removed": False, "audit_removed": False})
+            self.assertFalse(parent.exists())
+
+    def test_private_metadata_prune_validates_all_windows_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            issue_consent(vault_path=path, action="get", key="EMAIL", purpose="dummy")
+            state_path = consent_path(path)
+            before = state_path.read_bytes()
+
+            with self.assertRaisesRegex(ValueError, "audit retention days"):
+                prune_private_metadata(path, consent_retention_days=1, audit_retention_days=0)
+
+            self.assertEqual(state_path.read_bytes(), before)
 
     def test_default_store_uses_override(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

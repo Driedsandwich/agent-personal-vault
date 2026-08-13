@@ -13,6 +13,7 @@ This changelog records released and unreleased project changes. It does not auth
 ## Unreleased
 
 - Bound local MCP, GUI, CLI, JSON state, vault fields, consent records, and audit storage before unbounded materialization or retention.
+- Add explicit retention pruning for terminal consent metadata and valid audit events, plus a confirmation-gated command that removes the selected vault, consent state, and audit log without deleting unrelated files.
 
 ### Security And Privacy Changes
 

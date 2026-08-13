@@ -19,6 +19,11 @@ try:
 except ImportError:  # pragma: no cover - storage is already fail-closed off POSIX
     fcntl = None  # type: ignore[assignment]
 
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - Unix fallback path
+    msvcrt = None  # type: ignore[assignment]
+
 
 PRIVATE_DIR_MODE = 0o700
 PRIVATE_FILE_MODE = 0o600
@@ -240,8 +245,8 @@ def _validate_replace_target(path: Path, directory_fd: int) -> None:
         raise PermissionError("vault state replacement target ownership or link count is unsafe")
 
 
-def write_private_text(path: Path, text: str) -> None:
-    """Atomically replace a private state file using a unique exclusive temporary file."""
+def write_private_bytes(path: Path, payload: bytes) -> None:
+    """Atomically replace a private state file with exact bytes."""
 
     with private_directory_fd(path.parent) as directory_fd:
         temp_name = f".{_relative_name(path)}.{secrets.token_hex(12)}.tmp"
@@ -255,8 +260,8 @@ def write_private_text(path: Path, text: str) -> None:
             _validate_private_file(fd, repair_mode=True)
             handle_fd = fd
             fd = -1
-            with os.fdopen(handle_fd, "w", encoding="utf-8") as handle:
-                handle.write(text)
+            with os.fdopen(handle_fd, "wb") as handle:
+                handle.write(payload)
                 handle.flush()
                 os.fsync(handle.fileno())
             _validate_replace_target(path, directory_fd)
@@ -271,6 +276,12 @@ def write_private_text(path: Path, text: str) -> None:
                 if exc.errno != errno.ENOENT:
                     raise
             raise
+
+
+def write_private_text(path: Path, text: str) -> None:
+    """Atomically replace a private state file using a unique exclusive temporary file."""
+
+    write_private_bytes(path, text.encode("utf-8"))
 
 
 def write_private_json(path: Path, payload: dict) -> None:
@@ -301,8 +312,61 @@ def append_private_line(path: Path, line: str, *, max_file_bytes: int | None = N
         os.close(fd)
 
 
+def remove_private_file(path: Path) -> bool:
+    """Remove one validated private regular file without following links."""
+
+    try:
+        with private_directory_fd(path.parent, create=False) as directory_fd:
+            try:
+                fd = os.open(_relative_name(path), _open_flags(os.O_RDONLY), dir_fd=directory_fd)
+            except FileNotFoundError:
+                return False
+            except OSError as exc:
+                if exc.errno == errno.ELOOP:
+                    raise PermissionError("vault state path must not be a symbolic link") from None
+                raise
+            try:
+                _validate_private_file(fd)
+                opened = os.fstat(fd)
+                current = _stat_at(path, directory_fd)
+                if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
+                    raise PermissionError("vault state path changed during removal")
+                os.unlink(_relative_name(path), dir_fd=directory_fd)
+                os.fsync(directory_fd)
+            finally:
+                os.close(fd)
+            return True
+    except FileNotFoundError:
+        return False
+
+
 @contextmanager
 def open_private_lock(path: Path) -> Iterator[TextIO]:
     fd = _open_file_fd(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, repair_mode=True)
     with os.fdopen(fd, "a+", encoding="utf-8") as handle:
         yield handle
+
+
+@contextmanager
+def exclusive_private_lock(path: Path) -> Iterator[None]:
+    """Hold an exclusive lock on an owner-private lock file."""
+
+    with open_private_lock(path) as handle:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        elif msvcrt is not None:  # pragma: no cover - storage fails closed off POSIX
+            handle.seek(0)
+            handle.write("0")
+            handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        else:  # pragma: no cover - defensive fallback
+            raise PermissionError("private state locking is unavailable on this platform")
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            elif msvcrt is not None:  # pragma: no cover - storage fails closed off POSIX
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)

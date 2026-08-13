@@ -5,10 +5,17 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .private_io import append_private_line, private_file_exists, read_private_bytes
+from .private_io import (
+    append_private_line,
+    exclusive_private_lock,
+    private_file_exists,
+    read_private_bytes,
+    write_private_bytes,
+)
 from .resource_limits import MAX_AUDIT_BYTES
 from .vault import now_iso, store_path
 
@@ -161,6 +168,10 @@ def audit_path(vault_path: Path | None = None) -> Path:
     return path.parent / "audit.jsonl"
 
 
+def audit_lock_path(vault_path: Path | None = None) -> Path:
+    return audit_path(vault_path).with_suffix(".jsonl.lock")
+
+
 def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
@@ -214,12 +225,53 @@ def write_audit_event(
         event["human_operated"] = bool(human_operated)
     if request_id is not None:
         event["request_id"] = _clean_text(request_id)
-    append_private_line(
-        path,
-        json.dumps(event, ensure_ascii=False, sort_keys=True),
-        max_file_bytes=MAX_AUDIT_BYTES,
-    )
+    with exclusive_private_lock(audit_lock_path(vault_path)):
+        append_private_line(
+            path,
+            json.dumps(event, ensure_ascii=False, sort_keys=True),
+            max_file_bytes=MAX_AUDIT_BYTES,
+        )
     return event
+
+
+def prune_audit_events(
+    vault_path: Path,
+    *,
+    retention_days: int = 90,
+    now: datetime | None = None,
+) -> dict[str, int]:
+    """Remove valid audit events older than the explicit retention window."""
+
+    if type(retention_days) is not int or retention_days < 1:
+        raise ValueError("audit retention days must be a positive integer")
+    path = audit_path(vault_path)
+    current_time = now or datetime.now(timezone.utc).replace(microsecond=0)
+    if current_time.tzinfo is None:
+        raise ValueError("audit pruning time must include a timezone")
+    cutoff = current_time - timedelta(days=retention_days)
+    with exclusive_private_lock(audit_lock_path(vault_path)):
+        if not private_file_exists(path):
+            return {"removed": 0, "retained": 0, "malformed_retained": 0}
+        retained: list[bytes] = []
+        removed = 0
+        malformed_retained = 0
+        for raw_line in read_private_bytes(path, max_bytes=MAX_AUDIT_BYTES).splitlines(keepends=True):
+            candidate = raw_line.strip()
+            try:
+                payload = json.loads(candidate.decode("utf-8"))
+                timestamp = datetime.fromisoformat(str(payload["timestamp"])) if isinstance(payload, dict) else None
+                if timestamp is None or timestamp.tzinfo is None:
+                    raise ValueError
+            except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+                retained.append(raw_line)
+                malformed_retained += 1
+                continue
+            if timestamp < cutoff:
+                removed += 1
+            else:
+                retained.append(raw_line)
+        write_private_bytes(path, b"".join(retained))
+    return {"removed": removed, "retained": len(retained), "malformed_retained": malformed_retained}
 
 
 def _read_audit_records(vault_path: Path) -> tuple[list[dict[str, Any]], int]:
