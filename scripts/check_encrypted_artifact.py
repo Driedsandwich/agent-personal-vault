@@ -6,15 +6,22 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import tempfile
 from pathlib import Path
 
 import agent_personal_vault
 from agent_personal_vault.crypto_store import (
+    ARGON2ID_V2_PROFILE,
     DecryptionError,
+    LEGACY_V1_PROFILE,
     cryptography_available,
     decrypt_store_payload,
+    encryption_profile,
     encrypt_store_payload,
 )
+from agent_personal_vault.kdf_migration import upgrade_kdf
+from agent_personal_vault.private_io import read_private_json
+from agent_personal_vault.vault import blank_store, load_store, write_store
 
 
 def main() -> None:
@@ -45,6 +52,25 @@ def main() -> None:
         pass
     else:
         raise SystemExit("tampered encrypted artifact was accepted")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_path = Path(tmp) / "vault.json"
+        legacy_store = blank_store()
+        legacy_store["fields"]["FAMILY_NAME"] = "Synthetic"
+        write_store(
+            legacy_store,
+            vault_path,
+            passphrase=passphrase,
+            encrypted=True,
+            profile=LEGACY_V1_PROFILE,
+        )
+        result = upgrade_kdf(vault_path, passphrase)
+        if result["state"] != "completed":
+            raise SystemExit("installed artifact KDF migration did not complete")
+        if encryption_profile(read_private_json(vault_path)) != ARGON2ID_V2_PROFILE:
+            raise SystemExit("installed artifact KDF migration retained the legacy profile")
+        if load_store(path=vault_path, passphrase=passphrase) != legacy_store:
+            raise SystemExit("installed artifact KDF migration changed vault data")
 
     print("installed encrypted artifact smoke test passed")
 

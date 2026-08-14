@@ -59,6 +59,7 @@ jobs:
               "tests.test_vault.VaultTests.test_encrypt_store_payload_rejects_weak_passphrase_by_default",
               "tests.test_vault.VaultTests.test_existing_weak_encrypted_store_remains_writable",
               "tests.test_vault.VaultTests.test_encrypted_store_decrypt_uses_payload_iterations",
+              "tests.test_kdf_migration.KDFMigrationTests",
           ]
           suite = unittest.defaultTestLoader.loadTestsFromNames(names)
           result = unittest.TextTestRunner(verbosity=2).run(suite)
