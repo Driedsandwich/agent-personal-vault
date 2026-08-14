@@ -278,7 +278,7 @@ agent-personal-vault privacy dispose --confirm "delete local vault state"
 
 どちらもGUIとMCP serverを先に停止してください。`dispose` は既知の3データファイルだけを対象にし、バックアップ、同期先、snapshot、手動コピーまでは削除しません。
 
-未使用のconsent tokenを確認:
+consent requestとtoken metadataの状態を確認:
 
 ```sh
 agent-personal-vault consent requests

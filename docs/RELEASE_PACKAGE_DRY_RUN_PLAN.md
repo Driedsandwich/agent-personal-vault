@@ -160,6 +160,8 @@ Artifact records:
 | `agent_personal_vault-0.1.18-py3-none-any.whl` | 61,827 bytes | 19 | `c6f996689a57a801334f038d2f0efe69fcb8158bef4f7a0338ccd74e04e71b97` |
 | `agent_personal_vault-0.1.18.tar.gz` | 98,904 bytes | 27 | `061d21d765cd62f28c27083755279555970e8bb43fad61d00aac400dc35d3ff7` |
 
+The hashes in the preceding local dry-run artifact table identify only the files built during candidate preparation. They did not authorize upload and are not a cross-environment reproducible-build claim. The separate post-publish record below identifies the artifacts approved and uploaded through the canonical release manifest workflow.
+
 Post-publish state recorded during the `v0.1.18` sync:
 
 - PyPI latest is `0.1.18`, and GitHub release `v0.1.18` is published as a prerelease pointing to `d89a5333647670e2320320b9e154d42bc8aafe95`.
@@ -178,8 +180,6 @@ Uploaded PyPI artifacts from the approved Trusted Publishing OIDC run:
 | --- | ---: | --- |
 | `agent_personal_vault-0.1.18-py3-none-any.whl` | 61,827 bytes | `6d5a610aa1c9924b65ac978579702eac2b5fc78ba8a53c343c3c0673932f5c4a` |
 | `agent_personal_vault-0.1.18.tar.gz` | 98,599 bytes | `25375a942bad77bec7713564a94139c8bb3b53fb02b835dad218442f1ed4cfe8` |
-
-These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
 
 Stop conditions before any later merge or publish lane:
 

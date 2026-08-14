@@ -23,6 +23,8 @@ class ReleaseCheckTests(unittest.TestCase):
         gate = (root / "docs" / "PUBLICATION_GATE.md").read_text(encoding="utf-8")
         readiness = (root / "docs" / "RELEASE_READINESS.md").read_text(encoding="utf-8")
         readme = (root / "README.md").read_text(encoding="utf-8")
+        mcp_setup = (root / "docs" / "MCP_CLIENT_SETUP.md").read_text(encoding="utf-8")
+        dry_run = (root / "docs" / "RELEASE_PACKAGE_DRY_RUN_PLAN.md").read_text(encoding="utf-8")
 
         gate_release = re.search(r"Latest GitHub prerelease: `v([^`]+)`", gate)
         gate_package = re.search(r"Latest PyPI package: `([^`]+)`", gate)
@@ -47,6 +49,18 @@ class ReleaseCheckTests(unittest.TestCase):
         )
         self.assertIn("`consent list` はtokenを `c_[redacted]` として表示", readme)
         self.assertIn("consent idは復元できません", readme)
+        self.assertIn("`consent list` はtokenを `c_[redacted]` として表示", mcp_setup)
+        self.assertIn("consent idを失った場合は復元できない", mcp_setup)
+        self.assertIn("新しいrequestを作成", mcp_setup)
+        self.assertNotIn("`consent list` で未使用tokenを確認", mcp_setup)
+
+        local_table = dry_run.index("Artifact records:")
+        local_disclaimer = dry_run.index("The hashes in the preceding local dry-run artifact table")
+        post_publish = dry_run.index("Post-publish state recorded during the `v0.1.18` sync:")
+        published_table = dry_run.index("Uploaded PyPI artifacts from the approved Trusted Publishing OIDC run:")
+        self.assertLess(local_table, local_disclaimer)
+        self.assertLess(local_disclaimer, post_publish)
+        self.assertLess(post_publish, published_table)
 
     def test_required_test_workflow_pins_third_party_actions(self) -> None:
         root = Path(__file__).resolve().parent.parent
