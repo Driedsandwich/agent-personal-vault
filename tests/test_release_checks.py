@@ -55,10 +55,15 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertNotIn("`consent list` で未使用tokenを確認", mcp_setup)
 
         candidate_heading = f"## v{candidate} Versioned KDF Migration Patch Candidate Dry-Run"
-        published_heading = f"## v{published} GPTPro R2 Data Integrity Patch Candidate Dry-Run"
         candidate_start = dry_run.index(candidate_heading)
-        published_start = dry_run.index(published_heading, candidate_start)
-        candidate_dry_run = dry_run[candidate_start:published_start]
+        following = dry_run[candidate_start + len(candidate_heading) :]
+        next_heading = re.search(r"^## v\d+\.\d+\.\d+ .* Patch Candidate Dry-Run$", following, re.MULTILINE)
+        candidate_end = (
+            len(dry_run)
+            if next_heading is None
+            else candidate_start + len(candidate_heading) + next_heading.start()
+        )
+        candidate_dry_run = dry_run[candidate_start:candidate_end]
 
         local_table = candidate_dry_run.index("Artifact records:")
         local_disclaimer = candidate_dry_run.index("These hashes identify this dry-run's files only.")
