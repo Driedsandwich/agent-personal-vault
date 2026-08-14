@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .crypto_store import EncryptionProfile
+from .migration_guard import kdf_write_guard
 
 try:
     import fcntl
@@ -133,25 +134,26 @@ def consent_path(vault_path: Path | None = None) -> Path:
 
 
 @contextmanager
-def _state_lock(path: Path):
+def _state_lock(path: Path, *, vault_path: Path, allow_kdf_incomplete: bool = False):
     lock_path = path.with_suffix(path.suffix + ".lock")
-    with open_private_lock(lock_path) as handle:
-        if fcntl is not None:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        elif msvcrt is not None:  # pragma: no cover - Windows fallback path
-            handle.seek(0)
-            handle.write("0")
-            handle.flush()
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
-        try:
-            yield
-        finally:
+    with kdf_write_guard(vault_path, allow_incomplete=allow_kdf_incomplete):
+        with open_private_lock(lock_path) as handle:
             if fcntl is not None:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
             elif msvcrt is not None:  # pragma: no cover - Windows fallback path
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                handle.write("0")
+                handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                elif msvcrt is not None:  # pragma: no cover - Windows fallback path
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def _build_grant(
@@ -285,12 +287,13 @@ def prepare_consent_sidecar_migration(
     encrypted: bool,
     passphrase: str,
     profile: EncryptionProfile | None = None,
+    allow_kdf_incomplete: bool = False,
 ) -> PreparedSidecarWrite | None:
     """Validate and encode consent state for a later coordinated transition."""
 
     path = consent_path(vault_path)
     passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path, allow_kdf_incomplete=allow_kdf_incomplete):
         if not private_file_exists(path):
             return None
         state = copy.deepcopy(_load_state(path, vault_path=vault_path, passphrase=passphrase))
@@ -310,7 +313,7 @@ def prepare_consent_sidecar_migration(
 def commit_consent_sidecar_migration(prepared: PreparedSidecarWrite | None) -> bool:
     if prepared is None:
         return False
-    with _state_lock(prepared.path):
+    with _state_lock(prepared.path, vault_path=prepared.vault_path):
         commit_prepared_sidecar(prepared)
     return True
 
@@ -370,7 +373,7 @@ def issue_consent(
         human_operated=human_operated,
     )
     path = consent_path(vault_path)
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path):
         state = _load_state(path, vault_path=vault_path)
         grants = state.setdefault("grants", [])
         if not isinstance(grants, list):
@@ -418,7 +421,7 @@ def create_consent_request(
         "consent_id": "",
     }
     path = consent_path(vault_path)
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path):
         state = _load_state(path, vault_path=vault_path)
         requests = state.setdefault("requests", [])
         if not isinstance(requests, list):
@@ -493,7 +496,7 @@ def resolve_consent_request(
     path = consent_path(vault_path)
     audit_event: dict[str, Any] | None = None
     operation: AuditOperation | None = None
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path):
         state = _load_state(path, vault_path=vault_path)
         requests = state.get("requests", [])
         if not isinstance(requests, list):
@@ -601,7 +604,7 @@ def prepare_consent_consumption(
     normalized_purpose = _normalize_purpose(purpose)
     provided_binding = _purpose_binding(normalized_purpose)
     path = consent_path(vault_path)
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path):
         state = _load_state(path, vault_path=vault_path)
         grants = state.get("grants", [])
         if not isinstance(grants, list):
@@ -719,7 +722,7 @@ def prune_consent_records(
         raise ConsentError("consent pruning time must include a timezone")
     cutoff = current_time - timedelta(days=retention_days)
     path = consent_path(vault_path)
-    with _state_lock(path):
+    with _state_lock(path, vault_path=vault_path):
         if not private_file_exists(path):
             return {"grants_removed": 0, "requests_removed": 0, "retained": 0}
         state = _load_state(path, vault_path=vault_path)

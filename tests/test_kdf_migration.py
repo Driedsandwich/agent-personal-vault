@@ -6,9 +6,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
+from agent_personal_vault import audit as audit_module
+from agent_personal_vault import consent as consent_module
 from agent_personal_vault import crypto_store, kdf_migration, private_io
 from agent_personal_vault.audit import audit_path, write_audit_event
 from agent_personal_vault.consent import consent_path, issue_consent
@@ -20,6 +23,7 @@ from agent_personal_vault.crypto_store import (
     decrypt_store_payload,
     encryption_profile,
     encrypt_store_payload,
+    is_encrypted_sidecar_payload,
 )
 from agent_personal_vault.kdf_migration import (
     migration_status,
@@ -32,7 +36,13 @@ from agent_personal_vault.migration_guard import KDFMigrationIncompleteError, mi
 from agent_personal_vault.resource_limits import MAX_AUDIT_BYTES, ResourceLimitError
 from agent_personal_vault.gui import save_profile_fields
 from agent_personal_vault.mcp_server import tool_definitions
-from agent_personal_vault.private_io import private_file_exists, read_private_bytes, read_private_json, write_private_bytes
+from agent_personal_vault.private_io import (
+    private_file_exists,
+    read_private_bytes,
+    read_private_json,
+    remove_private_file,
+    write_private_bytes,
+)
 from agent_personal_vault.sidecar_store import (
     commit_prepared_sidecar,
     prepare_sidecar_write,
@@ -243,6 +253,49 @@ class KDFMigrationTests(unittest.TestCase):
             self.assertEqual(resume_kdf_migration(path, self.passphrase)["state"], "completed")
             self.assert_profile(path, ARGON2ID_V2_PROFILE)
 
+    def test_cleanup_interruption_still_requires_correct_passphrase(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp))
+            prepare_kdf_migration(path, self.passphrase)
+            journal = read_private_json(migration_journal_path(path))
+            members = kdf_migration._members(path)
+            for name in journal["members"]:
+                write_private_bytes(members[name].path, read_private_bytes(members[name].next_path))
+                remove_private_file(members[name].next_path)
+                remove_private_file(members[name].backup_path)
+            with self.assertRaises(DecryptionError):
+                resume_kdf_migration(path, "wrong synthetic passphrase")
+            self.assertTrue(migration_status(path)["incomplete"])
+            self.assertEqual(resume_kdf_migration(path, self.passphrase)["state"], "completed")
+
+    def test_plaintext_sidecar_sources_receive_encrypted_recovery_backups(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp))
+            originals = {}
+            for name, sidecar_path in (("consent", consent_path(path)), ("audit", audit_path(path))):
+                plaintext = read_sidecar_bytes(
+                    sidecar_path,
+                    vault_path=path,
+                    kind=name,
+                    passphrase=self.passphrase,
+                )
+                write_private_bytes(sidecar_path, plaintext)
+                originals[name] = plaintext
+            prepare_kdf_migration(path, self.passphrase)
+            members = kdf_migration._members(path)
+            for name in ("consent", "audit"):
+                backup = read_private_bytes(members[name].backup_path)
+                envelope = json.loads(backup.decode("utf-8"))
+                self.assertTrue(is_encrypted_sidecar_payload(envelope, kind=name))
+                self.assertNotIn(originals[name], backup)
+                self.assertEqual(
+                    crypto_store.decrypt_sidecar_payload(envelope, self.passphrase, kind=name),
+                    originals[name],
+                )
+            self.assertEqual(rollback_kdf_migration(path, self.passphrase)["state"], "rolled_back")
+            for name, sidecar_path in (("consent", consent_path(path)), ("audit", audit_path(path))):
+                self.assertEqual(read_private_bytes(sidecar_path), originals[name])
+
     def test_failure_after_first_replace_can_rollback_all_members(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = self.create_v1_vault(Path(tmp))
@@ -298,6 +351,51 @@ class KDFMigrationTests(unittest.TestCase):
             self.assertEqual(resume_kdf_migration(path, self.passphrase)["state"], "already_completed")
             self.assertEqual(upgrade_kdf(path, self.passphrase)["state"], "already_current")
             self.assertEqual(self.member_bytes(path), migrated)
+
+    def test_global_kdf_guard_precedes_each_sidecar_lock(self) -> None:
+        events = []
+
+        def tracked(name):
+            @contextmanager
+            def manager(*_args, **_kwargs):
+                events.append(f"{name}:enter")
+                try:
+                    yield object()
+                finally:
+                    events.append(f"{name}:exit")
+
+            return manager
+
+        vault_path = Path("/home/synthetic/vault.json")
+        with (
+            mock.patch.object(audit_module, "kdf_write_guard", tracked("audit-kdf")),
+            mock.patch.object(audit_module, "exclusive_private_lock", tracked("audit-lock")),
+        ):
+            with audit_module._audit_state_lock(vault_path):
+                events.append("audit:body")
+        with (
+            mock.patch.object(consent_module, "kdf_write_guard", tracked("consent-kdf")),
+            mock.patch.object(consent_module, "open_private_lock", tracked("consent-lock")),
+            mock.patch.object(consent_module, "fcntl", None),
+            mock.patch.object(consent_module, "msvcrt", None),
+        ):
+            with consent_module._state_lock(consent_path(vault_path), vault_path=vault_path):
+                events.append("consent:body")
+        self.assertEqual(
+            events,
+            [
+                "audit-kdf:enter",
+                "audit-lock:enter",
+                "audit:body",
+                "audit-lock:exit",
+                "audit-kdf:exit",
+                "consent-kdf:enter",
+                "consent-lock:enter",
+                "consent:body",
+                "consent-lock:exit",
+                "consent-kdf:exit",
+            ],
+        )
 
     def test_gui_write_preserves_v1_and_mcp_does_not_expose_migration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

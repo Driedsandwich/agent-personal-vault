@@ -6,12 +6,14 @@ import json
 import re
 import secrets
 import unicodedata
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from .crypto_store import EncryptionProfile
+from .migration_guard import kdf_write_guard
 
 from .private_io import (
     exclusive_private_lock,
@@ -193,6 +195,15 @@ def audit_lock_path(vault_path: Path | None = None) -> Path:
     return audit_path(vault_path).with_suffix(".jsonl.lock")
 
 
+@contextmanager
+def _audit_state_lock(vault_path: Path, *, allow_kdf_incomplete: bool = False):
+    """Keep the global KDF guard before the audit lock on every path."""
+
+    with kdf_write_guard(vault_path, allow_incomplete=allow_kdf_incomplete):
+        with exclusive_private_lock(audit_lock_path(vault_path)):
+            yield
+
+
 def _clean_text(value: str | None) -> str:
     if value is None:
         return ""
@@ -371,7 +382,7 @@ def write_audit_event(
             raise ValueError("audit operation state is invalid")
         event["operation_id"] = operation_id
         event["operation_state"] = operation_state
-    with exclusive_private_lock(audit_lock_path(vault_path)):
+    with _audit_state_lock(vault_path):
         existing = (
             read_sidecar_bytes(
                 path,
@@ -412,7 +423,7 @@ def prune_audit_events(
     if current_time.tzinfo is None:
         raise ValueError("audit pruning time must include a timezone")
     cutoff = current_time - timedelta(days=retention_days)
-    with exclusive_private_lock(audit_lock_path(vault_path)):
+    with _audit_state_lock(vault_path):
         if not private_file_exists(path):
             return {"removed": 0, "retained": 0, "malformed_retained": 0}
         retained: list[bytes] = []
@@ -557,12 +568,13 @@ def prepare_audit_sidecar_migration(
     encrypted: bool,
     passphrase: str,
     profile: EncryptionProfile | None = None,
+    allow_kdf_incomplete: bool = False,
 ) -> PreparedSidecarWrite | None:
     """Validate every audit row and encode the target sidecar without mutation."""
 
     path = audit_path(vault_path)
     passphrase = validate_sidecar_passphrase_binding(vault_path, passphrase) or passphrase
-    with exclusive_private_lock(audit_lock_path(vault_path)):
+    with _audit_state_lock(vault_path, allow_kdf_incomplete=allow_kdf_incomplete):
         if not private_file_exists(path):
             return None
         plaintext = read_sidecar_bytes(
@@ -600,6 +612,6 @@ def commit_audit_sidecar_migration(
 ) -> bool:
     if prepared is None:
         return False
-    with exclusive_private_lock(audit_lock_path(vault_path)):
+    with _audit_state_lock(vault_path):
         commit_prepared_sidecar(prepared)
     return True

@@ -18,6 +18,7 @@ from .crypto_store import (
     decrypt_sidecar_payload,
     decrypt_store_payload,
     encryption_profile,
+    encrypt_sidecar_payload,
     encrypt_store_payload,
     is_encrypted_payload,
 )
@@ -84,7 +85,12 @@ def _prepared_payload(prepared: PreparedSidecarWrite | None) -> bytes | None:
     return None if prepared is None else prepared.payload
 
 
-def _prepare_targets(vault_path: Path, passphrase: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
+def _prepare_targets(
+    vault_path: Path,
+    passphrase: str,
+    *,
+    allow_kdf_incomplete: bool = False,
+) -> tuple[dict[str, bytes], dict[str, bytes]]:
     originals = _read_present_originals(vault_path)
     vault_payload = json.loads(originals["vault"].decode("utf-8"))
     if not is_encrypted_payload(vault_payload):
@@ -107,12 +113,14 @@ def _prepare_targets(vault_path: Path, passphrase: str) -> tuple[dict[str, bytes
         encrypted=True,
         passphrase=passphrase,
         profile=ARGON2ID_V2_PROFILE,
+        allow_kdf_incomplete=allow_kdf_incomplete,
     )
     prepared_audit = prepare_audit_sidecar_migration(
         vault_path,
         encrypted=True,
         passphrase=passphrase,
         profile=ARGON2ID_V2_PROFILE,
+        allow_kdf_incomplete=allow_kdf_incomplete,
     )
     for name, prepared in (("consent", prepared_consent), ("audit", prepared_audit)):
         payload = _prepared_payload(prepared)
@@ -186,13 +194,13 @@ def _validate_journal(payload: object) -> dict[str, Any]:
     for record in members.values():
         required = {"original_sha256", "original_size"}
         if payload["state"] == "ready":
-            required.update({"target_sha256", "target_size"})
+            required.update({"target_sha256", "target_size", "backup_sha256", "backup_size"})
         if not isinstance(record, dict) or set(record) != required:
             raise ValueError("KDF migration journal is invalid")
-        for key in ("original_sha256", "target_sha256"):
+        for key in ("original_sha256", "target_sha256", "backup_sha256"):
             if key in record and (not isinstance(record[key], str) or HASH_PATTERN.fullmatch(record[key]) is None):
                 raise ValueError("KDF migration journal is invalid")
-        for key in ("original_size", "target_size"):
+        for key in ("original_size", "target_size", "backup_size"):
             if key in record and (type(record[key]) is not int or record[key] < 1):
                 raise ValueError("KDF migration journal is invalid")
     return payload
@@ -204,14 +212,48 @@ def _load_journal(vault_path: Path) -> dict[str, Any]:
     return _validate_journal(read_private_json(migration_journal_path(vault_path)))
 
 
-def _matches(path: Path, expected: str) -> bool:
-    return private_file_exists(path) and _sha256(read_private_bytes(path)) == expected
+def _backup_payload(name: str, payload: bytes, passphrase: str) -> bytes:
+    if name == "vault":
+        return payload
+    return _encoded_json(
+        encrypt_sidecar_payload(
+            payload,
+            passphrase,
+            kind=name,
+            profile=ARGON2ID_V2_PROFILE,
+        )
+    )
 
 
-def _write_staging(vault_path: Path, originals: dict[str, bytes], targets: dict[str, bytes], journal: dict[str, Any]) -> dict:
+def _read_validated_backup(
+    member: MigrationMember,
+    record: dict[str, Any],
+    passphrase: str,
+) -> bytes:
+    raw = read_private_bytes(member.backup_path)
+    if len(raw) != record["backup_size"] or _sha256(raw) != record["backup_sha256"]:
+        raise ValueError("migration backup is missing or invalid")
+    if member.name == "vault":
+        original = raw
+    else:
+        envelope = json.loads(raw.decode("utf-8"))
+        original = decrypt_sidecar_payload(envelope, passphrase, kind=member.name)
+    if len(original) != record["original_size"] or _sha256(original) != record["original_sha256"]:
+        raise ValueError("migration backup is missing or invalid")
+    return original
+
+
+def _write_staging(
+    vault_path: Path,
+    originals: dict[str, bytes],
+    targets: dict[str, bytes],
+    journal: dict[str, Any],
+    passphrase: str,
+) -> dict:
     members = _members(vault_path)
+    backups = {name: _backup_payload(name, payload, passphrase) for name, payload in originals.items()}
     for name in originals:
-        write_private_bytes(members[name].backup_path, originals[name])
+        write_private_bytes(members[name].backup_path, backups[name])
         write_private_bytes(members[name].next_path, targets[name])
     ready = dict(journal)
     ready["state"] = "ready"
@@ -220,6 +262,8 @@ def _write_staging(vault_path: Path, originals: dict[str, bytes], targets: dict[
             **journal["members"][name],
             "target_sha256": _sha256(targets[name]),
             "target_size": len(targets[name]),
+            "backup_sha256": _sha256(backups[name]),
+            "backup_size": len(backups[name]),
         }
         for name in originals
     }
@@ -232,7 +276,7 @@ def prepare_kdf_migration(vault_path: Path, passphrase: str) -> dict[str, Any]:
         originals, targets = _prepare_targets(vault_path, passphrase)
         journal = _initial_journal(originals)
         write_private_json(migration_journal_path(vault_path), journal)
-        ready = _write_staging(vault_path, originals, targets, journal)
+        ready = _write_staging(vault_path, originals, targets, journal, passphrase)
         return {"state": ready["state"], "members": sorted(ready["members"]), "target_profile": ready["target_profile"]}
 
 
@@ -243,8 +287,8 @@ def _recover_preparing(vault_path: Path, passphrase: str, journal: dict[str, Any
     for name, payload in current.items():
         if _sha256(payload) != journal["members"][name]["original_sha256"]:
             raise ValueError("migration source changed; rollback required")
-    originals, targets = _prepare_targets(vault_path, passphrase)
-    return _write_staging(vault_path, originals, targets, journal)
+    originals, targets = _prepare_targets(vault_path, passphrase, allow_kdf_incomplete=True)
+    return _write_staging(vault_path, originals, targets, journal, passphrase)
 
 
 def _cleanup(vault_path: Path, member_names: set[str]) -> None:
@@ -291,9 +335,10 @@ def resume_kdf_migration(vault_path: Path, passphrase: str) -> dict[str, Any]:
         for name in names:
             record = journal["members"][name]
             current_hash = current_hashes[name]
-            if not _matches(members[name].backup_path, record["original_sha256"]):
-                if not all_target:
-                    raise ValueError("migration backup is missing or invalid; rollback is unavailable")
+            if private_file_exists(members[name].backup_path):
+                _read_validated_backup(members[name], record, passphrase)
+            elif not all_target:
+                raise ValueError("migration backup is missing or invalid; rollback is unavailable")
             if private_file_exists(members[name].next_path):
                 candidate = read_private_bytes(members[name].next_path)
                 if _sha256(candidate) != record["target_sha256"]:
@@ -301,11 +346,10 @@ def resume_kdf_migration(vault_path: Path, passphrase: str) -> dict[str, Any]:
                 target_bytes[name] = candidate
             elif current_hash != record["target_sha256"]:
                 raise ValueError("migration staging file is missing")
-        if target_bytes:
-            complete_targets = {
-                name: target_bytes.get(name, read_private_bytes(members[name].path)) for name in names
-            }
-            _verify_target_round_trips(complete_targets, passphrase)
+        complete_targets = {
+            name: target_bytes.get(name, read_private_bytes(members[name].path)) for name in names
+        }
+        _verify_target_round_trips(complete_targets, passphrase)
         for name in MEMBER_NAMES:
             if name not in names:
                 continue
@@ -343,9 +387,9 @@ def rollback_kdf_migration(vault_path: Path, passphrase: str) -> dict[str, Any]:
             originals: dict[str, bytes] = {}
             for name in names:
                 record = journal["members"][name]
-                if not _matches(members[name].backup_path, record["original_sha256"]):
+                if not private_file_exists(members[name].backup_path):
                     raise ValueError("migration backup is missing or invalid")
-                originals[name] = read_private_bytes(members[name].backup_path)
+                originals[name] = _read_validated_backup(members[name], record, passphrase)
                 current_hash = _sha256(read_private_bytes(members[name].path))
                 if current_hash not in {record["original_sha256"], record["target_sha256"]}:
                     raise ValueError("migration target changed; rollback cannot continue")

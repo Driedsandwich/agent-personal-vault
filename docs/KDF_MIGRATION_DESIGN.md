@@ -42,12 +42,13 @@ python scripts/benchmark_kdf.py
 1. CLIだけが明示的なupgrade/resume/rollbackを公開する。GUI/MCPへmigration toolを追加しない。
 2. vaultと存在するconsent/audit sidecarを先に完全読込みし、形式・size・passphrase・内容を検証する。
 3. 全targetをversion 2へ再暗号化し、vaultとsidecarを独立に再復号・構造検証してから原本へ触れる。
-4. owner-only journalを作り、各原本の暗号化済みbackupと検証済みnext fileをowner-only storageへ書く。
+4. owner-only journalを作り、各原本の暗号化済みbackupと検証済みnext fileをowner-only storageへ書く。legacy plaintext sidecarのbackupもcurrent profileで独立に暗号化し、平文をrecovery fileへ複製しない。
 5. 各targetを既存のfd起点atomic replaceで置換し、hashを再確認する。multi-file全体はglobal atomic transactionとは表現しない。
 6. crashやwrite/fsync/replace失敗後はjournalを残し、通常のvault・consent・audit writeを拒否する。
 7. resumeはcurrent/original/target hashを照合して未適用memberだけを進める。rollbackはbackupを復号可能なpassphraseで確認して全memberをversion 1へ戻す。
 8. 完了後にstaging、backup、journalの順で消去する。外部backup、sync replica、snapshot、manual copyは対象外とする。
 9. 完了後のresume/upgradeとrollback完了後のrollbackは、passphrase・全member・profileを再検証して変更なしの状態を返す。異なるprofileや誤ったpassphraseを成功扱いしない。
+10. lock順序はKDF migration guardを先、consent/audit固有lockを後に固定し、writerとmigrationの相互待ちを防ぐ。
 
 ## 検証範囲
 
