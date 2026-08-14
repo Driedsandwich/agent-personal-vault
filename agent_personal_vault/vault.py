@@ -529,12 +529,10 @@ def normalize_date_like(value: str) -> str:
         if day is not None:
             normalized = date(int(year), int(month), int(day))
             return normalized.isoformat()
-        month_number = int(month)
-        if not 1 <= month_number <= 12:
-            raise ValueError
+        normalized_month = date(int(year), int(month), 1)
     except ValueError:
         raise ValueError("invalid date value") from None
-    return f"{year}-{month_number:02d}"
+    return f"{normalized_month.year:04d}-{normalized_month.month:02d}"
 
 
 def normalize_value(key: str, value: str) -> str:
@@ -548,9 +546,7 @@ def normalize_value(key: str, value: str) -> str:
     if key in {
         "BIRTH_DATE",
         "ENROLLMENT_DATE",
-        "COMPLETION_DATE",
         "GRADUATE_ENROLLMENT_DATE",
-        "GRADUATE_COMPLETION_DATE",
         "HIGH_SCHOOL_GRADUATION_DATE",
     }:
         return normalize_date_like(value)

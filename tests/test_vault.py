@@ -864,9 +864,9 @@ class VaultTests(unittest.TestCase):
     def test_date_normalizer_accepts_only_calendar_valid_dummy_values(self) -> None:
         self.assertEqual(normalize_date_like("2024年2月29日"), "2024-02-29")
         self.assertEqual(normalize_date_like("2026年12月"), "2026-12")
-        self.assertEqual(normalize_value("COMPLETION_DATE", "2026-03-31"), "2026-03-31")
-        self.assertEqual(normalize_value("GRADUATE_COMPLETION_DATE", "2028-03"), "2028-03")
-        for value in ("2026年2月29日", "2026年13月1日", "2026年1月40日", "2026年13月40日"):
+        self.assertEqual(normalize_value("COMPLETION_DATE", "2026-03 卒業見込み"), "2026-03 卒業見込み")
+        self.assertEqual(normalize_value("GRADUATE_COMPLETION_DATE", "2028-03 修了見込み"), "2028-03 修了見込み")
+        for value in ("0000-01", "2026年2月29日", "2026年13月1日", "2026年1月40日", "2026年13月40日"):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid date value"):
                 normalize_date_like(value)
 
@@ -882,6 +882,7 @@ class VaultTests(unittest.TestCase):
             for key, value, expected_error in (
                 ("PHONE", "03-12-345", "invalid phone number"),
                 ("BIRTH_DATE", "2026年13月40日", "invalid date value"),
+                ("ENROLLMENT_DATE", "0000-01", "invalid date value"),
             ):
                 with self.subTest(key=key):
                     result = subprocess.run(
@@ -922,11 +923,34 @@ class VaultTests(unittest.TestCase):
             for key, value, expected_error in (
                 ("PHONE", "03-12-345", "invalid phone number"),
                 ("BIRTH_DATE", "2026年2月29日", "invalid date value"),
+                ("ENROLLMENT_DATE", "0000-01", "invalid date value"),
             ):
                 with self.subTest(key=key), self.assertRaisesRegex(ValueError, expected_error):
                     save_profile_fields(path, store["schema"], {key: value}, revision)
                 self.assertEqual(path.read_bytes(), before)
                 self.assertFalse(audit_path(path).exists())
+
+    def test_gui_preserves_documented_completion_status_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["COMPLETION_DATE"] = "2026-03 卒業見込み"
+            store["fields"]["GRADUATE_COMPLETION_DATE"] = "2028-03 修了見込み"
+            write_store(store, path)
+
+            updated = save_profile_fields(
+                path,
+                store["schema"],
+                {
+                    "COMPLETION_DATE": "2026-03 卒業見込み",
+                    "GRADUATE_COMPLETION_DATE": "2028-03 修了見込み",
+                    "NOTES": "synthetic unrelated edit",
+                },
+                store_revision(store),
+            )
+
+            self.assertEqual(updated["fields"]["COMPLETION_DATE"], "2026-03 卒業見込み")
+            self.assertEqual(updated["fields"]["GRADUATE_COMPLETION_DATE"], "2028-03 修了見込み")
 
     def test_derived_fields(self) -> None:
         fields = {
