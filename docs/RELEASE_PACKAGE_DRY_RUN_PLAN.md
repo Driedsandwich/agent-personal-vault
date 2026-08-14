@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-07
+last_updated: 2026-08-14
 
 ## Purpose
 
@@ -116,6 +116,55 @@ Prepared rollback actions:
 - disable or revert the publish workflow through PR if workflow behavior is wrong;
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
+
+## v0.1.17 Deep Security Scan Remediation Patch Candidate Dry-Run
+
+Status date: 2026-08-14.
+
+Tracking Issue: #301.
+
+This section records the package dry-run for the `v0.1.17` Deep Security Scan remediation patch candidate. It does not create a tag, GitHub release, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI setting change, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.16` to `0.1.17`;
+- move the 27 post-`v0.1.16` Deep Security Scan remediations and their regression coverage into the `0.1.17` changelog entry;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.17`;
+- retain the documented public-alpha limitations and separate approval lanes.
+
+Local dry-run results:
+
+- Fresh isolated build source: 61 tracked files copied physically from the reviewed working tree into a randomized repository-external temporary directory; every copied file had a distinct device/inode identity from its source.
+- Temporary build environment: Python 3.14.6 with the repository's hash-pinned build requirements; Twine 6.2.0 was installed only in the temporary validation environment.
+- `python scripts/check_release.py`: passed in the isolated source copy with 202 tests and 14 skips; source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for one wheel and one sdist.
+- `twine check`: passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.17`.
+- PyPI `0.1.17` absence check returned HTTP 404 before candidate preparation.
+- A fresh virtual environment installed the wheel with the `encrypted` extra, exposed all three console scripts, and passed `scripts/check_encrypted_artifact.py` with a synthetic encrypted round trip and tamper rejection.
+- Project-URL metadata in both artifacts:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.17-py3-none-any.whl` | 61,568 bytes | 19 | `46c6a42b6e1bd9451dbfc6d1f5afb268e2164eeffd9a1976870982c6ff96e934` |
+| `agent_personal_vault-0.1.17.tar.gz` | 97,422 bytes | 27 | `ae863634e281bb967d8abbfd2e2a615e0a7454b0d2dd9d29838308115c41e6c4` |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later publish lane:
+
+- PyPI `0.1.17` exists before the separately approved package publish;
+- any generated artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.17`;
+- source privacy scan, artifact privacy scan, encrypted-extra installed-artifact test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, release creation, tag creation, package publish, announcement, repository setting change, branch deletion, PyPI setting change, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
 ## v0.1.16 Purpose Redaction Hardening Patch Candidate Dry-Run
 
