@@ -842,9 +842,91 @@ class VaultTests(unittest.TestCase):
 
     def test_normalizers(self) -> None:
         self.assertEqual(normalize_postal_code("１０００００１"), "100-0001")
-        self.assertEqual(normalize_phone("０９０１２３４５６７８"), "090-1234-5678")
+        self.assertEqual(normalize_phone("０９０１２３４５６７８"), "09012345678")
         self.assertEqual(normalize_date_like("2000年4月1日"), "2000-04-01")
         self.assertEqual(normalize_value("EMAIL", "ＴＡＲＯ＠ＥＸＡＭＰＬＥ．ＴＥＳＴ"), "taro@example.test")
+
+    def test_phone_normalizer_preserves_supported_dummy_forms(self) -> None:
+        values = (
+            "03-1234-5678",
+            "043-123-4567",
+            "075-123-4567",
+            "082-123-4567",
+            "0467-12-3456",
+            "0120-123-456",
+            "050-1234-5678",
+            "090-1234-5678",
+        )
+        for value in values:
+            with self.subTest(value=value):
+                self.assertEqual(normalize_phone(value), value)
+
+    def test_date_normalizer_accepts_only_calendar_valid_dummy_values(self) -> None:
+        self.assertEqual(normalize_date_like("2024年2月29日"), "2024-02-29")
+        self.assertEqual(normalize_date_like("2026年12月"), "2026-12")
+        self.assertEqual(normalize_value("COMPLETION_DATE", "2026-03-31"), "2026-03-31")
+        self.assertEqual(normalize_value("GRADUATE_COMPLETION_DATE", "2028-03"), "2028-03")
+        for value in ("2026年2月29日", "2026年13月1日", "2026年1月40日", "2026年13月40日"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid date value"):
+                normalize_date_like(value)
+
+    def test_cli_invalid_structured_values_do_not_change_vault_or_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["PHONE"] = "03-1234-5678"
+            store["fields"]["BIRTH_DATE"] = "2024-02-29"
+            write_store(store, path)
+            before = path.read_bytes()
+
+            for key, value, expected_error in (
+                ("PHONE", "03-12-345", "invalid phone number"),
+                ("BIRTH_DATE", "2026年13月40日", "invalid date value"),
+            ):
+                with self.subTest(key=key):
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-m",
+                            "agent_personal_vault.cli",
+                            "--store",
+                            str(path),
+                            "set",
+                            key,
+                            "--stdin",
+                            "--purpose",
+                            "synthetic structured input",
+                        ],
+                        input=value,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(expected_error, result.stderr)
+                    self.assertNotIn(value, result.stdout + result.stderr)
+                    self.assertNotIn(str(path), result.stdout + result.stderr)
+                    self.assertEqual(path.read_bytes(), before)
+                    self.assertFalse(audit_path(path).exists())
+
+    def test_gui_invalid_structured_values_do_not_change_vault_or_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["PHONE"] = "03-1234-5678"
+            store["fields"]["BIRTH_DATE"] = "2024-02-29"
+            write_store(store, path)
+            before = path.read_bytes()
+            revision = store_revision(store)
+
+            for key, value, expected_error in (
+                ("PHONE", "03-12-345", "invalid phone number"),
+                ("BIRTH_DATE", "2026年2月29日", "invalid date value"),
+            ):
+                with self.subTest(key=key), self.assertRaisesRegex(ValueError, expected_error):
+                    save_profile_fields(path, store["schema"], {key: value}, revision)
+                self.assertEqual(path.read_bytes(), before)
+                self.assertFalse(audit_path(path).exists())
 
     def test_derived_fields(self) -> None:
         fields = {
