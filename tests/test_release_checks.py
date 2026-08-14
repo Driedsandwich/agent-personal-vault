@@ -17,15 +17,34 @@ from scripts import check_release, pii_scan, release_artifact_manifest, release_
 
 
 class ReleaseCheckTests(unittest.TestCase):
-    def test_current_publication_gate_and_consent_guidance_match_package(self) -> None:
+    def test_current_publication_gate_and_consent_guidance_match_published_state(self) -> None:
         root = Path(__file__).resolve().parent.parent
-        version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+        candidate = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
         gate = (root / "docs" / "PUBLICATION_GATE.md").read_text(encoding="utf-8")
+        readiness = (root / "docs" / "RELEASE_READINESS.md").read_text(encoding="utf-8")
         readme = (root / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn(f"Latest GitHub prerelease: `v{version}`", gate)
-        self.assertIn(f"Latest PyPI package: `{version}`", gate)
-        self.assertIn(f"Treat `v{version}` as the latest published prerelease", gate)
+        gate_release = re.search(r"Latest GitHub prerelease: `v([^`]+)`", gate)
+        gate_package = re.search(r"Latest PyPI package: `([^`]+)`", gate)
+        readiness_release = re.search(r"Latest GitHub prerelease: `v([^`]+)`", readiness)
+        readiness_package = re.search(r"Latest PyPI package: `([^`]+)`", readiness)
+        self.assertIsNotNone(gate_release)
+        self.assertIsNotNone(gate_package)
+        self.assertIsNotNone(readiness_release)
+        self.assertIsNotNone(readiness_package)
+
+        published = gate_package.group(1)
+        self.assertEqual(gate_release.group(1), published)
+        self.assertEqual(readiness_release.group(1), published)
+        self.assertEqual(readiness_package.group(1), published)
+        self.assertIn(f"Treat `v{published}` as the latest published prerelease", gate)
+
+        candidate_parts = tuple(map(int, candidate.split(".")))
+        published_parts = tuple(map(int, published.split(".")))
+        self.assertIn(
+            candidate_parts,
+            (published_parts, (*published_parts[:2], published_parts[2] + 1)),
+        )
         self.assertIn("`consent list` はtokenを `c_[redacted]` として表示", readme)
         self.assertIn("consent idは復元できません", readme)
 

@@ -12,6 +12,20 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+## 0.1.18 - 2026-08-14
+
+### Data Integrity And Safety
+
+- Preserve supported phone-number formatting or reject the input instead of inferring separators from digit count.
+- Reject calendar-invalid full and month-only dates, including year zero, before CLI or GUI mutation while preserving documented completion-status text.
+- Add CLI and GUI regressions proving invalid structured input leaves the vault and audit state unchanged across supported dummy phone and date forms.
+
+### Documentation And Release Governance
+
+- Correct the one-time consent-token recovery guidance and keep the publication gate synchronized with the published `v0.1.17` state.
+- Pin required test-workflow actions to reviewed immutable full commit SHAs.
+- Prepare the v0.1.18 package metadata, README install examples, and fresh isolated artifact evidence without including the separately tracked KDF migration or author-history work.
+
 ## 0.1.17 - 2026-08-14
 
 - Bound local MCP, GUI, CLI, JSON state, vault fields, consent records, and audit storage before unbounded materialization or retention.
