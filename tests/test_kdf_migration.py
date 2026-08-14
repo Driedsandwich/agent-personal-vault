@@ -33,7 +33,12 @@ from agent_personal_vault.resource_limits import MAX_AUDIT_BYTES, ResourceLimitE
 from agent_personal_vault.gui import save_profile_fields
 from agent_personal_vault.mcp_server import tool_definitions
 from agent_personal_vault.private_io import private_file_exists, read_private_bytes, read_private_json, write_private_bytes
-from agent_personal_vault.sidecar_store import read_sidecar_bytes, read_sidecar_json
+from agent_personal_vault.sidecar_store import (
+    commit_prepared_sidecar,
+    prepare_sidecar_write,
+    read_sidecar_bytes,
+    read_sidecar_json,
+)
 from agent_personal_vault.vault import blank_store, load_store, write_store
 
 
@@ -179,6 +184,23 @@ class KDFMigrationTests(unittest.TestCase):
                     sidecar_passphrase=self.passphrase,
                 )
             rollback_kdf_migration(path, self.passphrase)
+
+    def test_prepared_v1_sidecar_cannot_commit_after_vault_moves_to_v2(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp), with_sidecars=False)
+            prepared = prepare_sidecar_write(
+                audit_path(path),
+                b'{"action":"synthetic"}\n',
+                vault_path=path,
+                kind="audit",
+                encrypted=True,
+                passphrase=self.passphrase,
+            )
+            self.assertEqual(prepared.expected_profile, LEGACY_V1_PROFILE)
+            self.assertEqual(upgrade_kdf(path, self.passphrase)["state"], "completed")
+            with self.assertRaisesRegex(ValueError, "profile changed"):
+                commit_prepared_sidecar(prepared)
+            self.assertFalse(private_file_exists(audit_path(path)))
 
     def test_failure_after_first_replace_can_resume_without_reapplying_unknown_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

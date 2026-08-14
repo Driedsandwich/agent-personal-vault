@@ -29,6 +29,7 @@ class PreparedSidecarWrite:
 
     path: Path
     vault_path: Path
+    expected_profile: EncryptionProfile | None
     payload: bytes
 
 
@@ -144,12 +145,19 @@ def prepare_sidecar_write(
 
     if len(payload) > MAX_PRIVATE_JSON_BYTES:
         raise ResourceLimitError("private state exceeds the supported size limit")
+    selected_profile = profile
+    if encrypted and selected_profile is None:
+        if private_file_exists(vault_path):
+            vault_payload = read_private_json(vault_path)
+            if is_encrypted_payload(vault_payload):
+                selected_profile = encryption_profile(vault_payload)
+        selected_profile = selected_profile or LATEST_ENCRYPTION_PROFILE
     if encrypted:
         envelope = encrypt_sidecar_payload(
             payload,
             _passphrase(passphrase),
             kind=kind,
-            profile=profile or LATEST_ENCRYPTION_PROFILE,
+            profile=selected_profile or LATEST_ENCRYPTION_PROFILE,
         )
         validate_json_resources(envelope)
         encoded = (json.dumps(envelope, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -157,13 +165,25 @@ def prepare_sidecar_write(
             raise ResourceLimitError("private state exceeds the supported size limit")
     else:
         encoded = payload
-    return PreparedSidecarWrite(path=path, vault_path=vault_path, payload=encoded)
+    return PreparedSidecarWrite(
+        path=path,
+        vault_path=vault_path,
+        expected_profile=selected_profile if encrypted else None,
+        payload=encoded,
+    )
 
 
 def commit_prepared_sidecar(prepared: PreparedSidecarWrite) -> None:
     """Commit bytes that were fully parsed, validated, and transformed earlier."""
 
     with kdf_write_guard(prepared.vault_path):
+        current_profile = None
+        if private_file_exists(prepared.vault_path):
+            vault_payload = read_private_json(prepared.vault_path)
+            if is_encrypted_payload(vault_payload):
+                current_profile = encryption_profile(vault_payload)
+        if current_profile != prepared.expected_profile:
+            raise ValueError("vault encryption profile changed; reload and retry")
         write_private_bytes(prepared.path, prepared.payload)
 
 
