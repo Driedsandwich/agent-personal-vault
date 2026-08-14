@@ -119,6 +119,58 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.19 Versioned KDF Migration Patch Candidate Dry-Run
+
+Status date: 2026-08-14.
+
+Tracking Issue: #318.
+
+This section records the package dry-run for the `v0.1.19` versioned KDF migration patch candidate based on main commit `da64842453b6130c558f6f854de026895de15a3b` plus the reviewed version, changelog, README, and dry-run evidence changes. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.18` to `0.1.19`;
+- retain strict version 1 PBKDF2 read compatibility and ordinary-write profile preservation while using the allowlisted Argon2id version 2 profile for new encryption;
+- include the human-operated CLI-only KDF upgrade, resume, and rollback path with complete vault, consent, and audit prevalidation;
+- include owner-only encrypted recovery artifacts, fail-closed ordinary writes during incomplete migration, and idempotent resume or rollback;
+- raise the encrypted extra to `cryptography>=44` and validate the exact lower bound;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.19`.
+
+Local dry-run results:
+
+- Fresh isolated build source: 66 tracked files copied physically from the reviewed working tree into randomized repository-external temporary storage; every copied file had a distinct device/inode identity from its source.
+- Temporary build environment: Python 3.14.6 with the repository's hash-pinned build requirements; Twine 6.2.0 was installed only in the temporary validation environment.
+- `cryptography==44.0.0`: all 19 focused KDF migration tests passed.
+- `python scripts/check_release.py`: passed in the isolated source copy with 228 tests; source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for exactly one wheel and one sdist.
+- `twine check`: passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.19`, require `cryptography>=44` for the encrypted extra, contain the `0.1.19` README install examples, and do not contain the former `0.1.18` pinned install examples.
+- PyPI `0.1.19` absence check returned HTTP 404 during candidate preparation.
+- A fresh virtual environment installed the wheel with `cryptography==44.0.0`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed the installed v1-to-v2 migration, encrypted round-trip, and tamper-rejection test.
+- Project-URL metadata in both artifacts:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.19-py3-none-any.whl` | 68,910 bytes | 21 | `68fc573a98ce5f9d6ecf2380b7a86259a8c56a74393a0cf9098d283191527b0d` |
+| `agent_personal_vault-0.1.19.tar.gz` | 109,808 bytes | 30 | `5fc358dcb2f4caac7da06e3ca3f20503dcffd7c4e994cc5e12a1ed73ca334715` |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later merge or publish lane:
+
+- PyPI `0.1.19` exists before the separately approved package publish;
+- any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.19` or the encrypted extra does not require `cryptography>=44`;
+- source privacy scan, artifact privacy scan, exact-lower-bound KDF tests, installed-artifact migration, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, tag creation, release creation, package publish, announcement, repository setting change, or PyPI setting change without separate explicit approval.
+
 ## v0.1.18 GPTPro R2 Data Integrity Patch Candidate Dry-Run
 
 Status date: 2026-08-14.
