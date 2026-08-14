@@ -118,6 +118,58 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.18 GPTPro R2 Data Integrity Patch Candidate Dry-Run
+
+Status date: 2026-08-14.
+
+Tracking Issue: #311.
+
+This section records the package dry-run for the `v0.1.18` GPTPro R2 data-integrity patch candidate based on `5a98f404765827750fa5e139887d2c9158aa7b92`. It does not merge the candidate or authorize a history rewrite, branch deletion, tag, GitHub release, package publish, announcement, repository or PyPI setting change, Claude Desktop app UI operation, or API-billed validation. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.17` to `0.1.18`;
+- include phone-number preserve-or-reject handling and calendar-valid full/month-only date validation;
+- include CLI and GUI regressions proving invalid structured input leaves vault and audit state unchanged;
+- include the consent-token guidance correction, publication-gate synchronization, and required test-workflow full-SHA pinning already merged to `main`;
+- keep Issue #305 and Issue #309 open and exclude KDF migration and repository-history rewriting from this candidate;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.18`.
+
+Local dry-run results:
+
+- Fresh isolated build source: 61 tracked files copied physically from the reviewed working tree into randomized repository-external temporary storage; every copied file had a distinct device/inode identity from its source.
+- Temporary build environment: Python 3.14.6 with the repository's hash-pinned build requirements; Twine 6.2.0 was installed only in the temporary validation environment.
+- `python scripts/check_release.py`: passed in the isolated source copy with 209 tests and 14 skips; source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for exactly one wheel and one sdist.
+- `twine check`: passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.18`, contain the `0.1.18` README install examples, and do not contain the former `0.1.17` pinned install examples.
+- PyPI `0.1.18` absence check returned HTTP 404 during candidate preparation.
+- A fresh virtual environment installed the wheel with the `encrypted` extra, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed `scripts/check_encrypted_artifact.py` with a synthetic encrypted round trip and tamper rejection.
+- Project-URL metadata in both artifacts:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.18-py3-none-any.whl` | 61,827 bytes | 19 | `c6f996689a57a801334f038d2f0efe69fcb8158bef4f7a0338ccd74e04e71b97` |
+| `agent_personal_vault-0.1.18.tar.gz` | 98,904 bytes | 27 | `061d21d765cd62f28c27083755279555970e8bb43fad61d00aac400dc35d3ff7` |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later merge or publish lane:
+
+- PyPI `0.1.18` exists before the separately approved package publish;
+- either open design Issue #305 or #309 is silently closed, or the KDF/history work enters this candidate;
+- any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.18`;
+- source privacy scan, artifact privacy scan, encrypted-extra installed-artifact test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, history rewrite, branch deletion, tag creation, release creation, package publish, announcement, repository or PyPI setting change, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
+
 ## v0.1.17 Deep Security Scan Remediation Patch Candidate Dry-Run
 
 Status date: 2026-08-14.
