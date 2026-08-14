@@ -54,13 +54,17 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertIn("新しいrequestを作成", mcp_setup)
         self.assertNotIn("`consent list` で未使用tokenを確認", mcp_setup)
 
-        local_table = dry_run.index("Artifact records:")
-        local_disclaimer = dry_run.index("The hashes in the preceding local dry-run artifact table")
-        post_publish = dry_run.index("Post-publish state recorded during the `v0.1.18` sync:")
-        published_table = dry_run.index("Uploaded PyPI artifacts from the approved Trusted Publishing OIDC run:")
+        candidate_heading = f"## v{candidate} Versioned KDF Migration Patch Candidate Dry-Run"
+        published_heading = f"## v{published} GPTPro R2 Data Integrity Patch Candidate Dry-Run"
+        candidate_start = dry_run.index(candidate_heading)
+        published_start = dry_run.index(published_heading, candidate_start)
+        candidate_dry_run = dry_run[candidate_start:published_start]
+
+        local_table = candidate_dry_run.index("Artifact records:")
+        local_disclaimer = candidate_dry_run.index("These hashes identify this dry-run's files only.")
+        stop_conditions = candidate_dry_run.index("Stop conditions before any later merge or publish lane:")
         self.assertLess(local_table, local_disclaimer)
-        self.assertLess(local_disclaimer, post_publish)
-        self.assertLess(post_publish, published_table)
+        self.assertLess(local_disclaimer, stop_conditions)
 
     def test_required_test_workflow_pins_third_party_actions(self) -> None:
         root = Path(__file__).resolve().parent.parent
