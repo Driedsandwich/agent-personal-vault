@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .crypto_store import EncryptionProfile
+
 try:
     import fcntl
 except ImportError:  # pragma: no cover - Windows fallback path
@@ -282,6 +284,7 @@ def prepare_consent_sidecar_migration(
     *,
     encrypted: bool,
     passphrase: str,
+    profile: EncryptionProfile | None = None,
 ) -> PreparedSidecarWrite | None:
     """Validate and encode consent state for a later coordinated transition."""
 
@@ -296,9 +299,11 @@ def prepare_consent_sidecar_migration(
         return prepare_sidecar_write(
             path,
             encoded,
+            vault_path=vault_path,
             kind="consent",
             encrypted=encrypted,
             passphrase=passphrase,
+            profile=profile,
         )
 
 

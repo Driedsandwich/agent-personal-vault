@@ -32,12 +32,13 @@ from .consent import (
     prepare_consent_consumption,
 )
 from .crypto_store import (
-    ENCRYPTED_STORAGE,
     EncryptionUnavailableError,
     cryptography_available,
+    encryption_profile,
     is_encrypted_payload,
     passphrase_strength_issue,
 )
+from .kdf_migration import migration_status, resume_kdf_migration, rollback_kdf_migration, upgrade_kdf
 from .private_io import private_file_exists, read_private_json
 from .privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
 from .resource_limits import MAX_FIELD_VALUE_BYTES, ResourceLimitError
@@ -257,18 +258,22 @@ def command_audit(args: argparse.Namespace) -> None:
 def command_encryption(args: argparse.Namespace) -> None:
     path = resolve_path(args)
     store_exists = private_file_exists(path)
+    store_payload = None
     encrypted = False
     if store_exists:
-        encrypted = is_encrypted_payload(read_private_json(path))
+        store_payload = read_private_json(path)
+        encrypted = is_encrypted_payload(store_payload)
     if args.encryption_command == "status":
         audit_exists = private_file_exists(audit_path(path))
         consent_exists = private_file_exists(consent_path(path))
+        profile = encryption_profile(store_payload).name if encrypted else None
         print(
             json.dumps(
                 {
                     "store_exists": store_exists,
-                    "storage": ENCRYPTED_STORAGE if encrypted else "plain-json",
+                    "storage": str(store_payload.get("storage")) if encrypted and isinstance(store_payload, dict) else "plain-json",
                     "encrypted": encrypted,
+                    "encryption_profile": profile,
                     "cryptography_available": cryptography_available(),
                     "audit_sidecar_exists": audit_exists,
                     "audit_sidecar_encrypted": audit_exists
@@ -276,6 +281,7 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "consent_sidecar_exists": consent_exists,
                     "consent_sidecar_encrypted": consent_exists
                     and sidecar_is_encrypted(consent_path(path), kind="consent"),
+                    "kdf_migration": migration_status(path),
                     "raw_values_included": False,
                 },
                 ensure_ascii=False,
@@ -285,6 +291,31 @@ def command_encryption(args: argparse.Namespace) -> None:
         )
         return
     try:
+        if args.encryption_command in {"upgrade-kdf", "resume-kdf", "rollback-kdf"}:
+            if not encrypted:
+                raise SystemExit("KDF migration requires an encrypted vault")
+            passphrase = read_passphrase()
+            if args.encryption_command == "upgrade-kdf":
+                result = upgrade_kdf(path, passphrase)
+                action = "kdf_upgrade"
+            elif args.encryption_command == "resume-kdf":
+                result = resume_kdf_migration(path, passphrase)
+                action = "kdf_migration_resume"
+            else:
+                result = rollback_kdf_migration(path, passphrase)
+                action = "kdf_migration_rollback"
+            try:
+                write_audit_event(
+                    vault_path=path,
+                    actor="cli",
+                    action=action,
+                    purpose=args.purpose,
+                    sidecar_passphrase=passphrase,
+                )
+            except (OSError, ValueError):
+                print("# WARNING: KDF migration completed but raw-free audit finalization failed.", file=sys.stderr)
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return
         if args.encryption_command == "encrypt":
             if encrypted:
                 raise SystemExit("vault is already encrypted")
@@ -573,6 +604,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--purpose", required=True, help="Migration purpose; only an allowlisted code or [redacted] is stored."
     )
     encryption_sidecars.set_defaults(func=command_encryption)
+    for command_name, help_text in [
+        ("upgrade-kdf", "Explicitly migrate a legacy v1 encrypted vault and sidecars to the current KDF profile."),
+        ("resume-kdf", "Resume an incomplete KDF migration after inspecting its status."),
+        ("rollback-kdf", "Restore an incomplete KDF migration from its encrypted local backups."),
+    ]:
+        migration_command = encryption_sub.add_parser(command_name, help=help_text)
+        migration_command.add_argument(
+            "--purpose",
+            required=True,
+            help="Migration purpose; only an allowlisted code or [redacted] is stored.",
+        )
+        migration_command.set_defaults(func=command_encryption)
     consent = sub.add_parser(
         "consent",
         help="Create or inspect raw-free consent tokens. Not an authentication boundary.",

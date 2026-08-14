@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .crypto_store import EncryptionProfile
+
 from .private_io import (
     exclusive_private_lock,
     private_file_exists,
@@ -554,6 +556,7 @@ def prepare_audit_sidecar_migration(
     *,
     encrypted: bool,
     passphrase: str,
+    profile: EncryptionProfile | None = None,
 ) -> PreparedSidecarWrite | None:
     """Validate every audit row and encode the target sidecar without mutation."""
 
@@ -582,9 +585,11 @@ def prepare_audit_sidecar_migration(
         return prepare_sidecar_write(
             path,
             plaintext,
+            vault_path=vault_path,
             kind="audit",
             encrypted=encrypted,
             passphrase=passphrase,
+            profile=profile,
         )
 
 

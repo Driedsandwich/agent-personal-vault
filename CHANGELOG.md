@@ -12,6 +12,13 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+### Optional Encryption
+
+- Add an allowlisted version 2 Argon2id KDF profile while retaining strict version 1 PBKDF2 read compatibility and preserving the existing profile during ordinary CLI, GUI, MCP, vault, consent, and audit writes.
+- Add an explicit human-operated CLI KDF migration with complete prevalidation, independent target round trips, owner-only encrypted backup/staging files, a durable minimal journal, fail-closed normal writes, and idempotent resume or rollback after interruption.
+- Reject unsupported KDF versions and parameter tuples before cryptographic work, and raise the encrypted extra to `cryptography>=44` for Argon2id support.
+- Record synthetic single-process and four-worker contention benchmarks without turning machine timing into a CI threshold.
+
 ## 0.1.18 - 2026-08-14
 
 ### Data Integrity And Safety

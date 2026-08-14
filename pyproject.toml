@@ -26,7 +26,7 @@ Issues = "https://github.com/Driedsandwich/agent-personal-vault/issues"
 Documentation = "https://github.com/Driedsandwich/agent-personal-vault#readme"
 
 [project.optional-dependencies]
-encrypted = ["cryptography>=42"]
+encrypted = ["cryptography>=44"]
 
 [project.scripts]
 agent-personal-vault = "agent_personal_vault.cli:main"

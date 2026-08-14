@@ -293,6 +293,8 @@ agent-personal-vault consent list
 agent-personal-vault encryption status
 ```
 
+新規暗号化はversion 2 envelopeとArgon2id profileを使います。既存のversion 1 PBKDF2 envelopeは読込みと通常保存でそのまま維持され、読込みや編集だけで暗黙に再暗号化されません。version 1からの移行はGUI/MCPには公開せず、GUIとMCP serverを停止してから人間がCLIで明示実行します。
+
 暗号化へ移行:
 
 ```sh
@@ -308,6 +310,21 @@ agent-personal-vault encryption protect-sidecars --purpose encryption_migration
 ```
 
 `encryption status` では、存在するsidecarについて対応する `*_sidecar_encrypted` が `true` になることを確認してください。`*_sidecar_exists` が `false` なら、その種類のmetadata fileはまだありません。backup、sync replica、snapshot、手動コピーはこの移行の対象外です。
+
+version 1 vaultと存在するsidecarをcurrent KDF profileへ移行:
+
+```sh
+agent-personal-vault encryption upgrade-kdf --purpose encryption_migration
+```
+
+移行は全対象を復号・検証し、current profileで再暗号化した候補を再復号してから置換します。各fileの置換は原子的ですが、vault・consent・auditを単一filesystem transactionとして同時置換するものではありません。途中停止時は通常書込みがfail-closedになり、`encryption status`の`kdf_migration`へ状態が表示されます。状態を確認したうえで、同じpassphraseを使い次のどちらかを明示実行します。
+
+```sh
+agent-personal-vault encryption resume-kdf --purpose encryption_migration
+agent-personal-vault encryption rollback-kdf --purpose encryption_migration
+```
+
+resume/rollbackが完了すると、owner-onlyのmigration journal、暗号化済みbackup、staging fileは削除されます。外部backup、sync replica、snapshot、手動コピーは変更されません。
 
 暗号化を解除すると同じ保存先が平文JSONへ置き換わり、backup、sync、snapshotにも平文が残り得ます。専用の確認flagなしでは実行されません。
 

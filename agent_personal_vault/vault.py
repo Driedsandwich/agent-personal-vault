@@ -21,7 +21,15 @@ try:
 except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
-from .crypto_store import decrypt_store_payload, encrypt_store_payload, is_encrypted_payload
+from .crypto_store import (
+    LATEST_ENCRYPTION_PROFILE,
+    EncryptionProfile,
+    decrypt_store_payload,
+    encryption_profile as payload_encryption_profile,
+    encrypt_store_payload,
+    is_encrypted_payload,
+)
+from .migration_guard import kdf_write_guard
 from .private_io import (
     ensure_private_directory,
     lexical_absolute_path,
@@ -346,9 +354,10 @@ def _read_normalized_store(
     path: Path,
     schema_name: str,
     passphrase: str | None,
-) -> tuple[dict, bool, str | None, bool]:
+) -> tuple[dict, EncryptionProfile | None, str | None, bool]:
     payload = read_private_json(path)
     encrypted_payload = is_encrypted_payload(payload)
+    profile = payload_encryption_profile(payload) if encrypted_payload else None
     effective_passphrase = passphrase or default_passphrase()
     if encrypted_payload:
         if not effective_passphrase:
@@ -371,7 +380,7 @@ def _read_normalized_store(
         if key in fields:
             fields.pop(key, None)
             changed = True
-    return store, encrypted_payload, effective_passphrase, changed
+    return store, profile, effective_passphrase, changed
 
 
 def read_store(
@@ -382,7 +391,7 @@ def read_store(
     """Read and normalize a store in memory without creating or rewriting files."""
 
     path = path or store_path()
-    store, _encrypted, _passphrase, _changed = _read_normalized_store(path, schema_name, passphrase)
+    store, _profile, _passphrase, _changed = _read_normalized_store(path, schema_name, passphrase)
     return store
 
 
@@ -396,9 +405,9 @@ def load_store(create: bool = False, path: Path | None = None, schema_name: str 
         write_store(store, path)
         return store
 
-    store, encrypted_payload, effective_passphrase, changed = _read_normalized_store(path, schema_name, passphrase)
+    store, profile, effective_passphrase, changed = _read_normalized_store(path, schema_name, passphrase)
     if changed:
-        write_store(store, path, passphrase=effective_passphrase, encrypted=encrypted_payload)
+        write_store(store, path, passphrase=effective_passphrase, encrypted=profile is not None, profile=profile)
     return store
 
 
@@ -409,50 +418,56 @@ def write_store(
     encrypted: bool | None = None,
     *,
     allow_weak_passphrase: bool = False,
+    profile: EncryptionProfile | None = None,
 ) -> None:
     path = path or store_path()
     ensure_private_dir(path.parent)
     expected_revision = store_revision(store)
-    with _store_lock(path):
-        existing_encrypted = False
-        current_revision = 0
-        if private_file_exists(path):
-            existing_payload = read_private_json(path)
-            existing_encrypted = is_encrypted_payload(existing_payload)
-            if existing_encrypted:
+    with kdf_write_guard(path):
+        with _store_lock(path):
+            existing_encrypted = False
+            existing_profile: EncryptionProfile | None = None
+            current_revision = 0
+            if private_file_exists(path):
+                existing_payload = read_private_json(path)
+                existing_encrypted = is_encrypted_payload(existing_payload)
+                if existing_encrypted:
+                    existing_profile = payload_encryption_profile(existing_payload)
+                    effective_passphrase = passphrase or default_passphrase()
+                    if not effective_passphrase:
+                        raise ValueError(
+                            "Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase."
+                        )
+                    existing_store = validate_store_shape(decrypt_store_payload(existing_payload, effective_passphrase))
+                else:
+                    existing_store = validate_store_shape(existing_payload)
+                current_revision = store_revision(existing_store)
+            if current_revision != expected_revision:
+                raise VaultConflictError("vault changed; reload and retry")
+
+            next_store = dict(store)
+            next_store["fields"] = dict(store.get("fields", {}))
+            next_store["updated_at"] = now_iso()
+            next_store["revision"] = current_revision + 1
+            if encrypted is None:
+                encrypted = existing_encrypted
+            payload = next_store
+            if encrypted:
                 effective_passphrase = passphrase or default_passphrase()
                 if not effective_passphrase:
                     raise ValueError(
                         "Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase."
                     )
-                existing_store = validate_store_shape(decrypt_store_payload(existing_payload, effective_passphrase))
-            else:
-                existing_store = validate_store_shape(existing_payload)
-            current_revision = store_revision(existing_store)
-        if current_revision != expected_revision:
-            raise VaultConflictError("vault changed; reload and retry")
-
-        next_store = dict(store)
-        next_store["fields"] = dict(store.get("fields", {}))
-        next_store["updated_at"] = now_iso()
-        next_store["revision"] = current_revision + 1
-        if encrypted is None:
-            encrypted = existing_encrypted
-        payload = next_store
-        if encrypted:
-            effective_passphrase = passphrase or default_passphrase()
-            if not effective_passphrase:
-                raise ValueError(
-                    "Encrypted vault write requires AGENT_PERSONAL_VAULT_PASSPHRASE or an explicit passphrase."
+                selected_profile = profile or existing_profile or LATEST_ENCRYPTION_PROFILE
+                payload = encrypt_store_payload(
+                    next_store,
+                    effective_passphrase,
+                    allow_weak_passphrase=allow_weak_passphrase or existing_encrypted,
+                    profile=selected_profile,
                 )
-            payload = encrypt_store_payload(
-                next_store,
-                effective_passphrase,
-                allow_weak_passphrase=allow_weak_passphrase or existing_encrypted,
-            )
-        write_json_private(path, payload)
-        store["updated_at"] = next_store["updated_at"]
-        store["revision"] = next_store["revision"]
+            write_json_private(path, payload)
+            store["updated_at"] = next_store["updated_at"]
+            store["revision"] = next_store["revision"]
 
 
 def validate_key(key: str, schema_name: str = DEFAULT_SCHEMA) -> str:

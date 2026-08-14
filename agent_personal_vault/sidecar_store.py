@@ -9,12 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from .crypto_store import (
-    ENCRYPTED_SIDECAR_STORAGE,
+    LATEST_ENCRYPTION_PROFILE,
+    EncryptionProfile,
     decrypt_store_payload,
     decrypt_sidecar_payload,
+    encryption_profile,
     encrypt_sidecar_payload,
     is_encrypted_payload,
+    is_encrypted_sidecar_payload,
 )
+from .migration_guard import kdf_write_guard
 from .private_io import private_file_exists, read_private_bytes, read_private_json, write_private_bytes
 from .resource_limits import MAX_PRIVATE_JSON_BYTES, ResourceLimitError, validate_json_resources
 
@@ -24,6 +28,7 @@ class PreparedSidecarWrite:
     """Fully encoded sidecar bytes that can be committed without more parsing or crypto."""
 
     path: Path
+    vault_path: Path
     payload: bytes
 
 
@@ -46,28 +51,22 @@ def _validated_vault_passphrase(vault_payload: object, explicit: str | None = No
     return passphrase
 
 
-def _sidecar_protection(vault_path: Path, passphrase: str | None) -> tuple[bool, str | None]:
+def _sidecar_protection(
+    vault_path: Path, passphrase: str | None
+) -> tuple[bool, str | None, EncryptionProfile | None]:
     if not private_file_exists(vault_path):
-        return False, passphrase
+        return False, passphrase, None
     vault_payload = read_private_json(vault_path)
     if not is_encrypted_payload(vault_payload):
-        return False, passphrase
-    return True, _validated_vault_passphrase(vault_payload, passphrase)
+        return False, passphrase, None
+    return True, _validated_vault_passphrase(vault_payload, passphrase), encryption_profile(vault_payload)
 
 
 def validate_sidecar_passphrase_binding(vault_path: Path, passphrase: str | None = None) -> str | None:
     """Prove the selected passphrase opens an encrypted vault before sidecar crypto."""
 
-    _encrypted, validated_passphrase = _sidecar_protection(vault_path, passphrase)
+    _encrypted, validated_passphrase, _profile = _sidecar_protection(vault_path, passphrase)
     return validated_passphrase
-
-
-def is_encrypted_sidecar_payload(payload: object, *, kind: str | None = None) -> bool:
-    return (
-        isinstance(payload, dict)
-        and payload.get("storage") == ENCRYPTED_SIDECAR_STORAGE
-        and (kind is None or payload.get("kind") == kind)
-    )
 
 
 def sidecar_is_encrypted(path: Path, *, kind: str) -> bool:
@@ -93,14 +92,18 @@ def read_sidecar_bytes(
     try:
         envelope = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
+        if len(raw) > max_bytes:
+            raise ResourceLimitError("sidecar exceeds the supported size limit")
         return raw
     if not is_encrypted_sidecar_payload(envelope):
+        if len(raw) > max_bytes:
+            raise ResourceLimitError("sidecar exceeds the supported size limit")
         return raw
     if not is_encrypted_sidecar_payload(envelope, kind=kind):
         raise ValueError("encrypted sidecar kind mismatch")
     plaintext = decrypt_sidecar_payload(envelope, _passphrase(passphrase), kind=kind)
     if len(plaintext) > max_bytes:
-        raise ValueError("decrypted sidecar exceeds the supported size limit")
+        raise ResourceLimitError("decrypted sidecar exceeds the supported size limit")
     return plaintext
 
 
@@ -112,45 +115,56 @@ def write_sidecar_bytes(
     kind: str,
     passphrase: str | None = None,
 ) -> None:
-    protect, passphrase = _sidecar_protection(vault_path, passphrase)
-    commit_prepared_sidecar(
-        prepare_sidecar_write(
-            path,
-            payload,
-            kind=kind,
-            encrypted=protect,
-            passphrase=passphrase,
+    with kdf_write_guard(vault_path):
+        protect, passphrase, profile = _sidecar_protection(vault_path, passphrase)
+        commit_prepared_sidecar(
+            prepare_sidecar_write(
+                path,
+                payload,
+                vault_path=vault_path,
+                kind=kind,
+                encrypted=protect,
+                passphrase=passphrase,
+                profile=profile,
+            )
         )
-    )
 
 
 def prepare_sidecar_write(
     path: Path,
     payload: bytes,
     *,
+    vault_path: Path,
     kind: str,
     encrypted: bool,
     passphrase: str | None,
+    profile: EncryptionProfile | None = None,
 ) -> PreparedSidecarWrite:
     """Encode a complete target sidecar without changing filesystem state."""
 
     if len(payload) > MAX_PRIVATE_JSON_BYTES:
         raise ResourceLimitError("private state exceeds the supported size limit")
     if encrypted:
-        envelope = encrypt_sidecar_payload(payload, _passphrase(passphrase), kind=kind)
+        envelope = encrypt_sidecar_payload(
+            payload,
+            _passphrase(passphrase),
+            kind=kind,
+            profile=profile or LATEST_ENCRYPTION_PROFILE,
+        )
         validate_json_resources(envelope)
         encoded = (json.dumps(envelope, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         if len(encoded) > MAX_PRIVATE_JSON_BYTES:
             raise ResourceLimitError("private state exceeds the supported size limit")
     else:
         encoded = payload
-    return PreparedSidecarWrite(path=path, payload=encoded)
+    return PreparedSidecarWrite(path=path, vault_path=vault_path, payload=encoded)
 
 
 def commit_prepared_sidecar(prepared: PreparedSidecarWrite) -> None:
     """Commit bytes that were fully parsed, validated, and transformed earlier."""
 
-    write_private_bytes(prepared.path, prepared.payload)
+    with kdf_write_guard(prepared.vault_path):
+        write_private_bytes(prepared.path, prepared.payload)
 
 
 def read_sidecar_json(
@@ -193,6 +207,7 @@ def prepare_sidecar_migration(
     kind: str,
     encrypted: bool,
     passphrase: str,
+    profile: EncryptionProfile | None = None,
     max_bytes: int = MAX_PRIVATE_JSON_BYTES,
 ) -> PreparedSidecarWrite | None:
     """Read, decrypt, bound, and transform a sidecar without replacing it."""
@@ -210,9 +225,11 @@ def prepare_sidecar_migration(
     return prepare_sidecar_write(
         path,
         plaintext,
+        vault_path=vault_path,
         kind=kind,
         encrypted=encrypted,
         passphrase=passphrase,
+        profile=profile,
     )
 
 
