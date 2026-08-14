@@ -4,13 +4,15 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-08-12
+last_updated: 2026-08-14
 
 All notable changes to Agent Personal Vault are documented here.
 
 This changelog records released and unreleased project changes. It does not authorize a GitHub release, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing run, PyPI token change/deletion, Claude Desktop GUI operation, or API-billed validation.
 
 ## Unreleased
+
+## 0.1.17 - 2026-08-14
 
 - Bound local MCP, GUI, CLI, JSON state, vault fields, consent records, and audit storage before unbounded materialization or retention.
 - Add explicit retention pruning for terminal consent metadata and valid audit events, plus a confirmation-gated command that removes the selected vault, consent state, and audit log without deleting unrelated files.
@@ -63,7 +65,8 @@ This changelog records released and unreleased project changes. It does not auth
 - Add regressions proving malformed persisted request IDs fail closed without echoing the ID, GUI token, local path, or traceback, while generated request IDs remain compatible.
 - Add HTTP-boundary regressions proving unacknowledged plaintext saves fail without mutating the vault, acknowledged saves remain supported, and stale acknowledgements fail after destination or protection changes.
 - Add regressions for permissive parents, symbolic-link and hard-link targets, target swaps, raw-free CLI failure output, artifact tampering, extra distributions, and workflow source/digest binding.
-- Triage all 27 findings from Deep Security Scan `13cfe285-a83a-4341-8081-c22982c1edfb` in public tracking Issue #250 while keeping announcement and the next release on hold.
+- Track and resolve all 27 findings from Deep Security Scan `13cfe285-a83a-4341-8081-c22982c1edfb` through public Issue #250 and linked review-gated PRs.
+- Prepare the v0.1.17 package metadata, README install examples, and fresh isolated artifact evidence without authorizing a tag, release, or package publish.
 
 ## 0.1.16 - 2026-07-07
 
