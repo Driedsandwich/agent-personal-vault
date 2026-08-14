@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import re
 import subprocess
 import sys
 import tarfile
@@ -16,6 +17,28 @@ from scripts import check_release, pii_scan, release_artifact_manifest, release_
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_current_publication_gate_and_consent_guidance_match_package(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+        gate = (root / "docs" / "PUBLICATION_GATE.md").read_text(encoding="utf-8")
+        readme = (root / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn(f"Latest GitHub prerelease: `v{version}`", gate)
+        self.assertIn(f"Latest PyPI package: `{version}`", gate)
+        self.assertIn(f"Treat `v{version}` as the latest published prerelease", gate)
+        self.assertIn("`consent list` はtokenを `c_[redacted]` として表示", readme)
+        self.assertIn("consent idは復元できません", readme)
+
+    def test_required_test_workflow_pins_third_party_actions(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        references = re.findall(r"uses:\s*([^@\s]+)@([^\s#]+)", workflow)
+
+        self.assertEqual(len(references), 4)
+        for action, revision in references:
+            with self.subTest(action=action):
+                self.assertRegex(revision, r"\A[0-9a-f]{40}\Z")
+
     def test_release_scanner_clis_reject_path_arguments_without_echoing_them(self) -> None:
         root = Path(__file__).resolve().parent.parent
         private_path = "/" + "Users" + "/example/private"

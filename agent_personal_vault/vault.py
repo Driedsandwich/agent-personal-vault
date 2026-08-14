@@ -8,7 +8,7 @@ import re
 import shlex
 import stat
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 try:
@@ -493,23 +493,46 @@ def normalize_postal_code(value: str) -> str:
 
 
 def normalize_phone(value: str) -> str:
-    digits = re.sub(r"\D", "", normalize_ascii(value))
-    if len(digits) == 11:
-        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
-    if len(digits) == 10:
-        return f"{digits[:2]}-{digits[2:6]}-{digits[6:]}"
-    return normalize_ascii(value).strip()
+    text = normalize_ascii(value).strip()
+    if not text:
+        return ""
+    if re.fullmatch(r"[0-9]+", text):
+        if text.startswith("0") and len(text) in {10, 11}:
+            return text
+        raise ValueError("invalid phone number")
+    if not re.fullmatch(r"[0-9]{2,4}-[0-9]{2,4}-[0-9]{3,4}", text):
+        raise ValueError("invalid phone number")
+    if not text.startswith("0") or len(text.replace("-", "")) not in {10, 11}:
+        raise ValueError("invalid phone number")
+    return text
 
 
 def normalize_date_like(value: str) -> str:
     text = normalize_ascii(value).strip()
-    match = re.match(r"^(\d{4})[年/.\- ]?(\d{1,2})(?:[月/.\- ]?(\d{1,2})日?)?$", text)
-    if not match:
-        return text
-    year, month, day = match.groups()
-    if day:
-        return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-    return f"{year}-{month.zfill(2)}"
+    if not text:
+        return ""
+    match = re.fullmatch(r"([0-9]{4})年([0-9]{1,2})月(?:([0-9]{1,2})日)?", text)
+    if match is None:
+        match = re.fullmatch(r"([0-9]{4})([/\.\- ])([0-9]{1,2})(?:\2([0-9]{1,2}))?", text)
+        if match is not None:
+            year, _separator, month, day = match.groups()
+        else:
+            compact = re.fullmatch(r"([0-9]{4})([0-9]{2})([0-9]{2})?", text)
+            if compact is None:
+                raise ValueError("invalid date value")
+            year, month, day = compact.groups()
+    else:
+        year, month, day = match.groups()
+    if not year or not month:
+        raise ValueError("invalid date value")
+    try:
+        if day is not None:
+            normalized = date(int(year), int(month), int(day))
+            return normalized.isoformat()
+        normalized_month = date(int(year), int(month), 1)
+    except ValueError:
+        raise ValueError("invalid date value") from None
+    return f"{normalized_month.year:04d}-{normalized_month.month:02d}"
 
 
 def normalize_value(key: str, value: str) -> str:

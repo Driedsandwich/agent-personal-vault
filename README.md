@@ -54,7 +54,7 @@ MCPクライアントでは、まず `apv.context` を呼び、raw値なしの�
 apv-gui --store "$APV_STORE" --open
 ```
 
-承認後、GUIに表示されるconsent idを使い、CLIでその1 keyだけを取得します。GUIを閉じた場合は `agent-personal-vault --store "$APV_STORE" consent list` で未使用のconsent idを確認できます。
+承認後、GUIに一度だけ表示されるconsent idを使い、CLIでその1 keyだけを取得します。`consent list` はtokenを `c_[redacted]` として表示するため、consent idは復元できません。失った場合は新しいrequestを作成して、もう一度承認してください。
 
 ```sh
 agent-personal-vault --store "$APV_STORE" get FULL_NAME --purpose local_draft --consent-id "<displayed-consent-id>"
@@ -241,7 +241,7 @@ agent-personal-vault consent request --action get --key FULL_NAME --purpose loca
 agent-personal-vault get FULL_NAME --purpose local_draft --consent-id "<displayed-consent-id>"
 ```
 
-`consent request` はrequest idを出力します。人間がGUIまたはhuman-operated CLIで承認すると、CLI `get` に渡すconsent idが発行されます。AIエージェントの通常導線では `consent approve` を実行させず、人間の承認操作として扱ってください。GUI承認後は画面に表示されたconsent idを使ってください。
+`consent request` はrequest idを出力します。人間がGUIまたはhuman-operated CLIで承認すると、CLI `get` に渡すconsent idが一度だけ表示されます。AIエージェントの通常導線では `consent approve` を実行させず、人間の承認操作として扱ってください。`consent list` からtokenは復元できないため、失った場合は新しいrequestを作成して、もう一度承認してください。
 
 保留中のrequestは10分で失効します。承認で発行するone-time tokenの既定有効期間は300秒で、CLIの`--ttl-seconds`は1〜3600秒に制限されます。失効後は古いrequestやtokenを再利用せず、新しいrequestを作成してください。
 
