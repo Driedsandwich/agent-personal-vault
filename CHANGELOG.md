@@ -4,13 +4,19 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-08-14
+last_updated: 2026-08-15
 
 All notable changes to Agent Personal Vault are documented here.
 
 This changelog records released and unreleased project changes. It does not authorize a GitHub release, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing run, PyPI token change/deletion, Claude Desktop GUI operation, or API-billed validation.
 
 ## Unreleased
+
+### Security And Release Assurance
+
+- Raise the optional encrypted dependency floor to `cryptography>=50.0.0`, exercise that exact floor across Python 3.11-3.13 CI, and verify the installed wheel advertises the same requirement.
+- Distinguish the wheel METADATA file digest from the README/PyPI description-body digest and bind release-manifest validation directly to identical README and embedded description bytes.
+- Monitor the one-off R004 GUI temporary-directory cleanup failure as `TEMP-R004-001`; it remains non-reproducible after a successful CI rerun and 50 local repetitions and should become a defect only if it recurs.
 
 ## 0.1.20 - 2026-08-15
 

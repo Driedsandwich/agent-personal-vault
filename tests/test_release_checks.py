@@ -127,6 +127,7 @@ class ReleaseCheckTests(unittest.TestCase):
             info.size = len(metadata)
             archive.addfile(info, io.BytesIO(metadata))
         pyproject = root / "pyproject.toml"
+        (root / "README.md").write_bytes(b"# Fixture\n")
         pyproject.write_text(
             '[project]\n'
             'name = "agent-personal-vault"\n'
@@ -162,6 +163,10 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(verified["source"], {"tag": "v1.2.3", "commit": commit})
             self.assertEqual(len(verified["artifacts"]), 2)
+            self.assertEqual(
+                verified["package"]["description_sha256"],
+                release_artifact_manifest.sha256_file(root / "README.md"),
+            )
             for artifact in verified["artifacts"]:
                 self.assertEqual(artifact["embedded_metadata"]["name"], "agent-personal-vault")
                 self.assertEqual(artifact["embedded_metadata"]["version"], "1.2.3")
@@ -169,6 +174,47 @@ class ReleaseCheckTests(unittest.TestCase):
                     artifact["embedded_metadata"]["project_urls"],
                     {"Homepage": "https://example.test/project"},
                 )
+                self.assertEqual(
+                    artifact["embedded_metadata"]["description_sha256"],
+                    verified["package"]["description_sha256"],
+                )
+                self.assertNotEqual(
+                    artifact["embedded_metadata"]["metadata_sha256"],
+                    artifact["embedded_metadata"]["description_sha256"],
+                )
+
+    def test_release_artifact_manifest_rejects_readme_description_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist, pyproject = self._manifest_fixture(root)
+            (root / "README.md").write_bytes(b"# Different fixture\n")
+
+            with self.assertRaisesRegex(ValueError, "description body does not match README bytes"):
+                release_artifact_manifest.create_manifest(
+                    dist_dir=dist,
+                    pyproject_path=pyproject,
+                    tag="v1.2.3",
+                    commit="d" * 40,
+                )
+
+    def test_encrypted_extra_has_exact_supported_lower_bound(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+
+        self.assertEqual(project["optional-dependencies"]["encrypted"], ["cryptography>=50.0.0"])
+        self.assertIn(
+            "python3 -m pip install 'cryptography>=50.0.0' "
+            "'agent-personal-vault[encrypted]==0.1.20'",
+            readme,
+        )
+        self.assertNotIn(
+            "python3 -m pip install 'agent-personal-vault[encrypted]==0.1.20'",
+            readme,
+        )
+        workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        self.assertIn('python -m pip install "cryptography==50.0.0"', workflow)
+        self.assertIn('APV_EXPECTED_CRYPTOGRAPHY_VERSION: "50.0.0"', workflow)
 
     def test_release_artifact_manifest_rejects_embedded_metadata_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

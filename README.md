@@ -118,11 +118,11 @@ python3 -m venv .venv
 python3 -m pip install -e .
 ```
 
-通常利用の依存関係は標準ライブラリのみです。保存時暗号化を使う場合だけoptional extraを入れます。
+通常利用の依存関係は標準ライブラリのみです。保存時暗号化を使う場合だけoptional extraを入れます。このextraは既知の対象advisoryを含む古い依存範囲を避けるため、`cryptography>=50.0.0`を要求します。
 
 ```sh
 . .venv/bin/activate
-python3 -m pip install 'agent-personal-vault[encrypted]==0.1.20'
+python3 -m pip install 'cryptography>=50.0.0' 'agent-personal-vault[encrypted]==0.1.20'
 ```
 
 開発版で保存時暗号化を試す場合は、次を使います。

@@ -6,7 +6,9 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import os
 import tempfile
+from importlib import metadata
 from pathlib import Path
 
 import agent_personal_vault
@@ -31,6 +33,14 @@ def main() -> None:
         raise SystemExit("smoke test imported the repository source instead of the installed artifact")
     if not cryptography_available():
         raise SystemExit("installed encrypted extra is unavailable")
+    requirements = metadata.requires("agent-personal-vault") or []
+    normalized_requirements = {requirement.replace(" ", "").replace("'", '"') for requirement in requirements}
+    expected_requirement = 'cryptography>=50.0.0;extra=="encrypted"'
+    if expected_requirement not in normalized_requirements:
+        raise SystemExit("installed artifact does not advertise the supported encrypted dependency floor")
+    expected_version = os.environ.get("APV_EXPECTED_CRYPTOGRAPHY_VERSION")
+    if expected_version and metadata.version("cryptography") != expected_version:
+        raise SystemExit("installed encrypted dependency does not match the requested exact-floor version")
 
     marker = "synthetic-encryption-marker"
     store = {"schema": "synthetic", "fields": {"VALUE": marker}}

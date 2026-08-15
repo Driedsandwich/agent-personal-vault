@@ -52,6 +52,7 @@ python scripts/benchmark_kdf.py
 
 ## 検証範囲
 
+- encrypted extraのsupport floorは`cryptography>=50.0.0`とし、package metadataとinstalled-artifact testでexact lower boundを検証する
 - fixed version 1 compatibility and profile-preserving ordinary writes
 - version 2 round-trip and strict parameter rejection before KDF work
 - vault、consent、auditの明示移行
@@ -60,4 +61,4 @@ python scripts/benchmark_kdf.py
 - malformed、oversize、wrong-passphrase、unsupported parameterの移行前拒否
 - incomplete journal中のCLI/GUI/MCP共通write境界
 - passphrase、raw値、token、local pathを公開error/auditへ混入させないこと
-- encrypted extraを含むinstalled-artifact testとPython 3.11-3.13 CI
+- `cryptography==50.0.0`を明示導入したencrypted extraのinstalled-artifact testとPython 3.11-3.13 CI
