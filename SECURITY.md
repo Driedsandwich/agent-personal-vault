@@ -29,7 +29,7 @@ If GitHub Issues are enabled, use the issue templates and keep the report raw-fr
 
 ## Current Limitations
 
-- At-rest encryption is optional and off by default. It requires the optional `cryptography` dependency and a user-managed passphrase.
+- At-rest encryption is optional and off by default. It requires `cryptography>=50.0.0` through the optional encrypted extra and a user-managed passphrase. Older installed dependency versions are outside the supported encrypted configuration.
 - New encryption uses a version 2 Argon2id profile. Supported legacy version 1 PBKDF2 envelopes remain readable and ordinary writes preserve their profile; KDF upgrades occur only through the explicit human-operated CLI migration command.
 - KDF migration prevalidates and round-trips the vault and existing sidecars before replacement. Each file replacement is atomic, while the multi-file operation is crash-recoverable rather than globally atomic: an owner-only journal plus encrypted backup/staging files enables explicit resume or rollback and blocks normal writes while incomplete.
 - Enabling encryption protects the vault plus the active consent and audit sidecars. A vault encrypted by an earlier release must be migrated with `encryption protect-sidecars`; verify both sidecar status fields afterward. Existing backups, sync replicas, snapshots, and manual copies remain outside that migration boundary.

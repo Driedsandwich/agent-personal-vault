@@ -145,7 +145,7 @@ Local dry-run results:
 - `python -m build --no-isolation`: completed for exactly one wheel and one sdist.
 - `twine check`: passed for both artifacts.
 - Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
-- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.20`, contain the `0.1.20` README install examples without the former `0.1.19` pinned examples, and preserve `cryptography>=44` for the encrypted extra.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.20`, contain the `0.1.20` README install examples without the former `0.1.19` pinned examples, and preserve the then-current `cryptography>=44` encrypted-extra requirement. The post-release corrective branch raises the next package metadata to `cryptography>=50.0.0`; it does not alter the already-published `0.1.20` artifacts.
 - PyPI `0.1.20` was absent during candidate preparation.
 - A fresh virtual environment installed the wheel with `cryptography==44.0.0`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed the installed encrypted round-trip, tamper-rejection, and v1-to-v2 migration smoke test.
 - Project-URL metadata in both artifacts:
@@ -171,7 +171,8 @@ Post-publish state recorded during the `v0.1.20` sync:
 - Public wheel and sdist SHA-256 are `8e6157855eb71bf1c45091c7b217a7f2a5b5a8a6ebe2fc621d5dc81eb41681b3` and `298dd739f10d885b03605e7743372e7da3bb5076ec55b0b93e40160843d827f5`; both match the canonical manifest.
 - Strict artifact privacy scanning passed for the public wheel/sdist pair.
 - A fresh encrypted-extra install confirmed version `0.1.20`, all three console scripts, Project-URL metadata, encrypted round trip, tamper rejection, and v1-to-v2 KDF migration.
-- The PyPI long description matches the current README exactly at SHA-256 `53e2e56ca408eb5fad5601b6684ca161eb7be42a754045c8c117ee3880ee3cbf`.
+- The release-commit README bytes and the PyPI/wheel METADATA description body match exactly at SHA-256 `852c4d6c06cc20b0ea7853f36f5d86dcca82eed297cf3a44120c0635e022e30d`.
+- The separate SHA-256 of the complete wheel METADATA file, including headers and the description body, is `53e2e56ca408eb5fad5601b6684ca161eb7be42a754045c8c117ee3880ee3cbf`; it is not the README/description-body digest.
 - PyPI integrity provenance endpoints returned the expected GitHub Trusted Publisher identity and attestation subjects matching both public artifact digests.
 
 Public artifact records:
@@ -185,7 +186,7 @@ Stop conditions before any later merge or publish lane:
 
 - PyPI `0.1.20` exists before the separately approved package publish;
 - any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
-- package or installed metadata does not report version `0.1.20` or the encrypted extra does not require `cryptography>=44`;
+- package or installed metadata does not report version `0.1.20`, the corrective source metadata does not require exactly `cryptography>=50.0.0` for the encrypted extra, or the installed exact-floor check does not use `cryptography==50.0.0`;
 - source privacy scan, artifact privacy scan, installed-artifact encryption test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes merge, tag creation, release creation, package publish, announcement, repository setting change, or PyPI setting change without separate explicit approval.
 

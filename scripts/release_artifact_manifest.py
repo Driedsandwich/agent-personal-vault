@@ -47,6 +47,15 @@ def _normalized_name(value: str) -> str:
     return re.sub(r"[-_.]+", "-", value).lower()
 
 
+def _project_readme_bytes(pyproject_path: Path) -> bytes:
+    project = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))["project"]
+    readme = project.get("readme", "")
+    readme_path = str(readme) if isinstance(readme, str) else str(readme.get("file", ""))
+    if not readme_path:
+        raise ValueError("project readme path is missing")
+    return (pyproject_path.parent / readme_path).read_bytes()
+
+
 def project_identity(pyproject_path: Path) -> dict[str, Any]:
     project = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))["project"]
     readme = project.get("readme", "")
@@ -57,12 +66,14 @@ def project_identity(pyproject_path: Path) -> dict[str, Any]:
         description_content_type = "text/x-rst"
     else:
         description_content_type = "text/plain"
+    readme_bytes = _project_readme_bytes(pyproject_path)
     return {
         "name": str(project["name"]),
         "version": str(project["version"]),
         "summary": str(project.get("description", "")),
         "requires_python": str(project.get("requires-python", "")),
         "description_content_type": description_content_type,
+        "description_sha256": hashlib.sha256(readme_bytes).hexdigest(),
         "project_urls": {str(key): str(value) for key, value in sorted(project.get("urls", {}).items())},
     }
 
@@ -90,8 +101,22 @@ def _embedded_metadata_bytes(path: Path) -> bytes:
     raise ValueError("unsupported distribution type")
 
 
+def _metadata_description_bytes(raw: bytes) -> bytes:
+    for separator in (b"\r\n\r\n", b"\n\n"):
+        if separator in raw:
+            return raw.split(separator, 1)[1]
+    raise ValueError("distribution metadata description body is missing")
+
+
+def _validate_embedded_description(path: Path, pyproject_path: Path) -> None:
+    description = _metadata_description_bytes(_embedded_metadata_bytes(path))
+    if description != _project_readme_bytes(pyproject_path):
+        raise ValueError("distribution metadata description body does not match README bytes")
+
+
 def embedded_metadata(path: Path) -> dict[str, Any]:
     raw = _embedded_metadata_bytes(path)
+    description = _metadata_description_bytes(raw)
     message = BytesParser(policy=policy.default).parsebytes(raw)
     urls: dict[str, str] = {}
     for entry in message.get_all("Project-URL", []):
@@ -101,6 +126,7 @@ def embedded_metadata(path: Path) -> dict[str, Any]:
         urls[label.strip()] = url.strip()
     metadata = {
         "metadata_sha256": hashlib.sha256(raw).hexdigest(),
+        "description_sha256": hashlib.sha256(description).hexdigest(),
         "metadata_version": str(message.get("Metadata-Version", "")),
         "name": str(message.get("Name", "")),
         "version": str(message.get("Version", "")),
@@ -115,7 +141,14 @@ def embedded_metadata(path: Path) -> dict[str, Any]:
 
 
 def _validate_embedded_identity(metadata: dict[str, Any], project: dict[str, Any]) -> None:
-    for key in ("version", "summary", "requires_python", "description_content_type", "project_urls"):
+    for key in (
+        "version",
+        "summary",
+        "requires_python",
+        "description_content_type",
+        "description_sha256",
+        "project_urls",
+    ):
         if metadata.get(key) != project.get(key):
             raise ValueError(f"distribution metadata does not match pyproject: {key}")
     if _normalized_name(str(metadata.get("name", ""))) != _normalized_name(str(project.get("name", ""))):
@@ -130,6 +163,7 @@ def create_manifest(*, dist_dir: Path, pyproject_path: Path, tag: str, commit: s
         raise ValueError("release commit must be a full lowercase Git SHA")
     artifacts = []
     for path in distribution_files(dist_dir):
+        _validate_embedded_description(path, pyproject_path)
         metadata = embedded_metadata(path)
         _validate_embedded_identity(metadata, project)
         artifacts.append(
@@ -217,6 +251,8 @@ def verify_manifest(
         if actual_metadata != recorded_metadata:
             raise ValueError(f"artifact metadata does not match the approved manifest: {path.name}")
         _validate_embedded_identity(actual_metadata, validated["package"])
+        if pyproject_path is not None:
+            _validate_embedded_description(path, pyproject_path)
     return validated
 
 

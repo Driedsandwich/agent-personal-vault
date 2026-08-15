@@ -38,6 +38,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Build wheel
         run: python -m pip wheel --no-deps --wheel-dir "${RUNNER_TEMP}/dist" .
+      - name: Install exact encrypted dependency floor
+        run: python -m pip install "cryptography==50.0.0"
       - name: Install wheel with encrypted extra
         shell: bash
         run: |
@@ -70,6 +72,8 @@ jobs:
               raise SystemExit("encrypted regressions failed")
           PY
       - name: Smoke-test installed encrypted artifact
+        env:
+          APV_EXPECTED_CRYPTOGRAPHY_VERSION: "50.0.0"
         run: |
           cd "${RUNNER_TEMP}"
           python -I "${GITHUB_WORKSPACE}/scripts/check_encrypted_artifact.py"

@@ -178,12 +178,14 @@ Post-`v0.1.20` status sync evidence:
 - PyPI latest is `0.1.20`; the wheel and sdist are present with SHA-256 `8e6157855eb71bf1c45091c7b217a7f2a5b5a8a6ebe2fc621d5dc81eb41681b3` and `298dd739f10d885b03605e7743372e7da3bb5076ec55b0b93e40160843d827f5`.
 - PyPI Project-URL metadata contains Homepage, Source, Issues, and Documentation links to the GitHub repository and README.
 - A clean temporary `pip install 'agent-personal-vault[encrypted]==0.1.20'` confirmed installed metadata version `0.1.20`, the `agent-personal-vault`, `apv-gui`, and `apv-mcp` console scripts, and the encrypted round-trip, tamper-rejection, and v1-to-v2 KDF migration paths.
-- The PyPI long description matches the current README exactly at SHA-256 `53e2e56ca408eb5fad5601b6684ca161eb7be42a754045c8c117ee3880ee3cbf` and contains `agent-personal-vault==0.1.20`.
+- The release-commit README bytes and the PyPI/wheel METADATA description body match exactly at SHA-256 `852c4d6c06cc20b0ea7853f36f5d86dcca82eed297cf3a44120c0635e022e30d` and contain `agent-personal-vault==0.1.20`.
+- The separate SHA-256 of the complete wheel METADATA file is `53e2e56ca408eb5fad5601b6684ca161eb7be42a754045c8c117ee3880ee3cbf`; this includes metadata headers and must not be labelled as the README or description-body digest.
 - PyPI integrity provenance endpoints returned the expected GitHub Trusted Publisher identity and attestation subjects matching both public `0.1.20` artifact digests.
 - GitHub Actions `publish-package` run `31861781694` for `v0.1.20` completed successfully after the `pypi` environment approval.
 - The approved artifact archive digest is `sha256:9856d17c331ae1a7473144d0d01b5d59f9dda5aa62340e5588b17855f833081e`; canonical manifest SHA-256 `421a4fe2a9f442797bcb67f926b6d9ee9f802a64f25dd6816667ea182c69c8e3` binds the public wheel and sdist hashes recorded above to tag `v0.1.20` and commit `a1e596edd68f866abc16d4caaa1d6e45e82901e7`.
 - Open security alerts were 0 for CodeQL, Dependabot, and secret scanning during this status sync.
 - Open GitHub state before opening this status-sync Issue was 0 Issues and 0 PRs; Issue #326 now tracks this documentation sync.
+- `TEMP-R004-001` monitors one Python 3.11 CI cleanup failure (`Directory not empty`) observed once on this commit family. The same SHA passed on rerun and 50 local GUI-test repetitions did not reproduce it; treat recurrence as the trigger for defect triage rather than claiming it is resolved or currently reproducible.
 
 ## Prerelease Graduation Criteria
 
