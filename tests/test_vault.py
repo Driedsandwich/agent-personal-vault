@@ -17,7 +17,7 @@ import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from http.server import ThreadingHTTPServer
+from http.server import ThreadingHTTPServer as _StdlibThreadingHTTPServer
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -85,6 +85,21 @@ from agent_personal_vault.vault import (
     write_json_private,
     write_store,
 )
+
+
+# Join request handlers before TemporaryDirectory can remove their sidecar files.
+class ThreadingHTTPServer(_StdlibThreadingHTTPServer):
+    daemon_threads = False
+    block_on_close = True
+
+
+def _stop_gui_test_server(server: ThreadingHTTPServer, thread: threading.Thread) -> None:
+    server.shutdown()
+    thread.join(timeout=5)
+    if thread.is_alive():
+        server.server_close()
+        raise AssertionError("GUI server thread did not stop")
+    server.server_close()
 
 
 class VaultTests(unittest.TestCase):
@@ -1919,9 +1934,7 @@ class VaultTests(unittest.TestCase):
                 self.assertEqual(path.read_bytes(), before)
                 self.assertFalse(audit_path(path).exists())
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_rejects_malformed_json_without_token_or_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1952,9 +1965,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_rejects_oversized_body_before_read_without_sensitive_echo(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1985,9 +1996,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(str(path), combined)
                 self.assertNotIn("Traceback", combined)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_rejects_excessive_json_depth_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2018,9 +2027,7 @@ class VaultTests(unittest.TestCase):
                 self.assertIn("invalid json", body)
                 self.assertNotIn("Traceback", "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args))
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_sanitizes_decoder_recursion_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2052,9 +2059,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(str(path), combined)
                 self.assertNotIn("Traceback", combined)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_get_store_shape_error_is_traceback_free_token_free_and_path_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2087,9 +2092,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_profile_view_terminal_audit_failure_keeps_response_traceback_free(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2123,9 +2126,7 @@ class VaultTests(unittest.TestCase):
                 self.assertEqual(summary["operation_outcomes"]["outcome_unknown"], 1)
                 self.assertEqual(summary["incomplete_operations"], 1)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_http_requires_plaintext_acknowledgement_bound_to_storage_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2215,9 +2216,7 @@ class VaultTests(unittest.TestCase):
                 raised.exception.close()
                 self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["storage"], crypto_store.ENCRYPTED_STORAGE)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_request_target_redacts_token_query(self) -> None:
         redacted = _redact_request_target("/api/profile?token=secret-token&x=1")
@@ -2323,9 +2322,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn("Traceback", log_output)
                 self.assertIn("token=[redacted]", log_output)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_concurrent_bootstrap_exchange_allows_one_session(self) -> None:
         class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -2359,9 +2356,86 @@ class VaultTests(unittest.TestCase):
                 self.assertEqual(sum(bool(cookie) for _code, cookie in results), 1)
                 self.assertTrue(server.gui_bootstrap_used)  # type: ignore[attr-defined]
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
+
+    def test_gui_teardown_waits_for_request_audit_writer(self) -> None:
+        request_started = threading.Event()
+        release_writer = threading.Event()
+        writer_finished = threading.Event()
+        close_entered = threading.Event()
+        teardown_finished = threading.Event()
+        client_errors: list[BaseException] = []
+        teardown_errors: list[BaseException] = []
+
+        class DelayedAuditHandler(Handler):
+            def do_GET(self) -> None:
+                request_started.set()
+                if not release_writer.wait(timeout=5):
+                    self.send_json(500, {"error": "test writer timeout"})
+                    return
+                write_audit_event(
+                    vault_path=self.server.store_path,
+                    actor="gui",
+                    action="test_teardown",
+                    purpose="synthetic teardown regression",
+                    source="localhost_gui",
+                    human_operated=True,
+                )
+                writer_finished.set()
+                self.send_json(200, {"ok": True})
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), DelayedAuditHandler)
+            configure_gui_server(server, path, "job_hunting_profile")
+            original_server_close = server.server_close
+
+            def marked_server_close() -> None:
+                close_entered.set()
+                original_server_close()
+
+            server.server_close = marked_server_close  # type: ignore[method-assign]
+            server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+            server_thread.start()
+
+            def request() -> None:
+                try:
+                    with urllib.request.urlopen(
+                        f"http://127.0.0.1:{server.server_address[1]}/",
+                        timeout=5,
+                    ) as response:
+                        self.assertEqual(response.status, 200)
+                except BaseException as exc:
+                    client_errors.append(exc)
+
+            def teardown() -> None:
+                try:
+                    _stop_gui_test_server(server, server_thread)
+                except BaseException as exc:
+                    teardown_errors.append(exc)
+                finally:
+                    teardown_finished.set()
+
+            client_thread = threading.Thread(target=request)
+            teardown_thread = threading.Thread(target=teardown)
+            client_thread.start()
+            self.assertTrue(request_started.wait(timeout=5))
+            teardown_thread.start()
+            try:
+                self.assertTrue(close_entered.wait(timeout=5))
+                self.assertFalse(teardown_finished.wait(timeout=0.1))
+            finally:
+                release_writer.set()
+                client_thread.join(timeout=5)
+                teardown_thread.join(timeout=5)
+
+            self.assertFalse(client_thread.is_alive())
+            self.assertFalse(teardown_thread.is_alive())
+            self.assertEqual(client_errors, [])
+            self.assertEqual(teardown_errors, [])
+            self.assertTrue(writer_finished.is_set())
+            self.assertTrue(audit_path(path).exists())
 
     def test_gui_bootstrap_expires_at_exact_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2388,9 +2462,7 @@ class VaultTests(unittest.TestCase):
                 self.assertFalse(server.gui_bootstrap_used)  # type: ignore[attr-defined]
                 self.assertEqual(server.gui_session_expires_at, 0.0)  # type: ignore[attr-defined]
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_gui_audit_view_payload_omits_raw_values_and_purpose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3006,9 +3078,7 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
             finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
+                _stop_gui_test_server(server, thread)
 
     def test_cli_consent_token_concurrent_consume_allows_one_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
