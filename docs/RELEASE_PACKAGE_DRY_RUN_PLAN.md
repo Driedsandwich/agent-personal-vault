@@ -121,6 +121,58 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.21 R004 Corrective Patch Candidate Dry-Run
+
+Status date: 2026-08-15.
+
+Tracking Issue: #331.
+
+This section records the package dry-run for the `v0.1.21` APV-R004-F008/F009 corrective patch candidate based on main commit `74e3045c0e75b5b00d95596ca2b573509d58d9ff` plus the reviewed version, changelog, README, and dry-run evidence changes. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.20` to `0.1.21`;
+- distinguish the README/PyPI description-body digest from the complete wheel METADATA digest and require the embedded description bytes to match the release README bytes exactly;
+- raise the encrypted extra to `cryptography>=50.0.0`, test that exact floor across Python 3.11-3.13 CI, and prevent the public install example from retaining a 44-49 series dependency;
+- retain `TEMP-R004-001` as a recurrence monitor rather than claiming the one-off GUI cleanup failure is resolved or reproducible;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.21`.
+
+Local dry-run results:
+
+- Fresh isolated build source: 66 tracked files copied physically from the reviewed working tree into randomized repository-external temporary storage; every copied file matched its source hash and had a distinct device/inode identity from its source.
+- Hash-pinned release requirements installed successfully with Python 3.12.13, pip 26.2.1, setuptools 84.0.0, build 1.5.0, packaging 26.3, and pyproject-hooks 1.2.0; Twine 6.2.0 and `cryptography==50.0.0` were installed only in the temporary validation environment.
+- The four focused release-assurance regressions passed for current publication-state compatibility, exact README/description-byte binding, mismatch rejection, and the supported encrypted dependency floor.
+- Final `python scripts/check_release.py`: passed in the isolated source copy with 235 tests and no skips; 26 Python source files compiled and the source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for exactly one wheel and one sdist; `twine check` passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.21`, contain the `0.1.21` README install examples, and require exactly `cryptography>=50.0.0` for the encrypted extra.
+- README bytes and both embedded metadata description bodies match exactly at SHA-256 `ad5d84dfa7b80eb1939b3cbe169a6d269ce27031dd3bdda1addfa2f2958b59c3`. The distinct complete METADATA/PKG-INFO digest is `114822263990791a0e5aec49d161479c2c64428133e75dd37e58cada52b21353`.
+- PyPI `0.1.21` absence check returned HTTP 404 during candidate preparation.
+- A fresh virtual environment installed the wheel with `cryptography==50.0.0`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed the installed encrypted round-trip, tamper-rejection, and v1-to-v2 migration smoke test.
+- Project-URL metadata in both artifacts:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.21-py3-none-any.whl` | 69,231 bytes | 21 | `9639e74d8a01861ece97e643f3515b0f4b837008381d2f55974dcc1088ef5e52` |
+| `agent_personal_vault-0.1.21.tar.gz` | 111,570 bytes | 34 | `2f23a77177e6c08144a01191d24da5190ee0ab3b714cfaed4af4f67aea9f709f` |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later merge or publish lane:
+
+- PyPI `0.1.21` exists before the separately approved package publish;
+- any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.21`, does not require exactly `cryptography>=50.0.0` for the encrypted extra, or the installed exact-floor check does not use `cryptography==50.0.0`;
+- README bytes and the wheel/sdist embedded description bodies differ, or a METADATA-file digest is labelled as a README/description-body digest;
+- source privacy scan, artifact privacy scan, installed-artifact encryption test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, tag creation, release creation, package publish, announcement, repository setting change, or PyPI setting change without separate explicit approval.
+
 ## v0.1.20 Privacy Disposal Corrective Patch Candidate Dry-Run
 
 Status date: 2026-08-15.

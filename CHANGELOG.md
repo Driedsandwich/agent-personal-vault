@@ -12,11 +12,17 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+## 0.1.21 - 2026-08-15
+
 ### Security And Release Assurance
 
 - Raise the optional encrypted dependency floor to `cryptography>=50.0.0`, exercise that exact floor across Python 3.11-3.13 CI, and verify the installed wheel advertises the same requirement.
 - Distinguish the wheel METADATA file digest from the README/PyPI description-body digest and bind release-manifest validation directly to identical README and embedded description bytes.
 - Monitor the one-off R004 GUI temporary-directory cleanup failure as `TEMP-R004-001`; it remains non-reproducible after a successful CI rerun and 50 local repetitions and should become a defect only if it recurs.
+
+### Release Governance
+
+- Prepare the v0.1.21 package metadata, README install examples, and fresh isolated artifact evidence without authorizing a tag, release, or package publish.
 
 ## 0.1.20 - 2026-08-15
 
