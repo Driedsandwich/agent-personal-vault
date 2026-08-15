@@ -10,21 +10,21 @@ last_updated: 2026-07-06
 
 This packet preserves the historical pre-`v0.1.0` release-candidate evidence and approval text that were used before the first public-alpha release.
 
-It is no longer the current execution packet. The project is now public alpha, with latest GitHub prerelease `v0.1.14` and latest PyPI package `0.1.14`. Current release and package-publish state is tracked in `docs/RELEASE_READINESS.md`, `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
+It is no longer the current execution packet. At this packet's last update (`2026-07-06`), the latest GitHub prerelease was `v0.1.14` and the latest PyPI package was `0.1.14`. Current release and package-publish state is tracked in `docs/RELEASE_READINESS.md`, `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 It remains for audit history only. It does not authorize GitHub release creation, tag creation, package publish, public announcement, repository setting changes, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 Use `docs/RC_APPROVAL_PLAN.md` as the detailed lane policy if a future version requires a new approval packet. Do not reuse this historical `0.1.0` packet for any future release.
 
-## Current Distribution Notice
+## Distribution State At This Historical Snapshot
 
-- Latest GitHub prerelease: `v0.1.14`.
-- Latest PyPI package: `0.1.14`.
+- GitHub prerelease at the packet's last update: `v0.1.14`.
+- PyPI package at the packet's last update: `0.1.14`.
 - Normal package publish path: PyPI Trusted Publishing OIDC.
 - Manual token publish path: emergency fallback only.
 - Future tag, release, package publish, repository setting change, branch deletion, PyPI token change/deletion, Claude Desktop app UI operation, API-billed validation, or public announcement still requires a separate explicit approval lane.
 
-Current-state text in this historical packet is a convenience pointer only. `docs/RELEASE_READINESS.md` is the source of truth for current release/package status, with package and Trusted Publishing details in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md` and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
+These values are historical evidence, not current-state claims. `docs/RELEASE_READINESS.md` is the source of truth for current release/package status, with package and Trusted Publishing details in `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md` and `docs/PYPI_TRUSTED_PUBLISHING_PLAN.md`.
 
 ## Historical Target Snapshot
 

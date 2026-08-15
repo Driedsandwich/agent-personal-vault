@@ -17,6 +17,30 @@ from scripts import check_release, pii_scan, release_artifact_manifest, release_
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_historical_rc_packet_date_binds_distribution_state(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        packet = (root / "docs" / "RC_APPROVAL_PACKET.md").read_text(encoding="utf-8")
+
+        self.assertIn("status: historical-snapshot", packet)
+        self.assertIn("last_updated: 2026-07-06", packet)
+        self.assertIn("historical pre-`v0.1.0` release-candidate evidence", packet)
+        self.assertIn("At this packet's last update (`2026-07-06`)", packet)
+        self.assertIn("## Distribution State At This Historical Snapshot", packet)
+        self.assertIn("GitHub prerelease at the packet's last update: `v0.1.14`", packet)
+        self.assertIn("PyPI package at the packet's last update: `0.1.14`", packet)
+        self.assertIn("These values are historical evidence, not current-state claims.", packet)
+        for current_source in [
+            "docs/RELEASE_READINESS.md",
+            "docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md",
+            "docs/PYPI_TRUSTED_PUBLISHING_PLAN.md",
+        ]:
+            self.assertIn(current_source, packet)
+
+        self.assertNotIn("with latest GitHub prerelease", packet)
+        self.assertNotIn("## Current Distribution Notice", packet)
+        self.assertNotIn("- Latest GitHub prerelease:", packet)
+        self.assertNotIn("- Latest PyPI package:", packet)
+
     def test_current_publication_gate_and_consent_guidance_match_published_state(self) -> None:
         root = Path(__file__).resolve().parent.parent
         candidate = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
