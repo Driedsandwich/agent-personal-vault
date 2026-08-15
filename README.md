@@ -122,7 +122,7 @@ python3 -m pip install -e .
 
 ```sh
 . .venv/bin/activate
-python3 -m pip install 'agent-personal-vault[encrypted]==0.1.20'
+python3 -m pip install 'cryptography>=50.0.0' 'agent-personal-vault[encrypted]==0.1.20'
 ```
 
 開発版で保存時暗号化を試す場合は、次を使います。

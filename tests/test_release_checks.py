@@ -200,8 +200,18 @@ class ReleaseCheckTests(unittest.TestCase):
     def test_encrypted_extra_has_exact_supported_lower_bound(self) -> None:
         root = Path(__file__).resolve().parent.parent
         project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        readme = (root / "README.md").read_text(encoding="utf-8")
 
         self.assertEqual(project["optional-dependencies"]["encrypted"], ["cryptography>=50.0.0"])
+        self.assertIn(
+            "python3 -m pip install 'cryptography>=50.0.0' "
+            "'agent-personal-vault[encrypted]==0.1.20'",
+            readme,
+        )
+        self.assertNotIn(
+            "python3 -m pip install 'agent-personal-vault[encrypted]==0.1.20'",
+            readme,
+        )
         workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
         self.assertIn('python -m pip install "cryptography==50.0.0"', workflow)
         self.assertIn('APV_EXPECTED_CRYPTOGRAPHY_VERSION: "50.0.0"', workflow)
