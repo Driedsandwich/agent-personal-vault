@@ -33,6 +33,7 @@ from agent_personal_vault.kdf_migration import (
     upgrade_kdf,
 )
 from agent_personal_vault.migration_guard import KDFMigrationIncompleteError, migration_journal_path
+from agent_personal_vault.privacy import DISPOSE_CONFIRMATION, dispose_private_state
 from agent_personal_vault.resource_limits import MAX_AUDIT_BYTES, ResourceLimitError
 from agent_personal_vault.gui import save_profile_fields
 from agent_personal_vault.mcp_server import tool_definitions
@@ -81,6 +82,9 @@ class KDFMigrationTests(unittest.TestCase):
             if private_file_exists(sidecar_path):
                 result[name] = read_private_bytes(sidecar_path)
         return result
+
+    def storage_bytes(self, path: Path) -> dict[str, bytes]:
+        return {item.name: item.read_bytes() for item in path.parent.iterdir() if item.is_file()}
 
     def assert_profile(self, path: Path, profile) -> None:
         self.assertEqual(encryption_profile(read_private_json(path)), profile)
@@ -194,6 +198,85 @@ class KDFMigrationTests(unittest.TestCase):
                     sidecar_passphrase=self.passphrase,
                 )
             rollback_kdf_migration(path, self.passphrase)
+
+    def test_dispose_fails_closed_for_preparing_migration_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp))
+            with mock.patch.object(kdf_migration, "_write_staging", side_effect=OSError("synthetic interruption")):
+                with self.assertRaisesRegex(OSError, "synthetic interruption"):
+                    prepare_kdf_migration(path, self.passphrase)
+            self.assertEqual(migration_status(path)["state"], "preparing")
+            before = self.storage_bytes(path)
+
+            with self.assertRaises(KDFMigrationIncompleteError):
+                dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION)
+
+            self.assertEqual(self.storage_bytes(path), before)
+            self.assertEqual(rollback_kdf_migration(path, self.passphrase)["state"], "rolled_back")
+
+    def test_dispose_fails_closed_for_ready_migration_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp))
+            self.assertEqual(prepare_kdf_migration(path, self.passphrase)["state"], "ready")
+            before = self.storage_bytes(path)
+
+            with self.assertRaises(KDFMigrationIncompleteError):
+                dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION)
+
+            self.assertEqual(self.storage_bytes(path), before)
+            self.assertEqual(resume_kdf_migration(path, self.passphrase)["state"], "completed")
+
+    def test_dispose_succeeds_after_migration_resume_or_rollback(self) -> None:
+        for recovery in (resume_kdf_migration, rollback_kdf_migration):
+            with self.subTest(recovery=recovery.__name__), tempfile.TemporaryDirectory() as tmp:
+                path = self.create_v1_vault(Path(tmp))
+                prepare_kdf_migration(path, self.passphrase)
+                recovery(path, self.passphrase)
+
+                self.assertEqual(
+                    dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION),
+                    {"vault_removed": True, "consent_removed": True, "audit_removed": True},
+                )
+                self.assertFalse(private_file_exists(path))
+                self.assertFalse(private_file_exists(consent_path(path)))
+                self.assertFalse(private_file_exists(audit_path(path)))
+                self.assertFalse(private_file_exists(migration_journal_path(path)))
+
+    def test_cli_dispose_incomplete_migration_error_is_sanitized_and_non_mutating(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.create_v1_vault(Path(tmp))
+            prepare_kdf_migration(path, self.passphrase)
+            before = self.storage_bytes(path)
+            private_marker = "synthetic@example.test /home/synthetic/private"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_personal_vault.cli",
+                    "--store",
+                    str(path),
+                    "privacy",
+                    "dispose",
+                    "--confirm",
+                    DISPOSE_CONFIRMATION,
+                ],
+                env={
+                    **os.environ,
+                    "AGENT_PERSONAL_VAULT_PASSPHRASE": self.passphrase,
+                    "APV_SYNTHETIC_PRIVATE_MARKER": private_marker,
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "error: encryption migration is incomplete; use resume or rollback\n")
+            self.assertNotIn(self.passphrase, result.stderr)
+            self.assertNotIn(str(path), result.stderr)
+            self.assertNotIn(private_marker, result.stderr)
+            self.assertEqual(self.storage_bytes(path), before)
 
     def test_prepared_v1_sidecar_cannot_commit_after_vault_moves_to_v2(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

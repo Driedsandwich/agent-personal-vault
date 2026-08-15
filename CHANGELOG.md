@@ -12,6 +12,11 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+### Security And Privacy Changes
+
+- Make privacy disposal acquire the KDF migration guard and fail closed without changing primary or recovery state while a KDF migration is incomplete.
+- Return a sanitized resume-or-rollback instruction for rejected CLI disposal and add cross-feature regressions for preparing, ready, resumed, and rolled-back migrations.
+
 ## 0.1.19 - 2026-08-14
 
 ### Optional Encryption

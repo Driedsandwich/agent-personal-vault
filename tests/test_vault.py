@@ -15,13 +15,14 @@ import urllib.error
 import urllib.request
 import unittest
 from argparse import Namespace
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from agent_personal_vault import __version__, cli as cli_module, crypto_store
+from agent_personal_vault import __version__, cli as cli_module, crypto_store, privacy as privacy_module
 from agent_personal_vault.audit import (
     _clean_text,
     audit_path,
@@ -349,6 +350,47 @@ class VaultTests(unittest.TestCase):
 
             self.assertEqual(result, {"vault_removed": False, "consent_removed": False, "audit_removed": False})
             self.assertFalse(parent.exists())
+
+    def test_private_state_disposal_acquires_kdf_guard_before_data_locks(self) -> None:
+        events = []
+
+        def tracked(name):
+            @contextmanager
+            def manager(*_args, **_kwargs):
+                events.append(f"{name}:enter")
+                try:
+                    yield
+                finally:
+                    events.append(f"{name}:exit")
+
+            return manager
+
+        path = Path("/home/synthetic/vault.json")
+        with (
+            mock.patch.object(privacy_module, "migration_incomplete", return_value=False),
+            mock.patch.object(privacy_module, "private_file_stat", return_value=object()),
+            mock.patch.object(privacy_module, "kdf_write_guard", tracked("kdf")),
+            mock.patch.object(privacy_module, "exclusive_private_lock", tracked("data-lock")),
+            mock.patch.object(privacy_module, "remove_private_file", return_value=True),
+        ):
+            self.assertEqual(
+                dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION),
+                {"vault_removed": True, "consent_removed": True, "audit_removed": True},
+            )
+
+        self.assertEqual(
+            events,
+            [
+                "kdf:enter",
+                "data-lock:enter",
+                "data-lock:enter",
+                "data-lock:enter",
+                "data-lock:exit",
+                "data-lock:exit",
+                "data-lock:exit",
+                "kdf:exit",
+            ],
+        )
 
     def test_private_metadata_prune_validates_all_windows_before_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
