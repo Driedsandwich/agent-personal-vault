@@ -14,15 +14,15 @@ It is a planning document only. It does not authorize a GitHub release, package 
 
 Current package state:
 
-- Latest GitHub prerelease: `v0.1.20`.
-- Latest PyPI package: `0.1.20`.
-- Latest Trusted Publisher documentation checkpoint before this status refresh: `a1e596edd68f866abc16d4caaa1d6e45e82901e7`.
-- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for each PyPI publish through `v0.1.20`. Package publishes through `v0.1.4` used the manual token fallback lane.
-- `v0.1.20` is tagged, published as a GitHub prerelease, and published to PyPI.
+- Latest GitHub prerelease: `v0.1.21`.
+- Latest PyPI package: `0.1.21`.
+- Latest Trusted Publisher documentation checkpoint before this status refresh: `ca43e894f9f3c274b9ff1c5fefbc7a91b95b4614`.
+- Trusted Publishing setup was first validated by the `v0.1.5` PyPI publish and used again for each PyPI publish through `v0.1.21`. Package publishes through `v0.1.4` used the manual token fallback lane.
+- `v0.1.21` is tagged, published as a GitHub prerelease, and published to PyPI.
 - The manual `publish-package` workflow exists and is the approved OIDC publish lane after GitHub environment approval.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured according to the PyPI project management UI confirmed by the project owner: GitHub, repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, environment `pypi`.
-- The Trusted Publisher was used successfully for PyPI publishes from `v0.1.5` through `v0.1.20`.
+- The Trusted Publisher was used successfully for PyPI publishes from `v0.1.5` through `v0.1.21`.
 - Manual token publishing is now an emergency fallback only.
 - The `v0.1.10` patch release was published after `v0.1.9` for synced or cloud-backed store path warning coverage.
 - The `v0.1.11` patch release was published after `v0.1.10` for broader raw-like task and purpose redaction.
@@ -35,6 +35,7 @@ Current package state:
 - The `v0.1.18` patch release was published after `v0.1.17` to deliver the GPTPro R2 data-integrity and release-governance follow-up.
 - The `v0.1.19` patch release was published after `v0.1.18` to deliver versioned KDF profiles and the explicit human-operated v1-to-v2 migration path.
 - The `v0.1.20` patch release was published after `v0.1.19` to deliver fail-closed privacy disposal while a KDF migration is incomplete.
+- The `v0.1.21` patch release was published after `v0.1.20` to correct release-evidence digest labelling and require `cryptography>=50.0.0` for the encrypted extra.
 - Older sections in this document are historical planning records unless a section explicitly says it is current.
 
 ## Trusted Publishing OIDC Publish Plan
@@ -45,13 +46,13 @@ This section records the preflight plan that was used for the first Trusted Publ
 
 ### Current Verified State
 
-- `v0.1.20` is published as a GitHub prerelease and points to `a1e596edd68f866abc16d4caaa1d6e45e82901e7`.
-- PyPI latest is `0.1.20`.
+- `v0.1.21` is published as a GitHub prerelease and points to `ca43e894f9f3c274b9ff1c5fefbc7a91b95b4614`.
+- PyPI latest is `0.1.21`.
 - The `publish-package` workflow is active and manually triggered through `workflow_dispatch`.
 - GitHub environment `pypi` exists with required reviewer `Driedsandwich`, `prevent_self_review: false`, protected-branches-only deployment policy, no environment secrets, no stored PyPI token, and `can_admins_bypass: true`.
 - PyPI Trusted Publisher is configured in the PyPI project management UI for GitHub repository `Driedsandwich/agent-personal-vault`, workflow `pypi-publish.yml`, and environment `pypi`.
-- The `v0.1.20` OIDC publish workflow completed successfully as run `31861781694`.
-- The `v0.1.20` publish produced PyPI provenance attestations for the wheel and sdist whose subjects match the public artifact digests and expected Trusted Publisher identity.
+- The `v0.1.21` OIDC publish workflow completed successfully as run `31872976542`.
+- The `v0.1.21` publish produced PyPI provenance attestations for the wheel and sdist whose subjects match the public artifact digests and expected Trusted Publisher identity.
 - Open CodeQL, Dependabot, and secret-scanning alerts were 0 during the post-publish check.
 
 ### Target Version And Version Bump
@@ -163,6 +164,25 @@ Artifact records:
 | `agent_personal_vault-0.1.21.tar.gz` | 111,570 bytes | 34 | `2f23a77177e6c08144a01191d24da5190ee0ab3b714cfaed4af4f67aea9f709f` |
 
 These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Post-publish state recorded during the `v0.1.21` sync:
+
+- PyPI latest is `0.1.21`, and GitHub release `v0.1.21` is published as a prerelease pointing to `ca43e894f9f3c274b9ff1c5fefbc7a91b95b4614`.
+- Trusted Publishing OIDC run `31872976542` completed successfully after the `pypi` environment approval.
+- The approved GitHub artifact archive digest is `sha256:e4a29845c21a8bd8e74acd25ff2f85062ddc36c928650a3b9069edc352cc66ba`; canonical manifest SHA-256 is `bad633293a3b8b88514e9daa0df7c8598ad16fd606e9ed9de18c3b16f4fb4f6d`.
+- Public wheel and sdist SHA-256 are `b0ca4e7a58a6962c07f54aca59f3d631beae88039385dba0fbc3ed4bc6dcd63d` and `eaae9cd4d786287b6f7d772d4b71f967036351fb2ff44b090864a44972acddd2`; both match the canonical manifest.
+- Strict artifact privacy scanning passed for the public wheel/sdist pair.
+- A fresh encrypted-extra install confirmed version `0.1.21`, `cryptography==50.0.0`, all three console scripts, Project-URL metadata, encrypted round trip, tamper rejection, and v1-to-v2 KDF migration.
+- The release-commit README bytes and both embedded metadata description bodies match exactly at SHA-256 `ad5d84dfa7b80eb1939b3cbe169a6d269ce27031dd3bdda1addfa2f2958b59c3`.
+- The separate complete METADATA/PKG-INFO digest is `114822263990791a0e5aec49d161479c2c64428133e75dd37e58cada52b21353`; it is not labelled as the README or description-body digest.
+- PyPI integrity provenance endpoints returned the expected GitHub Trusted Publisher identity and attestation subjects matching both public artifact digests.
+
+Public artifact records:
+
+| Artifact | Size | SHA-256 |
+| --- | ---: | --- |
+| `agent_personal_vault-0.1.21-py3-none-any.whl` | 69,231 bytes | `b0ca4e7a58a6962c07f54aca59f3d631beae88039385dba0fbc3ed4bc6dcd63d` |
+| `agent_personal_vault-0.1.21.tar.gz` | 111,233 bytes | `eaae9cd4d786287b6f7d772d4b71f967036351fb2ff44b090864a44972acddd2` |
 
 Stop conditions before any later merge or publish lane:
 
