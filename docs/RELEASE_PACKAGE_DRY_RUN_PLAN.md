@@ -120,6 +120,56 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.20 Privacy Disposal Corrective Patch Candidate Dry-Run
+
+Status date: 2026-08-15.
+
+Tracking Issue: #324.
+
+This section records the package dry-run for the `v0.1.20` privacy-disposal corrective patch candidate based on main commit `992fdfb9de707119728211fa3fa81246d4d90e4e` plus the reviewed version, changelog, README, and dry-run evidence changes. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.19` to `0.1.20`;
+- deliver the APV-R003-F007 fix that acquires the KDF migration guard before privacy disposal and fails closed without changing primary, backup, staging, or journal state while migration is incomplete;
+- retain normal disposal after explicit migration resume or rollback and return only a sanitized resume-or-rollback instruction on rejection;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.20`.
+
+Local dry-run results:
+
+- Fresh isolated build source: 66 tracked files copied physically from the reviewed working tree into randomized repository-external temporary storage; every copied file had a distinct device/inode identity from its source.
+- Hash-pinned release build requirements installed successfully; Twine 6.2.0 and `cryptography==44.0.0` were installed only in the temporary validation environment.
+- All 5 focused APV-R003-F007 regressions passed for preparing/ready no-mutation, resume/rollback completion, sanitized CLI output, and global-guard lock ordering.
+- Final `python scripts/check_release.py`: passed in the isolated source copy with 233 tests; source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for exactly one wheel and one sdist.
+- `twine check`: passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair.
+- Wheel and sdist metadata both report `agent-personal-vault` version `0.1.20`, contain the `0.1.20` README install examples without the former `0.1.19` pinned examples, and preserve `cryptography>=44` for the encrypted extra.
+- PyPI `0.1.20` was absent during candidate preparation.
+- A fresh virtual environment installed the wheel with `cryptography==44.0.0`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed the installed encrypted round-trip, tamper-rejection, and v1-to-v2 migration smoke test.
+- Project-URL metadata in both artifacts:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| `agent_personal_vault-0.1.20-py3-none-any.whl` | 69,169 bytes | 21 | `661648671720356f3a306d8abdb8720f34a232779b38498e5dba4eb41e0c0957` |
+| `agent_personal_vault-0.1.20.tar.gz` | 111,372 bytes | 30 | `c412b8f11e8ea3ab75b3712d35d00f0e20f7a7c87e48beeaf74ab58edf72da49` |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later merge or publish lane:
+
+- PyPI `0.1.20` exists before the separately approved package publish;
+- any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.20` or the encrypted extra does not require `cryptography>=44`;
+- source privacy scan, artifact privacy scan, installed-artifact encryption test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, tag creation, release creation, package publish, announcement, repository setting change, or PyPI setting change without separate explicit approval.
+
 ## v0.1.19 Versioned KDF Migration Patch Candidate Dry-Run
 
 Status date: 2026-08-14.

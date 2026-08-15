@@ -54,14 +54,20 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertIn("新しいrequestを作成", mcp_setup)
         self.assertNotIn("`consent list` で未使用tokenを確認", mcp_setup)
 
-        candidate_heading = f"## v{candidate} Versioned KDF Migration Patch Candidate Dry-Run"
-        candidate_start = dry_run.index(candidate_heading)
-        following = dry_run[candidate_start + len(candidate_heading) :]
+        candidate_heading = re.search(
+            rf"^## v{re.escape(candidate)} .* Patch Candidate Dry-Run$",
+            dry_run,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(candidate_heading)
+        assert candidate_heading is not None
+        candidate_start = candidate_heading.start()
+        following = dry_run[candidate_heading.end() :]
         next_heading = re.search(r"^## v\d+\.\d+\.\d+ .* Patch Candidate Dry-Run$", following, re.MULTILINE)
         candidate_end = (
             len(dry_run)
             if next_heading is None
-            else candidate_start + len(candidate_heading) + next_heading.start()
+            else candidate_heading.end() + next_heading.start()
         )
         candidate_dry_run = dry_run[candidate_start:candidate_end]
 
