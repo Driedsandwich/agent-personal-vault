@@ -39,6 +39,7 @@ from .crypto_store import (
     passphrase_strength_issue,
 )
 from .kdf_migration import migration_status, resume_kdf_migration, rollback_kdf_migration, upgrade_kdf
+from .migration_guard import KDFMigrationIncompleteError
 from .private_io import private_file_exists, read_private_json
 from .privacy import DISPOSE_CONFIRMATION, dispose_private_state, prune_private_metadata
 from .resource_limits import MAX_FIELD_VALUE_BYTES, ResourceLimitError
@@ -696,6 +697,8 @@ def build_parser() -> argparse.ArgumentParser:
 def safe_cli_error(exc: Exception) -> str:
     if isinstance(exc, ConsentError):
         return str(exc)
+    if isinstance(exc, KDFMigrationIncompleteError):
+        return "encryption migration is incomplete; use resume or rollback"
     if isinstance(exc, json.JSONDecodeError):
         return "store or state file contains invalid JSON"
     if isinstance(exc, FileNotFoundError):
@@ -719,7 +722,15 @@ def main(argv: list[str] | None = None) -> None:
         args.func(args)
     except SystemExit:
         raise
-    except (ConsentError, ValueError, FileNotFoundError, NotADirectoryError, PermissionError, json.JSONDecodeError) as exc:
+    except (
+        ConsentError,
+        KDFMigrationIncompleteError,
+        ValueError,
+        FileNotFoundError,
+        NotADirectoryError,
+        PermissionError,
+        json.JSONDecodeError,
+    ) as exc:
         print(f"error: {safe_cli_error(exc)}", file=sys.stderr)
         raise SystemExit(1) from None
     except Exception:

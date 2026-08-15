@@ -164,6 +164,8 @@ agent-personal-vault --store "$APV_STORE" privacy prune --consent-retention-days
 
 誤って実データを入れた検証用vaultを丸ごと捨てる場合は、まず `check` で対象を確認し、GUIとMCP serverを停止してから次を使います。このコマンドは、指定vaultと同じ保存先にある `vault.json`、`consents.json`、`audit.jsonl` の3データファイルだけを削除し、親ディレクトリや無関係なファイルは削除しません。空のlock fileは残る場合があります。バックアップ、同期先、snapshot、手動コピーは別途管理対象です。
 
+KDF migrationが未完了の場合、`privacy dispose`は全fileを変更せず拒否します。先に`encryption status-kdf`で状態を確認し、`encryption resume-kdf`または`encryption rollback-kdf`を完了してください。disposeはmigrationを自動で再開・rollbackしたり、復旧用artifactを一括削除したりしません。
+
 ```sh
 agent-personal-vault --store "$APV_STORE" privacy dispose --confirm "delete local vault state"
 ```
@@ -276,7 +278,7 @@ vault、consent state、audit logをまとめて廃棄:
 agent-personal-vault privacy dispose --confirm "delete local vault state"
 ```
 
-どちらもGUIとMCP serverを先に停止してください。`dispose` は既知の3データファイルだけを対象にし、バックアップ、同期先、snapshot、手動コピーまでは削除しません。
+どちらもGUIとMCP serverを先に停止してください。`dispose` は既知の3データファイルだけを対象にし、バックアップ、同期先、snapshot、手動コピーまでは削除しません。未完了のKDF migrationがある場合は変更せず拒否するため、先に`encryption resume-kdf`または`encryption rollback-kdf`を完了してください。
 
 consent requestとtoken metadataの状態を確認:
 
