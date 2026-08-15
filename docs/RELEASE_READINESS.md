@@ -186,7 +186,7 @@ Post-`v0.1.21` status sync evidence:
 - The approved artifact archive digest is `sha256:e4a29845c21a8bd8e74acd25ff2f85062ddc36c928650a3b9069edc352cc66ba`; canonical manifest SHA-256 `bad633293a3b8b88514e9daa0df7c8598ad16fd606e9ed9de18c3b16f4fb4f6d` binds the public wheel and sdist hashes recorded above to tag `v0.1.21` and commit `ca43e894f9f3c274b9ff1c5fefbc7a91b95b4614`.
 - Open security alerts were 0 for CodeQL, Dependabot, and secret scanning during this status sync.
 - Open GitHub state before opening this status-sync Issue was 0 Issues and 0 PRs; Issue #333 now tracks this documentation sync.
-- `TEMP-R004-001` monitors one Python 3.11 CI cleanup failure (`Directory not empty`) observed once on this commit family. The same SHA passed on rerun and 50 local GUI-test repetitions did not reproduce it; treat recurrence as the trigger for defect triage rather than claiming it is resolved or currently reproducible.
+- `TEMP-R004-001` recurred on main and is closed by Issue #335 / PR #336. The cause was test-only `ThreadingHTTPServer` daemon request handlers that were not joined before `TemporaryDirectory` teardown, allowing a late audit write to race directory cleanup. The fix makes test request handlers joinable, centralizes teardown order, and adds a deterministic delayed-audit-writer regression without changing runtime GUI behavior. The affected bootstrap test and new regression passed 26 consecutive local runs, the tracked-file clean-copy release check passed 236 tests with 37 skips, and main test run `31874895756` plus CodeQL run `31874895460` succeeded on merge commit `e4fda6bc87364b694703cc953d2588c0d3bfddd2` with open CodeQL, Dependabot, and secret-scanning alerts at 0.
 
 ## Prerelease Graduation Criteria
 

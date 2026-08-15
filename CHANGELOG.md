@@ -12,6 +12,11 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+### Test Stability
+
+- Close `TEMP-R004-001` after its GUI temporary-directory cleanup failure recurred and was traced to daemon request handlers that could finish an audit write after test-server shutdown.
+- Make GUI test request handlers joinable before temporary-state teardown and add a deterministic delayed-audit-writer regression; runtime GUI server behavior and package metadata are unchanged.
+
 ## 0.1.21 - 2026-08-15
 
 ### Security And Release Assurance
