@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import socket
 import stat
 import subprocess
 import sys
@@ -1964,6 +1965,32 @@ class VaultTests(unittest.TestCase):
                 self.assertNotIn(token, log_output)
                 self.assertNotIn("Traceback", log_output)
                 self.assertNotIn("token=", log_output)
+            finally:
+                _stop_gui_test_server(server, thread)
+
+    def test_gui_http_error_response_logs_without_crashing_or_token_echo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            token = "dummy-gui-token-private"
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            configure_gui_server(server, path, "job_hunting_profile", session_token=token)
+            server.gui_session_expires_at = server.monotonic() + GUI_SESSION_TTL_SECONDS  # type: ignore[attr-defined]
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                request = b"BREW /?token=dummy-bootstrap-marker HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+                with mock.patch("sys.stderr") as stderr:
+                    with socket.create_connection(("127.0.0.1", server.server_address[1]), timeout=5) as client:
+                        client.sendall(request)
+                        response = b""
+                        while chunk := client.recv(4096):
+                            response += chunk
+                status_line = response.split(b"\r\n", 1)[0]
+                self.assertRegex(status_line, rb"\AHTTP/1\.[01] 501 ")
+                log_output = "".join(str(call.args[0]) for call in stderr.write.call_args_list if call.args)
+                self.assertIn("501", log_output)
+                self.assertNotIn("dummy-bootstrap-marker", log_output)
+                self.assertNotIn("Traceback", log_output)
             finally:
                 _stop_gui_test_server(server, thread)
 

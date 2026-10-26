@@ -4,7 +4,7 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-05
+last_updated: 2026-08-13
 
 ## 結論
 
@@ -285,7 +285,7 @@ MCPの場合:
    - optional extraとして提供する。
 4. macOS KeychainなどOS key store連携は追加backendとして扱う。
 
-Status: optional encrypted backend is implemented using `cryptography` when installed. It is off by default, uses AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation, and depends on a user-managed passphrase. OS key store integration remains pending.
+Status: optional encrypted backend is implemented using `cryptography` when installed. It is off by default, uses AES-256-GCM, and depends on a user-managed passphrase. Since `v0.1.19`, new encryption uses the version 2 Argon2id profile (19 MiB memory, 2 iterations, parallelism 1). The version 1 PBKDF2-HMAC-SHA256 profile (390,000 iterations) remains readable; ordinary writes preserve the existing profile, and migration to version 2 requires the explicit human-operated CLI KDF migration. OS key store integration remains pending.
 
 推奨しない初手:
 
@@ -477,6 +477,8 @@ Status: raw-free MCP stdio server is implemented. It exposes raw-free planning/s
 当面は、GitHub Issues/PRs、Actions、Security alerts、README/PyPI表示、release/package状態、外部フィードバックを軽量観測し、実利用で迷いが出た箇所だけIssue化する。監査ログ、purpose記録、CLI consent token、consent request queue、GUI承認/拒否、GUI audit viewer、optional encryption backend、raw-free MCP serverは実装済み。
 
 ## References
+
+注記（2026-10-25確認）: 実装は `mcp_server.py` の `PROTOCOL_VERSION` が示す `2025-06-18` 版に合わせている。公式仕様の最新版は `2026-07-28`。以下の参照URLは実装対象の版を維持する。
 
 - Model Context Protocol specification: https://modelcontextprotocol.io/specification/2025-06-18
 - MCP server tools specification: https://modelcontextprotocol.io/specification/2025-06-18/server/tools

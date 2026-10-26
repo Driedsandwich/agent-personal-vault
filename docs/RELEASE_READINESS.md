@@ -536,6 +536,8 @@ This historical text did not create a new GitHub release, tag, package publish, 
 
 Status date: 2026-07-05.
 
+Current-state update (2026-10-25): PyPI latest is `0.1.21`; the most recently published GitHub release is `v0.1.21` (prerelease).
+
 Current state:
 
 - Package publishes through `v0.1.4` used the manual token fallback lane.

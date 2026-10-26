@@ -16,10 +16,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run release checks
@@ -31,15 +31,16 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+        cryptography-version: ["50.0.0", "50.0.2"]
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Build wheel
         run: python -m pip wheel --no-deps --wheel-dir "${RUNNER_TEMP}/dist" .
-      - name: Install exact encrypted dependency floor
-        run: python -m pip install "cryptography==50.0.0"
+      - name: Install selected encrypted dependency version
+        run: python -m pip install "cryptography==${{ matrix.cryptography-version }}"
       - name: Install wheel with encrypted extra
         shell: bash
         run: |
@@ -73,7 +74,7 @@ jobs:
           PY
       - name: Smoke-test installed encrypted artifact
         env:
-          APV_EXPECTED_CRYPTOGRAPHY_VERSION: "50.0.0"
+          APV_EXPECTED_CRYPTOGRAPHY_VERSION: ${{ matrix.cryptography-version }}
         run: |
           cd "${RUNNER_TEMP}"
           python -I "${GITHUB_WORKSPACE}/scripts/check_encrypted_artifact.py"

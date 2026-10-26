@@ -42,6 +42,8 @@ Current package state:
 
 Status date: 2026-07-04.
 
+Current-state update (2026-10-25): PyPI latest is `0.1.21`; the most recently published GitHub release is `v0.1.21` (prerelease).
+
 This section records the preflight plan that was used for the first Trusted Publishing OIDC publish and remains the baseline for future OIDC publishes. It does not authorize a version bump, GitHub tag creation, GitHub release creation or publish, PyPI package upload, SNS/blog announcement, repository setting change, branch deletion, Claude Desktop app UI operation, or API-billed validation.
 
 ### Current Verified State
@@ -642,9 +644,9 @@ Stop conditions before any later publish lane:
 - `twine check`, local release-check, CI, CodeQL, Dependabot, or secret scanning fails;
 - the requested action also includes release creation, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing publish run, PyPI token change/deletion, Claude Desktop app UI operation, or API-billed validation without separate explicit approval.
 
-Current post-publish state:
+Historical post-publish state (2026-07-06):
 
-- PyPI latest is `0.1.14`.
+- At that time (2026-07-06), PyPI latest was `0.1.14`.
 - PyPI `0.1.14` is published.
 - GitHub release `v0.1.14` is published as a prerelease and points to `43ca9aa768c7453fb34846655bb4539086fb7582`.
 - Trusted Publishing OIDC publish has completed successfully for `v0.1.14`.

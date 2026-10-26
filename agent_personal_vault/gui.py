@@ -426,8 +426,18 @@ def _redact_request_target(target: str) -> str:
 class Handler(BaseHTTPRequestHandler):
     server_version = "AgentPersonalVault/0.1"
 
+    def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
+        # Python 3.15's base implementation reconstructs the raw request line
+        # for colored logs, bypassing the redacted log_message arguments.
+        if isinstance(code, HTTPStatus):
+            code = code.value
+        self.log_message('"%s" %s %s', self.requestline, str(code), str(size))
+
     def log_message(self, format: str, *args: object) -> None:
-        redacted_args = tuple(_redact_request_target(str(arg)) for arg in args)
+        redacted_args = tuple(
+            arg if isinstance(arg, (int, float)) else _redact_request_target(str(arg))
+            for arg in args
+        )
         super().log_message(format, *redacted_args)
 
     def session_ok(self) -> bool:
