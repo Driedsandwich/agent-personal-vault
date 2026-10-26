@@ -4,13 +4,15 @@
 
 status: active
 classification: SAFE_CANDIDATE
-last_updated: 2026-08-15
+last_updated: 2026-10-26
 
 All notable changes to Agent Personal Vault are documented here.
 
 This changelog records released and unreleased project changes. It does not authorize a GitHub release, tag creation, package publish, announcement, repository setting change, branch deletion, Trusted Publishing run, PyPI token change/deletion, Claude Desktop GUI operation, or API-billed validation.
 
 ## Unreleased
+
+## 0.1.22 - 2026-10-26
 
 ### Maintenance
 
@@ -29,6 +31,10 @@ This changelog records released and unreleased project changes. It does not auth
 ### Documentation
 
 - Bind the historical RC approval packet's `v0.1.14` distribution values to its `2026-07-06` snapshot and keep current release state in the maintained readiness documents.
+
+### Release Governance
+
+- Prepare the v0.1.22 package metadata, README install examples, and fresh isolated artifact evidence without authorizing a tag, release, or package publish.
 
 ## 0.1.21 - 2026-08-15
 

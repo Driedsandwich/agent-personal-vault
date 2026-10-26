@@ -246,11 +246,11 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertEqual(project["optional-dependencies"]["encrypted"], ["cryptography>=50.0.0"])
         self.assertIn(
             "python3 -m pip install 'cryptography>=50.0.0' "
-            "'agent-personal-vault[encrypted]==0.1.21'",
+            "'agent-personal-vault[encrypted]==0.1.22'",
             readme,
         )
         self.assertNotIn(
-            "python3 -m pip install 'agent-personal-vault[encrypted]==0.1.21'",
+            "python3 -m pip install 'agent-personal-vault[encrypted]==0.1.22'",
             readme,
         )
         workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
