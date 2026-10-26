@@ -141,13 +141,28 @@ Candidate scope:
 
 Local dry-run results:
 
-- PENDING
+- Fresh isolated build source: a clean clone fetched candidate commit `3d93d73ae85bf761620c7f689684220536d5876d` by SHA on a separate Linux build host, in randomized temporary storage outside any maintainer working tree. This commit differs from the final candidate head only in this dry-run section of `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, which is not included in the wheel or sdist.
+- Hash-pinned release requirements installed successfully with Python 3.14.4, pip 26.2.2, setuptools 84.2.1, build 1.6.1, packaging 26.3, and pyproject-hooks 1.3.3; Twine and `cryptography==50.0.0` were installed only in temporary validation environments.
+- Final `python scripts/check_release.py`: passed with 239 tests (37 encryption tests skipped because `cryptography` is not installed in the release-build environment; PR CI runs them in the encrypted-artifact jobs); 26 Python source files compiled and the source privacy policy passed for the complete source inventory.
+- `python -m build --no-isolation`: completed for exactly one wheel and one sdist; `twine check` passed for both artifacts.
+- Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair. The sdist contains only the package, `PKG-INFO`, egg-info metadata, tests, `README.md`, `LICENSE`, `pyproject.toml`, and `setup.cfg`.
+- Wheel metadata reports `agent-personal-vault` version `0.1.22`, contains the `0.1.22` README install examples, and requires exactly `cryptography>=50.0.0` for the encrypted extra.
+- README bytes and the wheel's embedded metadata description body match exactly at SHA-256 `f65b34726a97140c0aa165f4c4fca259bc641db472fcb2379fce495f5291eff0`. The distinct complete wheel METADATA digest is `28e71cb456fe7c213014a7138122811a7ce26cf5e5c46352354a1f9bd3209ebe`.
+- PyPI `0.1.22` absence check returned HTTP 404 during candidate preparation.
+- A fresh virtual environment installed the wheel with `cryptography==50.0.0`, reported version `0.1.22`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed `scripts/check_encrypted_artifact.py` (installed encrypted round trip, tamper rejection, and v1-to-v2 migration).
+- The candidate checkout had no tracked-file changes after the dry-run.
+- Project-URL metadata in the wheel:
+  - `Homepage, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Source, https://github.com/Driedsandwich/agent-personal-vault`
+  - `Issues, https://github.com/Driedsandwich/agent-personal-vault/issues`
+  - `Documentation, https://github.com/Driedsandwich/agent-personal-vault#readme`
 
 Artifact records:
 
 | Artifact | Size | Entries | SHA-256 |
 | --- | ---: | ---: | --- |
-| PENDING | PENDING | PENDING | PENDING |
+| `agent_personal_vault-0.1.22-py3-none-any.whl` | 69,416 bytes | 21 | `79708fef1b7211802af062ee524f724cea0e80854c1e30fa5ca57dc64f8add72` |
+| `agent_personal_vault-0.1.22.tar.gz` | 113,535 bytes | 34 | `240482c09a0cde002a807db05b809710ab7d9ede12857acfc507a40b4dabdb05` |
 
 These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
 
