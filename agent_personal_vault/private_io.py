@@ -8,9 +8,10 @@ import os
 import secrets
 import stat
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, TextIO
+from typing import TextIO
 
 from .resource_limits import MAX_PRIVATE_JSON_BYTES, ResourceLimitError, validate_json_resources
 

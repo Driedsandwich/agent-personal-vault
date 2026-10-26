@@ -2,12 +2,14 @@
 
 status: implemented-candidate
 classification: SAFE_CANDIDATE
-last_updated: 2026-08-14
+last_updated: 2026-08-15
 issue: https://github.com/Driedsandwich/agent-personal-vault/issues/309
 
 ## 結論
 
 新規暗号化のversion 2 profileはArgon2id、memory 19 MiB、iterations 2、parallelism 1とする。既存version 1 profile（PBKDF2-HMAC-SHA256、390,000 iterations）は読込み可能な互換形式として維持し、通常保存では暗黙にversion 2へ変更しない。
+
+履歴: version 2 Argon2id profileと明示的KDF移行は `v0.1.19` で出荷済み。2026-08-15の本文更新ではencrypted extraの下限を `cryptography>=50.0.0` に同期した。
 
 ## Synthetic benchmark
 

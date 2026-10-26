@@ -12,6 +12,15 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+### Maintenance
+
+- Refresh full-SHA GitHub Actions pins and hash-verified release build tools, including the PyPI publish action fix for `GHSA-5xjx-3w67-w9x9`.
+- Extend release checks to Python 3.14 and 3.15, test both the cryptography floor and latest release, and validate every workflow action reference with a regression for mixed pinned and unpinned uses.
+- Preserve GUI request-token log redaction on Python 3.15. Python 3.15's `http.server` rebuilds request log lines from the raw request line, which wrote the already-consumed one-time GUI bootstrap value to local stderr; request logging now goes through the existing redaction path.
+- Keep the GUI handler from crashing when the standard library sends an error response (for example a malformed or unsupported request): numeric log arguments are no longer converted to text before formatting, so the error response is returned instead of failing with `TypeError`.
+- Add a monthly grouped Dependabot version-update configuration for GitHub Actions and pip release-tool pins.
+- Correct historical document update dates and publication-state notes, and describe the shipped Argon2id profile and MCP implementation target.
+
 ### Test Stability
 
 - Close `TEMP-R004-001` after its GUI temporary-directory cleanup failure recurred and was traced to daemon request handlers that could finish an audit write after test-server shutdown.

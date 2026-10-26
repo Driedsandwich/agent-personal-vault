@@ -101,15 +101,32 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertLess(local_table, local_disclaimer)
         self.assertLess(local_disclaimer, stop_conditions)
 
+    def _assert_workflow_actions_pinned(self, workflow: str) -> None:
+        values = re.findall(r"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]*(.*)$", workflow)
+        self.assertTrue(values, "workflow has no uses declarations")
+        for value in values:
+            reference = re.fullmatch(
+                r'''(?:"([^"]+)"|'([^']+)'|([^'"#\s]+))(?:\s+#.*)?''', value.strip()
+            )
+            self.assertIsNotNone(reference, f"malformed uses declaration: {value!r}")
+            assert reference is not None
+            action = next(part for part in reference.groups() if part is not None)
+            self.assertRegex(
+                action,
+                r"\A[^@\s#]+@[0-9a-f]{40}\Z",
+                "uses declaration must pin a full SHA",
+            )
+
     def test_required_test_workflow_pins_third_party_actions(self) -> None:
         root = Path(__file__).resolve().parent.parent
         workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        references = re.findall(r"uses:\s*([^@\s]+)@([^\s#]+)", workflow)
+        self._assert_workflow_actions_pinned(workflow)
 
-        self.assertEqual(len(references), 4)
-        for action, revision in references:
-            with self.subTest(action=action):
-                self.assertRegex(revision, r"\A[0-9a-f]{40}\Z")
+    def test_workflow_pin_check_rejects_unpinned_use_among_pins(self) -> None:
+        pin = "a" * 40
+        workflow = f"      - uses: owner/action@{pin}\n      - uses: owner/other\n"
+        with self.assertRaises(AssertionError):
+            self._assert_workflow_actions_pinned(workflow)
 
     def test_release_scanner_clis_reject_path_arguments_without_echoing_them(self) -> None:
         root = Path(__file__).resolve().parent.parent
@@ -237,8 +254,9 @@ class ReleaseCheckTests(unittest.TestCase):
             readme,
         )
         workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        self.assertIn('python -m pip install "cryptography==50.0.0"', workflow)
-        self.assertIn('APV_EXPECTED_CRYPTOGRAPHY_VERSION: "50.0.0"', workflow)
+        self.assertIn('cryptography-version: ["50.0.0", "50.0.2"]', workflow)
+        self.assertIn('python -m pip install "cryptography==${{ matrix.cryptography-version }}"', workflow)
+        self.assertIn('APV_EXPECTED_CRYPTOGRAPHY_VERSION: ${{ matrix.cryptography-version }}', workflow)
 
     def test_release_artifact_manifest_rejects_embedded_metadata_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -293,12 +311,12 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertNotIn("--dist", workflow)
         self.assertNotIn("--manifest", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "${APV_SOURCE_COMMIT}"', workflow)
-        self.assertEqual(workflow.count("actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"), 2)
+        self.assertEqual(workflow.count("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"), 2)
         self.assertIn("packages-dir: release-bundle/dist/", workflow)
         self.assertNotIn("pip install --upgrade pip build twine", workflow)
-        self.assertEqual(pyproject["build-system"]["requires"], ["setuptools==84.0.0"])
-        self.assertIn('python-version: "3.13.14"', workflow)
-        self.assertEqual(workflow.count('python-version: "3.13.14"'), 2)
+        self.assertEqual(pyproject["build-system"]["requires"], ["setuptools==84.2.1"])
+        self.assertIn('python-version: "3.13.17"', workflow)
+        self.assertEqual(workflow.count('python-version: "3.13.17"'), 2)
         for package in ["build", "packaging", "pip", "pyproject-hooks", "setuptools"]:
             self.assertRegex(requirements, rf"(?m)^{package}==[^ ]+ \\$")
         self.assertEqual(requirements.count("--hash=sha256:"), 5)

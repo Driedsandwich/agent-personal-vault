@@ -4,7 +4,7 @@
 
 status: draft-plan
 classification: SAFE_CANDIDATE
-last_updated: 2026-07-06
+last_updated: 2026-08-12
 
 ## Purpose
 
