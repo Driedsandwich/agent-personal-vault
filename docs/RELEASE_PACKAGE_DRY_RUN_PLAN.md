@@ -124,6 +124,42 @@ Prepared rollback actions:
 - remove or correct the PyPI Trusted Publisher entry only through a separate PyPI account-settings approval;
 - keep a short post-incident note without raw personal data, secrets, private paths, or private support details.
 
+## v0.1.22 Maintenance Patch Candidate Dry-Run
+
+Status date: 2026-10-26.
+
+Tracking PR: the `v0.1.22` candidate pull request.
+
+This section records the package dry-run for the `v0.1.22` maintenance patch candidate based on main commit `d79a42c7c91b36fbf662acb31d6cd84d4aa2b69e` plus the reviewed version, changelog, README, and dry-run evidence changes. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
+
+Candidate scope:
+
+- bump package version from `0.1.21` to `0.1.22`;
+- ship the GUI log redaction fix for Python 3.15 and the GUI error-response `TypeError` fix merged in #341;
+- ship the refreshed full-SHA GitHub Actions pins, including `pypa/gh-action-pypi-publish` v1.14.3 for `GHSA-5xjx-3w67-w9x9`, and the refreshed hash-pinned release build tools;
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.22`.
+
+Local dry-run results:
+
+- PENDING
+
+Artifact records:
+
+| Artifact | Size | Entries | SHA-256 |
+| --- | ---: | ---: | --- |
+| PENDING | PENDING | PENDING | PENDING |
+
+These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
+
+Stop conditions before any later merge or publish lane:
+
+- PyPI `0.1.22` exists before the separately approved package publish;
+- any artifact includes local vault data, consent state, audit state, credentials, private paths, incomplete inventory, nonregular entries, or undecodable text;
+- package or installed metadata does not report version `0.1.22`, does not require exactly `cryptography>=50.0.0` for the encrypted extra, or the installed exact-floor check does not use `cryptography==50.0.0`;
+- README bytes and the wheel/sdist embedded description bodies differ, or a METADATA-file digest is labelled as a README/description-body digest;
+- source privacy scan, artifact privacy scan, installed-artifact encryption test, local release-check, PR CI, CodeQL, Dependabot, or secret scanning fails;
+- the requested action also includes merge, tag creation, release creation, package publish, announcement, repository setting change, or PyPI setting change without separate explicit approval.
+
 ## v0.1.21 R004 Corrective Patch Candidate Dry-Run
 
 Status date: 2026-08-15.
