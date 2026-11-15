@@ -35,6 +35,7 @@ This changelog records released and unreleased project changes. It does not auth
 ### Release Governance
 
 - Prepare the v0.1.22 package metadata, README install examples, and fresh isolated artifact evidence without authorizing a tag, release, or package publish.
+- Remove maintainer-specific literals from the release-source policy scanner. Home-directory paths remain covered by the generic `macos-user-path` and `windows-user-path` patterns; the scanner no longer carries any maintainer identity in source.
 
 ## 0.1.21 - 2026-08-15
 

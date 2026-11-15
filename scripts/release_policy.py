@@ -89,13 +89,11 @@ ALLOWLIST = {
 # Keep private fragments split in source so the scanner does not publish them in
 # diagnostics or match its own policy definition.
 FORBIDDEN_LITERALS = {
-    "maintainer-home-path": "/" + "Users/" + "kishimoto" + "satoshi",
     "private-profile-path": "private/" + "job_profile",
     "private-project-path": "personal-ai" + "-os",
     "private-backup-path": "job-profile" + "-backups",
     "private-audit-path": "memory" + "-audit",
     "private-inbox-path": "inbox" + "-log",
-    "maintainer-name-fragment": "kishimoto" + "satoshi",
 }
 
 DENY_PATTERNS = {
