@@ -268,7 +268,7 @@ class VaultTests(unittest.TestCase):
             )
 
             self.assertEqual(list_consents(path)[0]["purpose"], "[redacted]")
-            self.assertEqual(list_consent_requests(path)[0]["purpose"], "[redacted]")
+            self.assertEqual(list_consent_requests(path), [])
             self.assertEqual(read_audit_events(path)[0]["purpose"], "[redacted]")
 
             result = prune_private_metadata(path, consent_retention_days=30, audit_retention_days=90)
@@ -278,7 +278,9 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(result["requests_removed"], 0)
             self.assertEqual(result["audit_removed"], 0)
             self.assertNotIn(private_purpose, persisted)
-            self.assertEqual(json.loads(consent_path(path).read_text(encoding="utf-8"))["grants"][0]["purpose"], "[redacted]")
+            consent_state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            self.assertEqual(consent_state["grants"][0]["purpose"], "[redacted]")
+            self.assertEqual(consent_state["requests"][0]["purpose"], "[redacted]")
             self.assertEqual(json.loads(audit_path(path).read_text(encoding="utf-8"))["purpose"], "[redacted]")
 
     def test_private_state_disposal_requires_confirmation_and_preserves_unrelated_files(self) -> None:
@@ -393,6 +395,7 @@ class VaultTests(unittest.TestCase):
             mock.patch.object(privacy_module, "kdf_write_guard", tracked("kdf")),
             mock.patch.object(privacy_module, "exclusive_private_lock", tracked("data-lock")),
             mock.patch.object(privacy_module, "remove_private_file", return_value=True),
+            mock.patch.object(privacy_module, "cleanup_vault_write_temps"),
         ):
             self.assertEqual(
                 dispose_private_state(path, confirmation=DISPOSE_CONFIRMATION),
@@ -794,7 +797,7 @@ class VaultTests(unittest.TestCase):
     def test_encrypted_store_rejects_stale_revision_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
-            passphrase = "correct horse battery staple"
+            passphrase = "Quartz! Lantern7 Otter% Drift"
             initial = load_store(create=True, path=path)
             write_store(initial, path, passphrase=passphrase, encrypted=True)
             first = load_store(path=path, passphrase=passphrase)
@@ -1957,7 +1960,11 @@ class VaultTests(unittest.TestCase):
                     url,
                     data=b"{",
                     method="POST",
-                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Content-Type": "application/json",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -2014,7 +2021,11 @@ class VaultTests(unittest.TestCase):
                     f"http://127.0.0.1:{server.server_address[1]}/api/profile",
                     data=b"synthetic-oversized-body",
                     method="POST",
-                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Content-Type": "application/json",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("agent_personal_vault.gui.MAX_GUI_BODY_BYTES", 8), mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -2048,7 +2059,11 @@ class VaultTests(unittest.TestCase):
                     f"http://127.0.0.1:{server.server_address[1]}/api/profile",
                     data=json.dumps({"fields": nested}).encode("utf-8"),
                     method="POST",
-                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Content-Type": "application/json",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -2077,7 +2092,11 @@ class VaultTests(unittest.TestCase):
                     f"http://127.0.0.1:{server.server_address[1]}/api/profile",
                     data=body,
                     method="POST",
-                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Content-Type": "application/json",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -2109,7 +2128,10 @@ class VaultTests(unittest.TestCase):
                     url,
                     data=b"",
                     method="POST",
-                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("sys.stderr") as stderr:
                     with self.assertRaises(urllib.error.HTTPError) as raised:
@@ -2141,7 +2163,10 @@ class VaultTests(unittest.TestCase):
                     f"http://127.0.0.1:{server.server_address[1]}/api/profile/view",
                     data=b"",
                     method="POST",
-                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with mock.patch("agent_personal_vault.audit.AuditOperation.delivered", side_effect=OSError("synthetic")), mock.patch(
                     "sys.stderr"
@@ -2180,7 +2205,10 @@ class VaultTests(unittest.TestCase):
                     url,
                     data=b"",
                     method="POST",
-                    headers={"Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
                     return json.loads(response.read().decode("utf-8"))
@@ -2191,7 +2219,11 @@ class VaultTests(unittest.TestCase):
                     url,
                     data=json.dumps(payload).encode("utf-8"),
                     method="POST",
-                    headers={"Content-Type": "application/json", "Cookie": f"{GUI_SESSION_COOKIE}={token}"},
+                    headers={
+                        "Origin": f"http://127.0.0.1:{server.server_address[1]}",
+                        "Content-Type": "application/json",
+                        "Cookie": f"{GUI_SESSION_COOKIE}={token}",
+                    },
                 )
                 return urllib.request.urlopen(request, timeout=5)
 
@@ -2369,7 +2401,7 @@ class VaultTests(unittest.TestCase):
                         base + "/api/profile/view",
                         data=b"",
                         method="POST",
-                        headers={"Cookie": cookie},
+                        headers={"Origin": base, "Cookie": cookie},
                     )
                     with urllib.request.urlopen(profile_request, timeout=5) as response:
                         self.assertEqual(response.status, 200)
@@ -2378,7 +2410,7 @@ class VaultTests(unittest.TestCase):
                         base + "/api/profile/view",
                         data=b"",
                         method="POST",
-                        headers={"Cookie": f"{cookie}; {cookie}"},
+                        headers={"Origin": base, "Cookie": f"{cookie}; {cookie}"},
                     )
                     with self.assertRaises(urllib.error.HTTPError) as duplicate_cookie:
                         urllib.request.urlopen(duplicate_cookie_request, timeout=5)
@@ -2394,7 +2426,7 @@ class VaultTests(unittest.TestCase):
                         f"{base}/api/profile/view?token={bootstrap_token}",
                         data=b"",
                         method="POST",
-                        headers={"Cookie": cookie},
+                        headers={"Origin": base, "Cookie": cookie},
                     )
                     with self.assertRaises(urllib.error.HTTPError) as rejected_query:
                         urllib.request.urlopen(query_only, timeout=5)
@@ -3647,7 +3679,7 @@ class VaultTests(unittest.TestCase):
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
             write_store(store, path)
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
             result = subprocess.run(
                 [
                     sys.executable,
@@ -3674,7 +3706,7 @@ class VaultTests(unittest.TestCase):
             encrypted_payload = json.loads(path.read_text(encoding="utf-8"))
             self.assertTrue(is_encrypted_payload(encrypted_payload))
             self.assertNotIn("山田", path.read_text(encoding="utf-8"))
-            loaded = load_store(path=path, passphrase="correct horse battery staple")
+            loaded = load_store(path=path, passphrase="Quartz! Lantern7 Otter% Drift")
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
@@ -3695,7 +3727,7 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(plaintext_state["grants"][0]["token_digest"], self.consent_token_digest(token))
             self.assertNotIn(token, consent_path(path).read_text(encoding="utf-8"))
 
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
             result = subprocess.run(
                 [
                     sys.executable,
@@ -3726,7 +3758,7 @@ class VaultTests(unittest.TestCase):
                     kind="consent",
                     passphrase="wrong passphrase value",
                 )
-            with mock.patch.dict(os.environ, {"AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}):
+            with mock.patch.dict(os.environ, {"AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}):
                 validate_and_consume_consent(
                     vault_path=path,
                     consent_id=token,
@@ -3745,7 +3777,7 @@ class VaultTests(unittest.TestCase):
     def test_encryption_status_reports_incomplete_sidecar_protection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
-            passphrase = "correct horse battery staple"
+            passphrase = "Quartz! Lantern7 Otter% Drift"
             store = load_store(create=True, path=path)
             issue_consent(vault_path=path, action="get", key="EMAIL", purpose="test_dummy", actor="test")
             command = [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "encryption"]
@@ -3783,7 +3815,7 @@ class VaultTests(unittest.TestCase):
             load_store(create=True, path=path)
             stderr = io.StringIO()
             with (
-                mock.patch.object(cli_module, "read_passphrase", return_value="correct horse battery staple"),
+                mock.patch.object(cli_module, "read_passphrase", return_value="Quartz! Lantern7 Otter% Drift"),
                 mock.patch.object(cli_module, "commit_audit_sidecar_migration", side_effect=OSError(str(path))),
                 mock.patch.object(sys, "stderr", stderr),
                 self.assertRaises(SystemExit) as failure,
@@ -3802,10 +3834,10 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
             grant = issue_consent(vault_path=path, action="get", key="EMAIL", purpose="test_dummy", actor="test")
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
             self.assertFalse(sidecar_is_encrypted(consent_path(path), kind="consent"))
             self.assertFalse(sidecar_is_encrypted(audit_path(path), kind="audit"))
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
             result = subprocess.run(
                 [
                     sys.executable,
@@ -3849,16 +3881,16 @@ class VaultTests(unittest.TestCase):
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_encrypted_sidecar_kind_binding_rejects_swaps(self) -> None:
-        payload = crypto_store.encrypt_sidecar_payload(b"{}\n", "correct horse battery staple", kind="consent")
+        payload = crypto_store.encrypt_sidecar_payload(b"{}\n", "Quartz! Lantern7 Otter% Drift", kind="consent")
         with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
-            crypto_store.decrypt_sidecar_payload(payload, "correct horse battery staple", kind="audit")
+            crypto_store.decrypt_sidecar_payload(payload, "Quartz! Lantern7 Otter% Drift", kind="audit")
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_encrypted_vault_rejects_wrong_sidecar_passphrase_before_env_grant_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
             before_vault = path.read_bytes()
             env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "wrong horse battery staple"}
 
@@ -3897,8 +3929,8 @@ class VaultTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -3926,7 +3958,7 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(sidecar_is_encrypted(consent_path(path), kind="consent"))
             self.assertTrue(sidecar_is_encrypted(audit_path(path), kind="audit"))
-            self.assertNotIn("correct horse battery staple", result.stdout + result.stderr)
+            self.assertNotIn("Quartz! Lantern7 Otter% Drift", result.stdout + result.stderr)
             self.assertNotIn(str(path), result.stdout + result.stderr)
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
@@ -3940,7 +3972,7 @@ class VaultTests(unittest.TestCase):
                 consent_path(path): consent_path(path).read_bytes(),
                 audit_path(path): None,
             }
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -3974,7 +4006,7 @@ class VaultTests(unittest.TestCase):
             oversized = b"x" * (MAX_AUDIT_BYTES + 1)
             write_private_bytes(audit_path(path), oversized)
             before_vault = path.read_bytes()
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -4008,7 +4040,7 @@ class VaultTests(unittest.TestCase):
             malformed = b'{"timestamp":"synthetic"}\nnot-json\n'
             write_private_bytes(audit_path(path), malformed)
             before_vault = path.read_bytes()
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -4040,7 +4072,7 @@ class VaultTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
             wrong_envelope = crypto_store.encrypt_sidecar_payload(
                 b'{"version":2,"grants":[],"requests":[]}\n',
                 "different horse battery staple",
@@ -4049,7 +4081,7 @@ class VaultTests(unittest.TestCase):
             write_json_private(consent_path(path), wrong_envelope)
             before_vault = path.read_bytes()
             before_consent = consent_path(path).read_bytes()
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -4164,7 +4196,7 @@ class VaultTests(unittest.TestCase):
                 encoding="utf-8",
             )
             before = path.read_bytes()
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -4196,12 +4228,12 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
-            with mock.patch.dict(os.environ, {"AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}):
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
+            with mock.patch.dict(os.environ, {"AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}):
                 grant = issue_consent(vault_path=path, action="get", key="EMAIL", purpose="test_dummy", actor="test")
             self.assertTrue(sidecar_is_encrypted(consent_path(path), kind="consent"))
             self.assertTrue(sidecar_is_encrypted(audit_path(path), kind="audit"))
-            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "correct horse battery staple"}
+            env = {**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": "Quartz! Lantern7 Otter% Drift"}
 
             result = subprocess.run(
                 [
@@ -4258,10 +4290,10 @@ class VaultTests(unittest.TestCase):
             path = Path(tmp) / "vault.json"
             store = load_store(create=True, path=path)
             store["fields"]["FAMILY_NAME"] = "山田"
-            write_store(store, path, passphrase="correct horse battery staple", encrypted=True)
+            write_store(store, path, passphrase="Quartz! Lantern7 Otter% Drift", encrypted=True)
 
             with mock.patch.object(crypto_store, "KDF_ITERATIONS", crypto_store.KDF_ITERATIONS + 1):
-                loaded = load_store(path=path, passphrase="correct horse battery staple")
+                loaded = load_store(path=path, passphrase="Quartz! Lantern7 Otter% Drift")
 
             self.assertEqual(loaded["fields"]["FAMILY_NAME"], "山田")
 
@@ -4293,7 +4325,7 @@ class VaultTests(unittest.TestCase):
             for invalid in invalid_variants:
                 with self.subTest(invalid=invalid):
                     with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
-                        crypto_store.decrypt_store_payload(invalid, "correct horse battery staple")
+                        crypto_store.decrypt_store_payload(invalid, "Quartz! Lantern7 Otter% Drift")
             require_crypto.assert_not_called()
 
     def test_encrypted_store_rejects_oversized_ciphertext_before_crypto_work(self) -> None:
@@ -4314,7 +4346,7 @@ class VaultTests(unittest.TestCase):
             mock.patch.object(crypto_store, "_require_crypto") as require_crypto,
         ):
             with self.assertRaisesRegex(crypto_store.DecryptionError, "unsupported encrypted store format"):
-                crypto_store.decrypt_store_payload(payload, "correct horse battery staple")
+                crypto_store.decrypt_store_payload(payload, "Quartz! Lantern7 Otter% Drift")
             require_crypto.assert_not_called()
 
     def test_mcp_server_exposes_only_raw_free_read_tools(self) -> None:

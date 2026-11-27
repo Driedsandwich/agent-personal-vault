@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import html
 import hmac
+import io
 import json
 import os
 import secrets
@@ -17,6 +18,7 @@ from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socket import socket
 from urllib.parse import parse_qs, urlparse
 
 from .audit import AuditOperation, audit_summary, audit_tail, begin_audit_operation, write_audit_event
@@ -44,6 +46,8 @@ from .vault import (
 GUI_BOOTSTRAP_TTL_SECONDS = 300
 GUI_SESSION_TTL_SECONDS = 900
 GUI_SESSION_COOKIE = "apv_session"
+GUI_REQUEST_TIMEOUT_SECONDS = 10
+GUI_MAX_ACTIVE_REQUESTS = 16
 
 
 def schema_payload(schema_name: str) -> dict:
@@ -425,8 +429,57 @@ def _redact_request_target(target: str) -> str:
     return parsed._replace(query="token=[redacted]").geturl()
 
 
+class _GuiHTTPServer(ThreadingHTTPServer):
+    def __init__(self, server_address: tuple[str, int], handler_class: type[BaseHTTPRequestHandler]) -> None:
+        self._request_slots = threading.BoundedSemaphore(GUI_MAX_ACTIVE_REQUESTS)
+        super().__init__(server_address, handler_class)
+
+    def process_request(self, request: socket, client_address: tuple[str, int]) -> None:
+        if not self._request_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._request_slots.release()
+            raise
+
+    def process_request_thread(self, request: socket, client_address: tuple[str, int]) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_slots.release()
+
+
+class _DeadlineReader(io.RawIOBase):
+    def __init__(self, connection: socket, timeout: float) -> None:
+        self._connection = connection
+        self._timeout = timeout
+        self._deadline = time.monotonic() + timeout
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:
+        remaining = self._deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("request read deadline exceeded")
+        self._connection.settimeout(remaining)
+        try:
+            return self._connection.recv_into(buffer)
+        finally:
+            self._connection.settimeout(self._timeout)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AgentPersonalVault/0.1"
+
+    def setup(self) -> None:
+        self.timeout = GUI_REQUEST_TIMEOUT_SECONDS
+        super().setup()
+        # Share one read budget across the request line, headers and body.
+        self.rfile.close()
+        self.rfile = io.BufferedReader(_DeadlineReader(self.connection, self.timeout))
 
     def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
         # Python 3.15's base implementation reconstructs the raw request line
@@ -457,6 +510,18 @@ class Handler(BaseHTTPRequestHandler):
         if session is None or self.server.monotonic() >= self.server.gui_session_expires_at:
             return False
         return hmac.compare_digest(session.value, self.server.gui_session_token)
+
+    def local_host(self) -> str:
+        return f"127.0.0.1:{self.server.server_address[1]}"
+
+    def host_ok(self) -> bool:
+        return self.headers.get_all("Host") == [self.local_host()]
+
+    def origin_ok(self, *, post: bool = False) -> bool:
+        origins = self.headers.get_all("Origin")
+        if origins is not None:
+            return origins == [f"http://{self.local_host()}"]
+        return not post or self.headers.get_all("Sec-Fetch-Site") == ["same-origin"]
 
     def exchange_bootstrap_token(self, query: str) -> str | None:
         values = parse_qs(query, keep_blank_values=True).get("token", [])
@@ -538,6 +603,9 @@ class Handler(BaseHTTPRequestHandler):
         return payload
 
     def do_GET(self) -> None:
+        if not self.host_ok():
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return
         parsed = urlparse(self.path)
         if parsed.path == "/":
             if parsed.query:
@@ -561,16 +629,14 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if parsed.path == "/api/profile":
-            if not self.session_ok():
+        if parsed.path in {"/api/profile", "/api/consent/requests", "/api/audit"}:
+            if not self.origin_ok() or not self.session_ok():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
                 return
+        if parsed.path == "/api/profile":
             self.send_json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "profile view requires an audited POST action"})
             return
         if parsed.path == "/api/consent/requests":
-            if not self.session_ok():
-                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
-                return
             try:
                 payload = {"requests": list_consent_requests(self.server.store_path)}
             except Exception:
@@ -579,9 +645,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/audit":
-            if not self.session_ok():
-                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
-                return
             try:
                 payload = audit_view_payload(self.server.store_path)
             except Exception:
@@ -593,11 +656,11 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:
+        if not self.host_ok() or not self.origin_ok(post=True) or not self.session_ok():
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return
         parsed_path = urlparse(self.path).path
         if parsed_path == "/api/profile/view":
-            if not self.session_ok():
-                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
-                return
             operation: AuditOperation | None = None
             try:
                 payload, operation = profile_view_payload(
@@ -621,9 +684,6 @@ class Handler(BaseHTTPRequestHandler):
             operation.try_delivered(raw_returned=True)
             return
         if parsed_path == "/api/storage/acknowledge":
-            if not self.session_ok():
-                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
-                return
             payload = self.read_json_body()
             if payload is None:
                 return
@@ -635,9 +695,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, {"ok": True})
             return
         if parsed_path in {"/api/consent/approve", "/api/consent/deny"}:
-            if not self.session_ok():
-                self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
-                return
             payload = self.read_json_body()
             if payload is None:
                 return
@@ -656,9 +713,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed_path != "/api/profile":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
-            return
-        if not self.session_ok():
-            self.send_json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return
         payload = self.read_json_body()
         if payload is None:
@@ -731,7 +785,7 @@ def configure_gui_server(
 
 
 def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> None:
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = _GuiHTTPServer(("127.0.0.1", port), Handler)
     cleanup_browser_file = None
     expiry_timer = None
     try:

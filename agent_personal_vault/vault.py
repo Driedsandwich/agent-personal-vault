@@ -23,10 +23,12 @@ except ImportError:  # pragma: no cover - Unix fallback path
 
 from .crypto_store import (
     LATEST_ENCRYPTION_PROFILE,
+    DecryptionError,
     EncryptionProfile,
     decrypt_store_payload,
     encryption_profile as payload_encryption_profile,
     encrypt_store_payload,
+    has_encrypted_envelope_fields,
     is_encrypted_payload,
 )
 from .migration_guard import kdf_write_guard
@@ -255,16 +257,39 @@ def likely_synced_path_labels(path: Path) -> list[str]:
     return labels
 
 
+def _has_shared_writable_ancestor(path: Path) -> bool:
+    """Return True when an existing ancestor is group/other-writable without the sticky bit."""
+
+    if os.name != "posix":
+        return False
+    absolute = Path(os.path.abspath(path))
+    for ancestor in absolute.parents:
+        try:
+            mode = os.lstat(ancestor).st_mode
+        except OSError:
+            continue
+        if stat.S_ISDIR(mode) and mode & (stat.S_IWGRP | stat.S_IWOTH) and not mode & stat.S_ISVTX:
+            return True
+    return False
+
+
 def store_path_warnings(path: Path) -> list[str]:
+    warnings = []
     labels = likely_synced_path_labels(path)
-    if not labels:
-        return []
-    joined = ", ".join(labels)
-    return [
-        "store path appears to be under a common synced/cloud-backed folder "
-        f"({joined}). Plaintext JSON can persist in backups, sync targets, snapshots, or manual copies; "
-        "use dummy data, move the store, or enable optional encryption before storing real data."
-    ]
+    if labels:
+        joined = ", ".join(labels)
+        warnings.append(
+            "store path appears to be under a common synced/cloud-backed folder "
+            f"({joined}). Plaintext JSON can persist in backups, sync targets, snapshots, or manual copies; "
+            "use dummy data, move the store, or enable optional encryption before storing real data."
+        )
+    if _has_shared_writable_ancestor(path):
+        warnings.append(
+            "an ancestor directory of the store path is writable by other users without the sticky bit; "
+            "another local account could replace the private directory between checks. "
+            "Move the store under a directory that only you can modify."
+        )
+    return warnings
 
 
 def default_passphrase() -> str | None:
@@ -288,6 +313,8 @@ def blank_store(schema_name: str = DEFAULT_SCHEMA) -> dict:
 def validate_store_shape(store: object) -> dict:
     if not isinstance(store, dict):
         raise ValueError("vault store is invalid")
+    if has_encrypted_envelope_fields(store):
+        raise DecryptionError("unsupported encrypted store format")
     schema = store.get("schema")
     if schema is not None and not isinstance(schema, str):
         raise ValueError("vault store is invalid")
@@ -383,20 +410,28 @@ def _read_normalized_store(
     return store, profile, effective_passphrase, changed
 
 
+def _cleanup_stale_write_temps(path: Path) -> None:
+    from .privacy import cleanup_vault_write_temps
+
+    cleanup_vault_write_temps(path, stale_only=True)
+
+
 def read_store(
     path: Path | None = None,
     schema_name: str = DEFAULT_SCHEMA,
     passphrase: str | None = None,
 ) -> dict:
-    """Read and normalize a store in memory without creating or rewriting files."""
+    """Read and normalize a store without creating or rewriting vault data."""
 
     path = path or store_path()
+    _cleanup_stale_write_temps(path)
     store, _profile, _passphrase, _changed = _read_normalized_store(path, schema_name, passphrase)
     return store
 
 
 def load_store(create: bool = False, path: Path | None = None, schema_name: str = DEFAULT_SCHEMA, passphrase: str | None = None) -> dict:
     path = path or store_path()
+    _cleanup_stale_write_temps(path)
     ensure_private_dir(path.parent)
     if not private_file_exists(path):
         if not create:

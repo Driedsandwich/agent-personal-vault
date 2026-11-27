@@ -73,6 +73,13 @@ def _members(vault_path: Path) -> dict[str, MigrationMember]:
     }
 
 
+def migration_write_targets(vault_path: Path) -> tuple[Path, ...]:
+    staged_paths = tuple(
+        path for member in _members(vault_path).values() for path in (member.backup_path, member.next_path)
+    )
+    return (migration_journal_path(vault_path), *staged_paths)
+
+
 def _read_present_originals(vault_path: Path) -> dict[str, bytes]:
     result: dict[str, bytes] = {}
     for name, member in _members(vault_path).items():

@@ -44,7 +44,7 @@ def main() -> None:
 
     marker = "synthetic-encryption-marker"
     store = {"schema": "synthetic", "fields": {"VALUE": marker}}
-    passphrase = "correct horse battery staple"
+    passphrase = "artifact smoke Quartz Lantern7 Otter"
     encrypted = encrypt_store_payload(store, passphrase)
     serialized = json.dumps(encrypted, sort_keys=True)
     if marker in serialized:

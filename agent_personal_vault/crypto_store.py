@@ -6,6 +6,7 @@ import base64
 import binascii
 import json
 import os
+import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +17,8 @@ ENCRYPTED_SIDECAR_STORAGE_V1 = "encrypted-sidecar-json-v1"
 ENCRYPTED_SIDECAR_STORAGE_V2 = "encrypted-sidecar-json-v2"
 ENCRYPTED_STORAGE = ENCRYPTED_STORAGE_V1
 ENCRYPTED_SIDECAR_STORAGE = ENCRYPTED_SIDECAR_STORAGE_V1
+_ENVELOPE_FIELDS = frozenset({"cipher", "kdf", "iterations", "salt", "nonce", "ciphertext"})
+_V2_ENVELOPE_FIELDS = frozenset({"memory_kib", "parallelism"})
 KDF_NAME = "pbkdf2-hmac-sha256"
 KDF_ITERATIONS = 390_000
 SUPPORTED_KDF_ITERATIONS = frozenset({KDF_ITERATIONS})
@@ -24,9 +27,21 @@ NONCE_BYTES = 12
 AES_GCM_TAG_BYTES = 16
 MAX_ENCRYPTED_PLAINTEXT_BYTES = 8 * 1024 * 1024
 MAX_ENCRYPTED_CIPHERTEXT_BYTES = MAX_ENCRYPTED_PLAINTEXT_BYTES + AES_GCM_TAG_BYTES
-MIN_NEW_PASSPHRASE_LENGTH = 12
+MIN_NEW_PASSPHRASE_LENGTH = 16
 COMMON_WEAK_PASSPHRASES = frozenset(
-    {"agentpersonalvault", "letmein", "password", "password123", "qwertyuiop", "test passphrase"}
+    {
+        "admin", "administrator", "agentpersonalvault", "changeme",
+        "correcthorsebatterystaple", "default", "dragon", "iloveyou",
+        "letmein", "login", "monkey", "password", "passwordpassword",
+        "passphrase", "qwerty", "qwertyuiop", "secret", "testpassphrase", "welcome",
+    }
+)
+_SEQUENCE_WIDTH = 4
+_SIMPLE_PASSPHRASE_SEQUENCES = frozenset(
+    sequence[start:start + _SEQUENCE_WIDTH]
+    for row in ("0123456789012", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm")
+    for sequence in (row, row[::-1])
+    for start in range(len(sequence) - _SEQUENCE_WIDTH + 1)
 )
 
 
@@ -92,9 +107,14 @@ def _require_crypto() -> tuple[Any, Any, Any, Any]:
 
 
 def is_encrypted_payload(payload: object) -> bool:
-    return isinstance(payload, dict) and payload.get("storage") in {
-        profile.vault_storage for profile in SUPPORTED_ENCRYPTION_PROFILES
-    }
+    return isinstance(payload, dict) and any(
+        payload.get("storage") == profile.vault_storage for profile in SUPPORTED_ENCRYPTION_PROFILES
+    )
+
+
+def has_encrypted_envelope_fields(payload: dict) -> bool:
+    """Detect top-level fields reserved for encrypted envelopes."""
+    return not _ENVELOPE_FIELDS.isdisjoint(payload) or not _V2_ENVELOPE_FIELDS.isdisjoint(payload)
 
 
 def is_encrypted_sidecar_payload(payload: object, *, kind: str | None = None) -> bool:
@@ -134,12 +154,37 @@ def _derive_key(passphrase: str, salt: bytes, profile: EncryptionProfile) -> byt
     raise DecryptionError("unsupported encrypted store format")
 
 
+_MIN_NON_SEQUENCE_CHARACTERS = 8
+
+
+def _sequence_remainder_length(value: str) -> int:
+    """Count characters not covered by simple digit, alphabet, or keyboard runs.
+
+    A run inside ordinary words (for example "erty" in "property") does not reject a
+    long passphrase; only values made mostly of such runs do.
+    """
+    covered = [False] * len(value)
+    for start in range(len(value) - _SEQUENCE_WIDTH + 1):
+        if value[start:start + _SEQUENCE_WIDTH] in _SIMPLE_PASSPHRASE_SEQUENCES:
+            for index in range(start, start + _SEQUENCE_WIDTH):
+                covered[index] = True
+    return covered.count(False)
+
+
 def passphrase_strength_issue(passphrase: str) -> str | None:
     candidate = unicodedata.normalize("NFKC", passphrase).strip()
     if len(candidate) < MIN_NEW_PASSPHRASE_LENGTH:
         return f"use at least {MIN_NEW_PASSPHRASE_LENGTH} characters"
     normalized = candidate.casefold()
-    if normalized in COMMON_WEAK_PASSPHRASES or len(set(candidate)) < 4:
+    alphanumeric = "".join(char for char in normalized if char.isalnum())
+    letters = "".join(char for char in alphanumeric if char.isalpha())
+    if (
+        letters in COMMON_WEAK_PASSPHRASES
+        or len(set(normalized)) < 4
+        or re.search(r"(.)\1{7}", normalized, flags=re.DOTALL)
+        or re.fullmatch(r"(.{1,6})\1+", alphanumeric or normalized, flags=re.DOTALL)
+        or _sequence_remainder_length(alphanumeric) < _MIN_NON_SEQUENCE_CHARACTERS
+    ):
         return "choose a less predictable value"
     return None
 
@@ -181,11 +226,11 @@ def _validate_encrypted_payload(
     sidecar = expected_kind is not None
     profile = encryption_profile(payload, sidecar=sidecar)
     expected_storage = profile.sidecar_storage if sidecar else profile.vault_storage
-    required = {"app", "storage", "version", "cipher", "kdf", "iterations", "salt", "nonce", "ciphertext"}
+    required = {"app", "storage", "version"} | _ENVELOPE_FIELDS
     if sidecar:
-        required.add("kind")
+        required |= {"kind"}
     if profile.version == 2:
-        required.update({"memory_kib", "parallelism"})
+        required |= _V2_ENVELOPE_FIELDS
     if (
         set(payload) != required
         or payload.get("app") != "agent-personal-vault"
@@ -244,9 +289,10 @@ def encrypt_store_payload(
         raise ValueError("passphrase is required")
     if profile not in SUPPORTED_ENCRYPTION_PROFILES:
         raise ValueError("encryption profile is unsupported")
-    strength_issue = passphrase_strength_issue(passphrase)
-    if strength_issue is not None and not allow_weak_passphrase:
-        raise ValueError(f"passphrase is too weak for new encryption: {strength_issue}")
+    if not allow_weak_passphrase:
+        strength_issue = passphrase_strength_issue(passphrase)
+        if strength_issue is not None:
+            raise ValueError(f"passphrase is too weak for new encryption: {strength_issue}")
     AESGCM, _PBKDF2HMAC, _Argon2id, _crypto = _require_crypto()
     salt = os.urandom(SALT_BYTES)
     nonce = os.urandom(NONCE_BYTES)

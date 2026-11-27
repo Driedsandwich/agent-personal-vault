@@ -12,6 +12,16 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
+### Security
+
+- Bind consent requests to the vault they were created for. Requests are listed and can be approved or denied only from that vault; requests created by earlier releases are hidden and must be created again.
+- The local GUI checks the `Host` header on every request and the `Origin` (or `Sec-Fetch-Site: same-origin`) on session-authenticated POSTs and API reads, so a page served from another local port cannot drive the GUI.
+- The local GUI limits concurrent requests and applies one read deadline to the request line, headers, and body.
+- A vault file that carries encrypted-envelope fields with an unrecognized storage marker is rejected without being rewritten, instead of being read as an empty plaintext vault.
+- Atomic private writes remove their temporary file on every exit path; opening a vault removes stale temporary files left by interrupted writes, and `privacy dispose` removes them as well.
+- New encryption requires a passphrase of at least 16 characters and rejects common phrases, repeated patterns, and values made mostly of simple digit, alphabet, or keyboard runs. `--allow-weak-passphrase` remains an explicit override; existing encrypted vaults and KDF migration are unaffected.
+- Store path warnings now report an ancestor directory that other users can write without the sticky bit.
+
 ## 0.1.22 - 2026-11-27
 
 ### Security

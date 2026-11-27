@@ -424,6 +424,7 @@ def create_consent_request(
         "key": key,
         "purpose": redact_purpose(normalized_purpose),
         "purpose_binding": _purpose_binding(normalized_purpose),
+        "vault_binding": _vault_binding(vault_path),
         "requested_at": requested_at.isoformat(),
         "expires_at": (requested_at + timedelta(seconds=REQUEST_TTL_SECONDS)).isoformat(),
         "resolved_at": "",
@@ -462,9 +463,10 @@ def list_consent_requests(vault_path: Path, include_resolved: bool = False) -> l
     requests = state.get("requests", [])
     if not isinstance(requests, list):
         raise ConsentError("consent requests are invalid")
+    binding = _vault_binding(vault_path)
     output = []
     for request in requests:
-        if not isinstance(request, dict):
+        if not isinstance(request, dict) or request.get("vault_binding") != binding:
             continue
         status = request.get("status")
         if status == "pending" and _request_is_expired(request):
@@ -506,6 +508,7 @@ def resolve_consent_request(
     if approve:
         ttl_seconds = _validate_ttl_seconds(ttl_seconds)
     path = consent_path(vault_path)
+    binding = _vault_binding(vault_path)
     audit_event: dict[str, Any] | None = None
     operation: AuditOperation | None = None
     with _state_lock(path, vault_path=vault_path):
@@ -516,6 +519,8 @@ def resolve_consent_request(
         for request in requests:
             if not isinstance(request, dict) or request.get("id") != request_id:
                 continue
+            if request.get("vault_binding") != binding:
+                raise ConsentError("consent request vault mismatch")
             if request.get("status") != "pending":
                 raise ConsentError("consent request is already resolved")
             if _request_is_expired(request):

@@ -7,8 +7,9 @@ from pathlib import Path
 
 from .audit import audit_lock_path, audit_path, prune_audit_events
 from .consent import consent_path, prune_consent_records
+from .kdf_migration import migration_write_targets
 from .migration_guard import kdf_write_guard, migration_incomplete
-from .private_io import exclusive_private_lock, private_file_stat, remove_private_file
+from .private_io import exclusive_private_lock, private_file_stat, remove_private_file, remove_private_write_temps
 
 
 DISPOSE_CONFIRMATION = "delete local vault state"
@@ -34,6 +35,11 @@ def prune_private_metadata(
     }
 
 
+def cleanup_vault_write_temps(vault_path: Path, *, stale_only: bool) -> None:
+    targets = (vault_path, consent_path(vault_path), audit_path(vault_path), *migration_write_targets(vault_path))
+    remove_private_write_temps(vault_path.parent, targets, stale_only=stale_only)
+
+
 def dispose_private_state(vault_path: Path, *, confirmation: str) -> dict[str, bool]:
     """Remove the known vault data files while preserving the parent and unrelated files."""
 
@@ -44,6 +50,7 @@ def dispose_private_state(vault_path: Path, *, confirmation: str) -> dict[str, b
     if not migration_incomplete(vault_path) and not any(
         private_file_stat(data_path) is not None for data_path in data_paths
     ):
+        cleanup_vault_write_temps(vault_path, stale_only=False)
         return {"vault_removed": False, "consent_removed": False, "audit_removed": False}
     with kdf_write_guard(vault_path):
         lock_paths = [
@@ -56,6 +63,7 @@ def dispose_private_state(vault_path: Path, *, confirmation: str) -> dict[str, b
                 stack.enter_context(exclusive_private_lock(lock_path))
             for data_path in data_paths:
                 private_file_stat(data_path)
+            cleanup_vault_write_temps(vault_path, stale_only=False)
             return {
                 "vault_removed": remove_private_file(vault_path),
                 "consent_removed": remove_private_file(consent_state_path),
