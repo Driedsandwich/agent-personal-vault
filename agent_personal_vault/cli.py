@@ -65,6 +65,11 @@ from .vault import (
 )
 
 
+SIDECAR_PROTECTION_HINT = (
+    "Run `agent-personal-vault encryption protect-sidecars --purpose encryption_migration` to finish sidecar protection."
+)
+
+
 def resolve_path(args: argparse.Namespace) -> Path:
     return local_user_path(args.store) if args.store else store_path()
 
@@ -267,6 +272,11 @@ def command_encryption(args: argparse.Namespace) -> None:
     if args.encryption_command == "status":
         audit_exists = private_file_exists(audit_path(path))
         consent_exists = private_file_exists(consent_path(path))
+        audit_encrypted = audit_exists and sidecar_is_encrypted(audit_path(path), kind="audit")
+        consent_encrypted = consent_exists and sidecar_is_encrypted(consent_path(path), kind="consent")
+        protection_incomplete = encrypted and (
+            (audit_exists and not audit_encrypted) or (consent_exists and not consent_encrypted)
+        )
         profile = encryption_profile(store_payload).name if encrypted else None
         print(
             json.dumps(
@@ -277,11 +287,11 @@ def command_encryption(args: argparse.Namespace) -> None:
                     "encryption_profile": profile,
                     "cryptography_available": cryptography_available(),
                     "audit_sidecar_exists": audit_exists,
-                    "audit_sidecar_encrypted": audit_exists
-                    and sidecar_is_encrypted(audit_path(path), kind="audit"),
+                    "audit_sidecar_encrypted": audit_encrypted,
                     "consent_sidecar_exists": consent_exists,
-                    "consent_sidecar_encrypted": consent_exists
-                    and sidecar_is_encrypted(consent_path(path), kind="consent"),
+                    "consent_sidecar_encrypted": consent_encrypted,
+                    "sidecar_protection_incomplete": protection_incomplete,
+                    "sidecar_protection_hint": SIDECAR_PROTECTION_HINT if protection_incomplete else None,
                     "kdf_migration": migration_status(path),
                     "raw_values_included": False,
                 },
@@ -361,8 +371,12 @@ def command_encryption(args: argparse.Namespace) -> None:
                     encrypted=True,
                     allow_weak_passphrase=args.allow_weak_passphrase,
                 )
-                commit_consent_sidecar_migration(prepared_consent)
-                commit_audit_sidecar_migration(prepared_audit, vault_path=path)
+                try:
+                    commit_consent_sidecar_migration(prepared_consent)
+                    commit_audit_sidecar_migration(prepared_audit, vault_path=path)
+                except Exception:
+                    print(f"# WARNING: {SIDECAR_PROTECTION_HINT}", file=sys.stderr)
+                    raise
             except ValueError:
                 operation.rejected()
                 raise

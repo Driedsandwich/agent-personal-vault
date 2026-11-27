@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -25,11 +26,12 @@ from .resource_limits import MAX_PRIVATE_JSON_BYTES, ResourceLimitError, validat
 
 @dataclass(frozen=True)
 class PreparedSidecarWrite:
-    """Fully encoded sidecar bytes that can be committed without more parsing or crypto."""
+    """Encoded sidecar bytes and the state expected when committing them."""
 
     path: Path
     vault_path: Path
     expected_profile: EncryptionProfile | None
+    source_digest: str | None
     payload: bytes
 
 
@@ -131,6 +133,13 @@ def write_sidecar_bytes(
         )
 
 
+def _sidecar_source_digest(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(read_private_bytes(path)).hexdigest()
+    except FileNotFoundError:
+        return None
+
+
 def prepare_sidecar_write(
     path: Path,
     payload: bytes,
@@ -145,6 +154,7 @@ def prepare_sidecar_write(
 
     if len(payload) > MAX_PRIVATE_JSON_BYTES:
         raise ResourceLimitError("private state exceeds the supported size limit")
+    source_digest = _sidecar_source_digest(path)
     selected_profile = profile
     if encrypted and selected_profile is None:
         if private_file_exists(vault_path):
@@ -169,6 +179,7 @@ def prepare_sidecar_write(
         path=path,
         vault_path=vault_path,
         expected_profile=selected_profile if encrypted else None,
+        source_digest=source_digest,
         payload=encoded,
     )
 
@@ -184,6 +195,12 @@ def commit_prepared_sidecar(prepared: PreparedSidecarWrite) -> None:
                 current_profile = encryption_profile(vault_payload)
         if current_profile != prepared.expected_profile:
             raise ValueError("vault encryption profile changed; reload and retry")
+        try:
+            current_digest = _sidecar_source_digest(prepared.path)
+        except ResourceLimitError as exc:
+            raise ValueError("sidecar changed; reload and retry") from exc
+        if current_digest != prepared.source_digest:
+            raise ValueError("sidecar changed; reload and retry")
         write_private_bytes(prepared.path, prepared.payload)
 
 

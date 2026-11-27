@@ -119,7 +119,7 @@ Tools:
 - `apv.list_masked`
 - `apv.request_consent`
 
-The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.context` accepts an optional raw-free `task` argument and may return conservative minimum-key planning hints. `apv.list_masked` does not return raw value fragments; it returns field status metadata only. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
+The MCP server does not expose raw-value tools, stored-value write tools, external upload, form submission, email sending, or repository operations. `apv.context` accepts an optional raw-free `task` argument and may return conservative minimum-key planning hints. Each entry in the `apv.list_masked` response's `values` array contains `key`, `label`, `group`, and the boolean `filled` status. `apv.request_consent` can create a raw-free one-key consent request for later human approval, but it still does not return the requested raw value.
 
 The MCP stdio server does not authenticate clients. Its boundary is the local process relationship: the operator chooses which MCP client starts the server and connects to its stdin/stdout. Do not run it in shared-user, multi-agent, or remote-exposed environments where untrusted processes can connect or influence tool calls.
 

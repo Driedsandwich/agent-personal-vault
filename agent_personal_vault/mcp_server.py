@@ -63,7 +63,7 @@ def tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "apv.list_masked",
-            "description": "Return all schema keys with masked values only. No raw values are returned.",
+            "description": "Return every schema key with its label, group, and filled status. No raw values are returned.",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         },
         {
@@ -147,7 +147,6 @@ class MCPServer:
                         "label": spec.label,
                         "group": spec.group,
                         "filled": bool(str(fields.get(key, "")).strip()),
-                        "length": len(str(fields.get(key, ""))) if str(fields.get(key, "")).strip() else 0,
                     }
                     for key, spec in schema.items()
                 ],

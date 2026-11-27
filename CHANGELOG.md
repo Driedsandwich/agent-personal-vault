@@ -14,6 +14,14 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## 0.1.22 - 2026-10-26
 
+### Security
+
+- `apv-gui --open` opens a private temporary launcher file instead of passing the one-time bootstrap URL to the browser launch command. Users who run the GUI on shared multi-user systems should upgrade before using `--open`; the printed `url:` line is unchanged for manual use.
+- Bind consent grants to the vault they were issued for. Grants created by earlier releases are rejected at consumption and must be approved again.
+- Reject a prepared sidecar migration when the consent or audit sidecar changed after preparation, so consumed consent records and newer audit events are kept.
+- `encryption status` reports `sidecar_protection_incomplete` and the recovery command when the vault is encrypted but an existing sidecar is not; `encryption encrypt` prints the same recovery command if sidecar protection fails after the vault write.
+- `apv.list_masked` returns `filled` status without value lengths.
+
 ### Maintenance
 
 - Run release approval and artifact checks from the workflow commit while treating the selected tag as source data.
