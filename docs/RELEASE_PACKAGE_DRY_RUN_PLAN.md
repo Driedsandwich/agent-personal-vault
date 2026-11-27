@@ -126,28 +126,30 @@ Prepared rollback actions:
 
 ## v0.1.22 Maintenance Patch Candidate Dry-Run
 
-Status date: 2026-10-26.
+Status date: 2026-11-27.
 
-Tracking PR: the `v0.1.22` candidate pull request.
+Tracking PR: the `v0.1.22` candidate pull request, refreshed after the hardening changes in #344 and #345.
 
-This section records the package dry-run for the `v0.1.22` maintenance patch candidate based on main commit `d79a42c7c91b36fbf662acb31d6cd84d4aa2b69e` plus the reviewed version, changelog, README, and dry-run evidence changes. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
+This section records the package dry-run for the `v0.1.22` maintenance patch candidate based on main commit `3106ad6a11f212e4fa12ee472b76e9d29394148f` plus the release-workflow change in #345 and this dry-run evidence update. It does not merge the candidate or authorize a tag, GitHub release, package publish, announcement, repository setting change, or PyPI setting change. Those actions remain separate approval lanes.
 
 Candidate scope:
 
 - bump package version from `0.1.21` to `0.1.22`;
 - ship the GUI log redaction fix for Python 3.15 and the GUI error-response `TypeError` fix merged in #341;
 - ship the refreshed full-SHA GitHub Actions pins, including `pypa/gh-action-pypi-publish` v1.14.3 for `GHSA-5xjx-3w67-w9x9`, and the refreshed hash-pinned release build tools;
-- refresh README install examples so the package long description points to `agent-personal-vault==0.1.22`.
+- refresh README install examples so the package long description points to `agent-personal-vault==0.1.22`;
+- ship the local GUI launch, consent binding, sidecar migration, encryption status, and MCP `list_masked` hardening merged in #344;
+- run the publish workflow's artifact scan and manifest checks from the dispatch commit (#345).
 
 Local dry-run results:
 
-- Fresh isolated build source: a clean clone fetched candidate commit `3d93d73ae85bf761620c7f689684220536d5876d` by SHA on a separate Linux build host, in randomized temporary storage outside any maintainer working tree. This commit differs from the final candidate head only in this dry-run section of `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, which is not included in the wheel or sdist.
+- Fresh isolated build source: a clean clone fetched candidate commit `66083679061788cfc870ae990da71f00330f8c9c` on a separate Linux build host, in randomized temporary storage outside any maintainer working tree. This commit differs from the final candidate head only in this dry-run section of `docs/RELEASE_PACKAGE_DRY_RUN_PLAN.md`, which is not included in the wheel or sdist.
 - Hash-pinned release requirements installed successfully with Python 3.14.4, pip 26.2.2, setuptools 84.2.1, build 1.6.1, packaging 26.3, and pyproject-hooks 1.3.3; Twine and `cryptography==50.0.0` were installed only in temporary validation environments.
-- Final `python scripts/check_release.py`: passed with 239 tests (37 encryption tests skipped because `cryptography` is not installed in the release-build environment; PR CI runs them in the encrypted-artifact jobs); 26 Python source files compiled and the source privacy policy passed for the complete source inventory.
+- Final `python scripts/check_release.py`: passed with 250 tests (39 encryption tests skipped because `cryptography` is not installed in the release-build environment; PR CI runs them in the encrypted-artifact jobs); 27 Python source files compiled and the source privacy policy passed for the complete source inventory.
 - `python -m build --no-isolation`: completed for exactly one wheel and one sdist; `twine check` passed for both artifacts.
 - Strict artifact privacy policy passed for every regular entry in the complete wheel/sdist pair. The sdist contains only the package, `PKG-INFO`, egg-info metadata, tests, `README.md`, `LICENSE`, `pyproject.toml`, and `setup.cfg`.
 - Wheel metadata reports `agent-personal-vault` version `0.1.22`, contains the `0.1.22` README install examples, and requires exactly `cryptography>=50.0.0` for the encrypted extra.
-- README bytes and the wheel's embedded metadata description body match exactly at SHA-256 `f65b34726a97140c0aa165f4c4fca259bc641db472fcb2379fce495f5291eff0`. The distinct complete wheel METADATA digest is `28e71cb456fe7c213014a7138122811a7ce26cf5e5c46352354a1f9bd3209ebe`.
+- README bytes and the wheel's embedded metadata description body match exactly at SHA-256 `4d74098e7fafcf6f5d1455fbe2016d997cdc2a43978fc9e7fe56964790766b2a`. The distinct complete wheel METADATA digest is `098f6414006c225d99b4c29362124fed97a6d6cde8c35812e805a414f76679c3`.
 - PyPI `0.1.22` absence check returned HTTP 404 during candidate preparation.
 - A fresh virtual environment installed the wheel with `cryptography==50.0.0`, reported version `0.1.22`, exposed `agent-personal-vault`, `apv-gui`, and `apv-mcp`, and passed `scripts/check_encrypted_artifact.py` (installed encrypted round trip, tamper rejection, and v1-to-v2 migration).
 - The candidate checkout had no tracked-file changes after the dry-run.
@@ -161,8 +163,8 @@ Artifact records:
 
 | Artifact | Size | Entries | SHA-256 |
 | --- | ---: | ---: | --- |
-| `agent_personal_vault-0.1.22-py3-none-any.whl` | 69,416 bytes | 21 | `79708fef1b7211802af062ee524f724cea0e80854c1e30fa5ca57dc64f8add72` |
-| `agent_personal_vault-0.1.22.tar.gz` | 113,535 bytes | 34 | `240482c09a0cde002a807db05b809710ab7d9ede12857acfc507a40b4dabdb05` |
+| `agent_personal_vault-0.1.22-py3-none-any.whl` | 70,449 bytes | 21 | `5d9872fa9b41e12b984a6f373813bc31008a758a90bba6e8a3f331efe8c6c0aa` |
+| `agent_personal_vault-0.1.22.tar.gz` | 117,413 bytes | 31 | `f4908cccbc8ef242cd11a7a4f22d8746eb2a8c54e5bd8841ed3fcc82629d8f72` |
 
 These hashes identify this dry-run's files only. They do not authorize upload and are not a cross-environment reproducible-build claim. A later publish approval must bind freshly rebuilt artifacts to the approved tag and commit through the canonical release manifest workflow.
 
