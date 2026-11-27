@@ -68,6 +68,8 @@ The workflow file exists and OIDC publishes succeeded for `v0.1.5` through `v0.1
 
 Workflow shape:
 
+The outline below records the original proposal. The current workflow checks out the dispatch commit as `trusted` and the selected tag as `source` in both jobs, runs its artifact scan and manifest tools from `trusted` with `source` as the working directory, and keeps bundle paths under `source/`.
+
 ```yaml
 name: publish-package
 
@@ -150,7 +152,7 @@ Design notes:
 - The workflow checks that the package version is not already present on PyPI before building.
 - Release build requirements and the PEP 517 backend are exact-version and SHA-256 pinned; the build runs without an isolated dependency re-resolution.
 - The build job reads both wheel `METADATA` and sdist `PKG-INFO`, requires their package/version/Project-URL metadata to match `pyproject.toml`, records their metadata digests plus tag, commit, filenames, sizes, and artifact SHA-256 values in `artifact-manifest.json`, and displays it before the protected-environment approval.
-- The publish job checks out the same tag, verifies its commit, downloads the same canonical bundle, recomputes embedded metadata and all digests, and refuses OIDC publication if source identity, metadata, artifact set, or bytes differ from the reviewed manifest.
+- The workflow checks out both the dispatch commit and selected tag. The publish job runs the dispatch commit's manifest verifier against the tag checkout and downloaded bundle, and refuses OIDC publication if source identity, metadata, artifact set, or bytes differ from the reviewed manifest.
 - The build job uploads artifacts for the protected publish job to consume.
 - The build frontend validates package metadata while producing the distributions, and the build job runs a strict artifact forbidden-file scan before upload.
 - Action references are pinned to full commit SHAs. Updating those actions is a normal dependency-maintenance PR, not an implicit publish approval.

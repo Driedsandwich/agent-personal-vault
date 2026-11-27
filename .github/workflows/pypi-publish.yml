@@ -24,7 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
           ref: ${{ inputs.tag }}
+          path: source
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -43,12 +49,14 @@ jobs:
           echo "commit=${head_sha}" >> "${GITHUB_OUTPUT}"
         env:
           APV_TAG: ${{ inputs.tag }}
+        working-directory: source
       - name: Install build tools
         run: >-
           python -m pip install
           --require-hashes
           --only-binary=:all:
-          -r .github/release-requirements.txt
+          -r ../trusted/.github/release-requirements.txt
+        working-directory: source
       - name: Verify approved tag matches package version
         run: |
           python - <<'PY'
@@ -65,6 +73,7 @@ jobs:
           PY
         env:
           APV_TAG: ${{ inputs.tag }}
+        working-directory: source
       - name: Verify version is not already on PyPI
         run: |
           python - <<'PY'
@@ -87,15 +96,18 @@ jobs:
               else:
                   raise
           PY
+        working-directory: source
       - name: Build distributions
         run: python -m build --no-isolation
+        working-directory: source
       - name: Strict forbidden-file scan
-        run: python scripts/scan_release_artifacts.py
+        run: python -E -s ../trusted/scripts/scan_release_artifacts.py
+        working-directory: source
       - name: Create canonical artifact bundle and approval manifest
         run: |
           set -euo pipefail
           commit="$(git rev-parse HEAD)"
-          python scripts/release_artifact_manifest.py create \
+          python -E -s ../trusted/scripts/release_artifact_manifest.py create \
             --tag "${APV_TAG}" \
             --commit "${commit}"
           {
@@ -106,12 +118,13 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
         env:
           APV_TAG: ${{ inputs.tag }}
+        working-directory: source
       - name: Upload canonical bundle for environment approval
         id: upload_bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: approved-release-bundle
-          path: release-bundle/
+          path: source/release-bundle/
           if-no-files-found: error
           retention-days: 7
       - name: Record transferred bundle digest
@@ -133,7 +146,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
           ref: ${{ inputs.tag }}
+          path: source
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -142,18 +161,19 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: approved-release-bundle
-          path: release-bundle
+          path: source/release-bundle
       - name: Verify exact environment-approved artifact bytes
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${APV_SOURCE_COMMIT}"
-          python scripts/release_artifact_manifest.py verify \
+          python -E -s ../trusted/scripts/release_artifact_manifest.py verify \
             --tag "${APV_TAG}" \
             --commit "${APV_SOURCE_COMMIT}"
         env:
           APV_TAG: ${{ inputs.tag }}
           APV_SOURCE_COMMIT: ${{ needs.build.outputs.source_commit }}
+        working-directory: source
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          packages-dir: release-bundle/dist/
+          packages-dir: source/release-bundle/dist/
