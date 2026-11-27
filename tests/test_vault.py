@@ -2338,18 +2338,22 @@ class VaultTests(unittest.TestCase):
             opener = urllib.request.build_opener(NoRedirect)
             try:
                 with mock.patch("sys.stderr") as stderr:
-                    with self.assertRaises(urllib.error.HTTPError) as redirected:
-                        opener.open(bootstrap_url, timeout=5)
-                    self.assertEqual(redirected.exception.code, 303)
-                    self.assertEqual(redirected.exception.headers["Location"], "/")
-                    cookie_header = redirected.exception.headers["Set-Cookie"]
+                    with opener.open(bootstrap_url, timeout=5) as continued:
+                        self.assertEqual(continued.status, 200)
+                        self.assertIsNone(continued.headers.get("Location"))
+                        cookie_header = continued.headers["Set-Cookie"]
+                        continue_body = continued.read().decode("utf-8")
+                        self.assertEqual(continued.headers["Referrer-Policy"], "no-referrer")
+                        self.assertEqual(continued.headers["Cache-Control"], "no-store")
                     self.assertIn(f"{GUI_SESSION_COOKIE}={session_token}", cookie_header)
                     self.assertIn("HttpOnly", cookie_header)
                     self.assertIn("SameSite=Strict", cookie_header)
                     self.assertIn("Path=/", cookie_header)
                     self.assertIn(f"Max-Age={GUI_SESSION_TTL_SECONDS}", cookie_header)
-                    self.assertEqual(redirected.exception.headers["Referrer-Policy"], "no-referrer")
-                    redirected.exception.close()
+                    self.assertIn('<meta http-equiv="refresh" content="0;url=/">', continue_body)
+                    self.assertNotIn(bootstrap_token, continue_body)
+                    self.assertNotIn(session_token, continue_body)
+                    self.assertNotIn("?token=", continue_body)
 
                     cookie = cookie_header.split(";", 1)[0]
                     root_request = urllib.request.Request(base + "/", headers={"Cookie": cookie})
@@ -2428,18 +2432,18 @@ class VaultTests(unittest.TestCase):
             def exchange() -> tuple[int, str]:
                 opener = urllib.request.build_opener(NoRedirect)
                 try:
-                    opener.open(url, timeout=5)
+                    with opener.open(url, timeout=5) as response:
+                        return response.status, response.headers.get("Set-Cookie", "")
                 except urllib.error.HTTPError as response:
                     try:
                         return response.code, response.headers.get("Set-Cookie", "")
                     finally:
                         response.close()
-                raise AssertionError("bootstrap exchange unexpectedly followed redirect")
 
             try:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     results = list(executor.map(lambda _: exchange(), range(2)))
-                self.assertEqual(sorted(code for code, _cookie in results), [303, 403])
+                self.assertEqual(sorted(code for code, _cookie in results), [200, 403])
                 self.assertEqual(sum(bool(cookie) for _code, cookie in results), 1)
                 self.assertTrue(server.gui_bootstrap_used)  # type: ignore[attr-defined]
             finally:
@@ -5012,6 +5016,21 @@ class VaultTests(unittest.TestCase):
 
             self.assertEqual(list_consents(path)[0]["purpose"], "[redacted]")
             with self.assertRaisesRegex(ConsentError, "consent token has no vault binding; approve again"):
+                validate_and_consume_consent(
+                    vault_path=path,
+                    consent_id="c_legacy",
+                    action="get",
+                    key="EMAIL",
+                    purpose="review email",
+                    actor="test",
+                )
+
+            from agent_personal_vault import consent as consent_module
+
+            state = json.loads(consent_path(path).read_text(encoding="utf-8"))
+            state["grants"][0]["vault_binding"] = consent_module._vault_binding(path)
+            consent_path(path).write_text(json.dumps(state), encoding="utf-8")
+            with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):
                 validate_and_consume_consent(
                     vault_path=path,
                     consent_id="c_legacy",

@@ -476,8 +476,21 @@ class Handler(BaseHTTPRequestHandler):
         return session_token
 
     def send_bootstrap_redirect(self, session_token: str) -> None:
-        self.send_response(HTTPStatus.SEE_OTHER)
-        self.send_header("Location", "/")
+        # Continue with a same-origin document navigation instead of an HTTP
+        # redirect: a redirect inherits the bootstrap navigation's initiator, so
+        # a launch from a local file would not send the SameSite=Strict cookie.
+        body = (
+            "<!doctype html><html><head><meta charset=\"utf-8\">"
+            '<meta name="referrer" content="no-referrer">'
+            '<meta http-equiv="refresh" content="0;url=/">'
+            "<title>Agent Personal Vault</title></head><body>"
+            '<p><a href="/">Continue</a></p>'
+            '<script>location.replace("/");</script>'
+            "</body></html>"
+        ).encode("utf-8")
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.send_header(
             "Set-Cookie",
             f"{GUI_SESSION_COOKIE}={session_token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={GUI_SESSION_TTL_SECONDS}",
@@ -485,6 +498,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
+        self.wfile.write(body)
 
     def current_storage_context(self) -> tuple[str, str]:
         return storage_context(self.server.store_path, self.server.storage_context_secret)
