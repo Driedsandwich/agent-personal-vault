@@ -311,8 +311,8 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertNotIn("--dist", workflow)
         self.assertNotIn("--manifest", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "${APV_SOURCE_COMMIT}"', workflow)
-        self.assertEqual(workflow.count("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"), 2)
-        self.assertIn("packages-dir: release-bundle/dist/", workflow)
+        self.assertEqual(workflow.count("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"), 4)
+        self.assertIn("packages-dir: source/release-bundle/dist/", workflow)
         self.assertNotIn("pip install --upgrade pip build twine", workflow)
         self.assertEqual(pyproject["build-system"]["requires"], ["setuptools==84.2.1"])
         self.assertIn('python-version: "3.13.17"', workflow)
@@ -321,6 +321,50 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertRegex(requirements, rf"(?m)^{package}==[^ ]+ \\$")
         self.assertEqual(requirements.count("--hash=sha256:"), 5)
         self.assertIn("embedded_metadata(path)", (root / "scripts" / "release_artifact_manifest.py").read_text())
+
+    def test_publish_workflow_runs_release_tools_from_trusted_commit(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        workflow = (root / ".github" / "workflows" / "pypi-publish.yml").read_text(encoding="utf-8")
+        build, publish = workflow.split("\n  publish:\n", maxsplit=1)
+
+        for job_name, job in (("build", build), ("publish", publish)):
+            with self.subTest(job=job_name):
+                self.assertRegex(
+                    job,
+                    r"(?s)actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1.*?"
+                    r"ref: \$\{\{ github\.sha \}\}.*?path: trusted",
+                )
+                self.assertRegex(
+                    job,
+                    r"(?s)actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1.*?"
+                    r"ref: \$\{\{ inputs\.tag \}\}.*?path: source",
+                )
+                tool_invocations = re.findall(r"python(?:\s+-[A-Za-z]+)*\s+[^\s\\]*scripts/[^\s\\]+", job)
+                self.assertTrue(tool_invocations, f"{job_name} has no release tool invocation")
+                for command in tool_invocations:
+                    self.assertRegex(command, r"\Apython -E -s ../trusted/scripts/")
+        self.assertNotRegex(publish, r"(?m)^\s*run:.*python scripts/")
+
+    def test_trusted_release_tools_run_from_separate_source_checkout(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source"
+            (source / "scripts").mkdir(parents=True)
+            (source / "dist").mkdir()
+            marker = "SOURCE_CHECKOUT_MODULE_IMPORTED"
+            for name in ["__init__.py", "release_policy.py"]:
+                (source / "scripts" / name).write_text(f"print({marker!r})\n", encoding="utf-8")
+            for script in ["scan_release_artifacts.py", "release_artifact_manifest.py"]:
+                args = [sys.executable, "-E", "-s", str(root / "scripts" / script)]
+                if script == "release_artifact_manifest.py":
+                    args += ["verify", "--tag", "v0.0.0", "--commit", "0" * 40]
+                with self.subTest(script=script):
+                    result = subprocess.run(args, cwd=source, capture_output=True, text=True, timeout=60)
+                    output = result.stdout + result.stderr
+                    self.assertNotIn(marker, output)
+                    self.assertNotIn("ModuleNotFoundError", output)
+                    self.assertNotIn("ImportError", output)
+                    self.assertNotEqual(result.returncode, 0)
 
     def test_pii_scan_checks_local_agent_config_without_git(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
