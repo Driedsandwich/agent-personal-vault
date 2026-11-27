@@ -12,7 +12,7 @@ This changelog records released and unreleased project changes. It does not auth
 
 ## Unreleased
 
-## 0.1.22 - 2026-10-26
+## 0.1.22 - 2026-11-27
 
 ### Security
 
