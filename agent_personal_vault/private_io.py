@@ -5,9 +5,11 @@ from __future__ import annotations
 import errno
 import json
 import os
+import re
 import secrets
 import stat
 import sys
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -28,6 +30,8 @@ except ImportError:  # pragma: no cover - Unix fallback path
 
 PRIVATE_DIR_MODE = 0o700
 PRIVATE_FILE_MODE = 0o600
+_PRIVATE_WRITE_TEMP_AGE_SECONDS = 24 * 60 * 60
+_PRIVATE_WRITE_TEMP_NAME = re.compile(r"(\..+\.)[0-9a-f]{24}\.tmp", re.DOTALL)
 _DARWIN_SYSTEM_LINKS = {"var", "tmp", "etc"}
 
 
@@ -246,11 +250,58 @@ def _validate_replace_target(path: Path, directory_fd: int) -> None:
         raise PermissionError("vault state replacement target ownership or link count is unsafe")
 
 
+def _private_write_temp_prefix(path: Path) -> str:
+    return f".{_relative_name(path)}."
+
+
+def remove_private_write_temps(parent: Path, targets: tuple[Path, ...], *, stale_only: bool) -> None:
+    """Remove abandoned atomic writes for known targets in one private directory."""
+
+    prefixes = {_private_write_temp_prefix(path) for path in targets}
+    cutoff = time.time() - _PRIVATE_WRITE_TEMP_AGE_SECONDS if stale_only else None
+    try:
+        with private_directory_fd(parent, create=False) as directory_fd:
+            # Writers hold a shared lock from before creation until replacement or cleanup.
+            flags = fcntl.LOCK_EX | fcntl.LOCK_NB if stale_only else fcntl.LOCK_EX
+            try:
+                fcntl.flock(directory_fd, flags)
+            except BlockingIOError:
+                return
+            removed = False
+            for name in os.listdir(directory_fd):
+                match = _PRIVATE_WRITE_TEMP_NAME.fullmatch(name)
+                if match is None or match[1] not in prefixes:
+                    continue
+                try:
+                    info = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    continue
+                if (
+                    not stat.S_ISREG(info.st_mode)
+                    or info.st_uid != os.geteuid()
+                    or info.st_nlink != 1
+                    or stat.S_IMODE(info.st_mode) & ~PRIVATE_FILE_MODE
+                    or (cutoff is not None and info.st_mtime >= cutoff)
+                ):
+                    continue
+                try:
+                    os.unlink(name, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    continue
+                removed = True
+            if removed:
+                os.fsync(directory_fd)
+    except FileNotFoundError:
+        return
+
+
 def write_private_bytes(path: Path, payload: bytes) -> None:
     """Atomically replace a private state file with exact bytes."""
 
     with private_directory_fd(path.parent) as directory_fd:
-        temp_name = f".{_relative_name(path)}.{secrets.token_hex(12)}.tmp"
+        fcntl.flock(directory_fd, fcntl.LOCK_SH)
+        temp_name = f"{_private_write_temp_prefix(path)}{secrets.token_hex(12)}.tmp"
+        replaced = False
         fd = os.open(
             temp_name,
             _open_flags(os.O_WRONLY, os.O_CREAT, os.O_EXCL),
@@ -259,24 +310,26 @@ def write_private_bytes(path: Path, payload: bytes) -> None:
         )
         try:
             _validate_private_file(fd, repair_mode=True)
-            handle_fd = fd
+            handle = os.fdopen(fd, "wb")
             fd = -1
-            with os.fdopen(handle_fd, "wb") as handle:
+            with handle:
                 handle.write(payload)
                 handle.flush()
                 os.fsync(handle.fileno())
             _validate_replace_target(path, directory_fd)
             os.replace(temp_name, _relative_name(path), src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+            replaced = True
             os.fsync(directory_fd)
-        except Exception:
-            if fd >= 0:
-                os.close(fd)
+        finally:
             try:
-                os.unlink(temp_name, dir_fd=directory_fd)
-            except OSError as exc:
-                if exc.errno != errno.ENOENT:
-                    raise
-            raise
+                if fd >= 0:
+                    os.close(fd)
+            finally:
+                if not replaced:
+                    try:
+                        os.unlink(temp_name, dir_fd=directory_fd)
+                    except FileNotFoundError:
+                        pass
 
 
 def write_private_text(path: Path, text: str) -> None:

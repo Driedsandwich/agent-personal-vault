@@ -303,7 +303,7 @@ agent-personal-vault encryption status
 agent-personal-vault encryption encrypt --purpose encryption_migration
 ```
 
-新規暗号化では12文字以上かつ明白に予測しにくいpassphraseを要求します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。新たに発行したconsent tokenは呼び出し元へ一度だけ返し、保存時は照合用digestだけを保持します。
+新規暗号化では16文字以上のpassphraseを要求し、よくある語句や単純な繰り返し・並びを拒否します。弱い値を互換性上どうしても使う場合だけ `--allow-weak-passphrase` でoffline guessingリスクを明示的に受け入れます。新たに発行したconsent tokenは呼び出し元へ一度だけ返し、保存時は照合用digestだけを保持します。
 
 過去版ですでに暗号化したvaultをupgradeした場合は、既存のconsent/audit sidecarを明示的に移行してください。GUIとMCP serverを停止し、backupを確認してから次を実行します。
 

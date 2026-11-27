@@ -32,6 +32,7 @@ from .consent import (
     prepare_consent_consumption,
 )
 from .crypto_store import (
+    MIN_NEW_PASSPHRASE_LENGTH,
     EncryptionUnavailableError,
     cryptography_available,
     encryption_profile,
@@ -591,7 +592,11 @@ def build_parser() -> argparse.ArgumentParser:
     encryption_sub = encryption.add_subparsers(dest="encryption_command", required=True)
     encryption_status = encryption_sub.add_parser("status", help="Show encryption metadata without reading raw values.")
     encryption_status.set_defaults(func=command_encryption)
-    encryption_encrypt = encryption_sub.add_parser("encrypt", help="Encrypt the existing local vault with optional cryptography support.")
+    encryption_encrypt = encryption_sub.add_parser(
+        "encrypt",
+        help="Encrypt the existing local vault with optional cryptography support.",
+        description=f"Encrypt the local vault with a new passphrase of at least {MIN_NEW_PASSPHRASE_LENGTH} characters.",
+    )
     encryption_encrypt.add_argument(
         "--purpose", required=True, help="Migration purpose; only an allowlisted code or [redacted] is stored."
     )

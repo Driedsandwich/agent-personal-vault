@@ -55,7 +55,7 @@ from agent_personal_vault.vault import blank_store, load_store, write_store
 
 @unittest.skipUnless(cryptography_available(), "cryptography with Argon2id is not installed")
 class KDFMigrationTests(unittest.TestCase):
-    passphrase = "correct horse battery staple"
+    passphrase = "Quartz! Lantern7 Otter% Drift"
 
     def create_v1_vault(self, root: Path, *, with_sidecars: bool = True) -> Path:
         path = root / "vault.json"
