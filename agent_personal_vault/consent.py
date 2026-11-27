@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import re
 import secrets
 import unicodedata
@@ -27,7 +28,7 @@ except ImportError:  # pragma: no cover - Unix fallback path
     msvcrt = None  # type: ignore[assignment]
 
 from .audit import AuditOperation, begin_audit_operation, redact_consent_id, redact_purpose
-from .private_io import open_private_lock, private_file_exists
+from .private_io import lexical_absolute_path, open_private_lock, private_file_exists
 from .resource_limits import MAX_CONSENT_RECORDS, MAX_PURPOSE_BYTES, ResourceLimitError, require_text_limit
 from .sidecar_store import (
     PreparedSidecarWrite,
@@ -107,6 +108,12 @@ def _purpose_binding(normalized_purpose: str) -> str:
     return f"sha256:{digest}"
 
 
+def _vault_binding(vault_path: Path) -> str:
+    path_bytes = os.fsencode(lexical_absolute_path(vault_path))
+    digest = hashlib.sha256(b"agent-personal-vault:consent-vault:v1:" + path_bytes).hexdigest()
+    return f"sha256:{digest}"
+
+
 def _validate_purpose_binding(value: Any) -> str:
     if not isinstance(value, str) or PURPOSE_BINDING_PATTERN.fullmatch(value) is None:
         raise ConsentError("consent purpose binding is invalid")
@@ -122,7 +129,9 @@ def _validate_stored_purpose(value: Any) -> str:
 
 
 def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    public = {key: value for key, value in record.items() if key not in {"purpose_binding", "token_digest"}}
+    public = {
+        key: value for key, value in record.items() if key not in {"purpose_binding", "token_digest", "vault_binding"}
+    }
     if "purpose" in public:
         public["purpose"] = redact_purpose(public.get("purpose"))
     return public
@@ -158,6 +167,7 @@ def _state_lock(path: Path, *, vault_path: Path, allow_kdf_incomplete: bool = Fa
 
 def _build_grant(
     *,
+    vault_path: Path,
     action: str,
     key: str,
     purpose: str,
@@ -183,6 +193,7 @@ def _build_grant(
         "key": key,
         "purpose": display_purpose,
         "purpose_binding": purpose_binding,
+        "vault_binding": _vault_binding(vault_path),
         "issued_at": now.isoformat(),
         "expires_at": expires_at.isoformat(),
         "used_at": "",
@@ -364,6 +375,7 @@ def issue_consent(
     human_operated: bool = True,
 ) -> dict[str, Any]:
     grant = _build_grant(
+        vault_path=vault_path,
         action=action,
         key=key,
         purpose=purpose,
@@ -543,6 +555,7 @@ def resolve_consent_request(
                 break
 
             grant = _build_grant(
+                vault_path=vault_path,
                 action=str(request.get("action") or ""),
                 key=str(request.get("key") or ""),
                 purpose=str(request.get("purpose") or ""),
@@ -619,6 +632,11 @@ def prepare_consent_consumption(
                     continue
             elif grant.get("id") != consent_id:
                 continue
+            stored_vault_binding = grant.get("vault_binding")
+            if stored_vault_binding is None:
+                raise ConsentError("consent token has no vault binding; approve again")
+            if stored_vault_binding != _vault_binding(vault_path):
+                raise ConsentError("consent token vault mismatch; approve again")
             if grant.get("used_at"):
                 raise ConsentError("consent token has already been used")
             if grant.get("action") != action:
