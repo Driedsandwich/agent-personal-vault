@@ -7,9 +7,11 @@ import hashlib
 import html
 import hmac
 import json
+import os
 import secrets
 import threading
 import time
+import tempfile
 import webbrowser
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
@@ -467,7 +469,11 @@ class Handler(BaseHTTPRequestHandler):
                 return None
             self.server.gui_bootstrap_used = True
             self.server.gui_session_expires_at = self.server.monotonic() + GUI_SESSION_TTL_SECONDS
-            return self.server.gui_session_token
+            session_token = self.server.gui_session_token
+        cleanup = getattr(self.server, "gui_bootstrap_file_cleanup", None)
+        if cleanup is not None:
+            cleanup()
+        return session_token
 
     def send_bootstrap_redirect(self, session_token: str) -> None:
         self.send_response(HTTPStatus.SEE_OTHER)
@@ -712,21 +718,58 @@ def configure_gui_server(
 
 def run_server(port: int, open_browser: bool, path: Path, schema_name: str) -> None:
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    token = configure_gui_server(server, path, schema_name)
-    actual_port = server.server_address[1]
-    url = f"http://127.0.0.1:{actual_port}/?token={token}"
-    load_store(create=True, path=path, schema_name=schema_name)
-    print("Agent Personal Vault GUI", flush=True)
-    print(f"url: {url}", flush=True)
-    print("bind: 127.0.0.1", flush=True)
-    print(f"store: {path}", flush=True)
-    print("stop: Ctrl-C", flush=True)
-    if open_browser:
-        threading.Timer(0.2, lambda: webbrowser.open(url)).start()
+    cleanup_browser_file = None
+    expiry_timer = None
     try:
+        token = configure_gui_server(server, path, schema_name)
+        actual_port = server.server_address[1]
+        url = f"http://127.0.0.1:{actual_port}/?token={token}"
+        load_store(create=True, path=path, schema_name=schema_name)
+        print("Agent Personal Vault GUI", flush=True)
+        print(f"url: {url}", flush=True)
+        print("bind: 127.0.0.1", flush=True)
+        print(f"store: {path}", flush=True)
+        print("stop: Ctrl-C", flush=True)
+        if open_browser:
+            temp_dir = Path(tempfile.mkdtemp(prefix="apv-gui-"))
+            os.chmod(temp_dir, 0o700)
+            bootstrap_file = temp_dir / "open.html"
+            file_descriptor = os.open(bootstrap_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(file_descriptor, "w", encoding="utf-8") as handle:
+                handle.write(
+                    "<!doctype html><html><head>"
+                    '<meta name="referrer" content="no-referrer">'
+                    f'<meta http-equiv="refresh" content="0;url={html.escape(url, quote=True)}">'
+                    "</head><body>"
+                    f"<script>location.replace({json.dumps(url)});</script>"
+                    "</body></html>"
+                )
+            os.chmod(bootstrap_file, 0o600)
+
+            def cleanup_browser_file() -> None:
+                try:
+                    bootstrap_file.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                try:
+                    temp_dir.rmdir()
+                except OSError:
+                    pass
+
+            server.gui_bootstrap_file_cleanup = cleanup_browser_file  # type: ignore[attr-defined]
+            threading.Timer(0.2, lambda: webbrowser.open(bootstrap_file.as_uri())).start()
+            expiry_timer = threading.Timer(GUI_BOOTSTRAP_TTL_SECONDS, cleanup_browser_file)
+            expiry_timer.daemon = True
+            expiry_timer.start()
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nstopped")
+    finally:
+        if expiry_timer is not None:
+            expiry_timer.cancel()
+        if cleanup_browser_file is not None:
+            cleanup_browser_file()
+        server.server_close()
 
 
 def main() -> None:

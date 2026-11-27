@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import os
+import re
 import socket
 import stat
 import subprocess
@@ -15,6 +17,7 @@ import unicodedata
 import urllib.error
 import urllib.request
 import unittest
+from urllib.parse import urlsplit
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -43,6 +46,7 @@ from agent_personal_vault.consent import (
     issue_consent,
     list_consents,
     list_consent_requests,
+    prepare_consent_consumption,
     prune_consent_records,
     resolve_consent_request,
     validate_and_consume_consent,
@@ -58,6 +62,7 @@ from agent_personal_vault.gui import (
     configure_gui_server,
     page_html,
     profile_view_payload,
+    run_server,
     save_profile_fields,
 )
 from agent_personal_vault.private_io import append_private_line, remove_private_file, write_private_bytes
@@ -2250,6 +2255,61 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(redacted, "/api/profile?token=[redacted]")
         self.assertEqual(_redact_request_target("/api/profile?x=1"), "/api/profile?x=1")
 
+    def test_gui_open_passes_private_bootstrap_html_file_to_browser(self) -> None:
+        opened = []
+
+        class ImmediateBrowserTimer:
+            def __init__(self, interval, function, *args, **kwargs):
+                self.interval = interval
+                self.function = function
+                self.args = args
+                self.kwargs = kwargs
+
+            def start(self):
+                self.function(*self.args, **self.kwargs)
+
+            def cancel(self):
+                pass
+
+        def capture_browser_target(target):
+            opened.append(target)
+            file_path = Path(urllib.request.url2pathname(urlsplit(target).path))
+            opened.append(file_path.read_text(encoding="utf-8"))
+            opened.append(file_path)
+            if os.name == "posix":
+                opened.append((stat.S_IMODE(file_path.stat().st_mode), stat.S_IMODE(file_path.parent.stat().st_mode)))
+            return True
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            with mock.patch("agent_personal_vault.gui.threading.Timer", ImmediateBrowserTimer), \
+                    mock.patch("agent_personal_vault.gui.webbrowser.open", side_effect=capture_browser_target), \
+                    mock.patch.object(_StdlibThreadingHTTPServer, "serve_forever", side_effect=KeyboardInterrupt):
+                run_server(0, True, path, "job_hunting_profile")
+
+        target, body, file_path = opened[:3]
+        self.assertTrue(target.startswith("file:"))
+        self.assertNotIn("token=", target)
+        bootstrap_token = re.search(r"\?token=([A-Za-z0-9_-]+)", body)
+        self.assertIsNotNone(bootstrap_token)
+        assert bootstrap_token is not None
+        self.assertNotIn(bootstrap_token.group(1), target)
+        self.assertIn("<meta name=\"referrer\" content=\"no-referrer\">", body)
+        self.assertIn("http://127.0.0.1:", body)
+        self.assertRegex(body, r"\?token=[A-Za-z0-9_-]+")
+        if os.name == "posix":
+            self.assertEqual(opened[3], (0o600, 0o700))
+        self.assertFalse(file_path.exists())
+        self.assertFalse(file_path.parent.exists())
+
+    def test_gui_without_open_does_not_create_temporary_bootstrap_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            with mock.patch("tempfile.mkdtemp") as make_temp, \
+                    mock.patch.object(_StdlibThreadingHTTPServer, "serve_forever", side_effect=KeyboardInterrupt):
+                run_server(0, False, path, "job_hunting_profile")
+            make_temp.assert_not_called()
+
     def test_gui_bootstrap_is_single_use_and_exchanges_for_expiring_cookie_session(self) -> None:
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -3678,6 +3738,61 @@ class VaultTests(unittest.TestCase):
             self.assertNotIn(token.encode(), protected_audit)
 
     @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encryption_status_reports_incomplete_sidecar_protection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            passphrase = "correct horse battery staple"
+            store = load_store(create=True, path=path)
+            issue_consent(vault_path=path, action="get", key="EMAIL", purpose="test_dummy", actor="test")
+            command = [sys.executable, "-m", "agent_personal_vault.cli", "--store", str(path), "encryption"]
+
+            def status():
+                result = subprocess.run([*command, "status"], capture_output=True, text=True, check=True)
+                return json.loads(result.stdout)
+
+            plaintext = status()
+            write_store(store, path, passphrase=passphrase, encrypted=True)
+            partial = status()
+            self.assertTrue(partial["sidecar_protection_incomplete"])
+            self.assertIn("encryption protect-sidecars", partial["sidecar_protection_hint"])
+            self.assertNotIn(str(path), partial["sidecar_protection_hint"])
+            self.assertFalse(plaintext["sidecar_protection_incomplete"])
+            self.assertIsNone(plaintext["sidecar_protection_hint"])
+
+            subprocess.run(
+                [*command, "protect-sidecars", "--purpose", "encryption_migration"],
+                env={**os.environ, "AGENT_PERSONAL_VAULT_PASSPHRASE": passphrase},
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            protected = status()
+            self.assertTrue(protected["consent_sidecar_encrypted"])
+            self.assertTrue(protected["audit_sidecar_encrypted"])
+            self.assertFalse(protected["sidecar_protection_incomplete"])
+            self.assertIsNone(protected["sidecar_protection_hint"])
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
+    def test_encrypt_reports_sidecar_protection_recovery_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            load_store(create=True, path=path)
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(cli_module, "read_passphrase", return_value="correct horse battery staple"),
+                mock.patch.object(cli_module, "commit_audit_sidecar_migration", side_effect=OSError(str(path))),
+                mock.patch.object(sys, "stderr", stderr),
+                self.assertRaises(SystemExit) as failure,
+            ):
+                cli_module.main(["--store", str(path), "encryption", "encrypt", "--purpose", "encryption_migration"])
+
+            self.assertEqual(failure.exception.code, 1)
+            self.assertTrue(is_encrypted_payload(read_private_json(path)))
+            self.assertFalse(sidecar_is_encrypted(audit_path(path), kind="audit"))
+            self.assertIn("encryption protect-sidecars", stderr.getvalue())
+            self.assertNotIn(str(path), stderr.getvalue())
+
+    @unittest.skipUnless(cryptography_available(), "cryptography is not installed")
     def test_protect_sidecars_migrates_existing_encrypted_vault_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vault.json"
@@ -4247,6 +4362,32 @@ class VaultTests(unittest.TestCase):
             }
             self.assertEqual(candidate_keys, {"FULL_NAME", "EMAIL"})
 
+    def test_mcp_list_masked_reports_filled_without_length(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vault.json"
+            store = load_store(create=True, path=path)
+            store["fields"]["FAMILY_NAME"] = "sample"
+            write_store(store, path)
+            message = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "apv.list_masked", "arguments": {}},
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "agent_personal_vault.mcp_server", "--store", str(path)],
+                input=json.dumps(message) + "\n",
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            response = json.loads(result.stdout)
+            payload = json.loads(response["result"]["content"][0]["text"])
+            values = {row["key"]: row for row in payload["values"]}
+            self.assertNotIn("length", {key for row in values.values() for key in row})
+            self.assertIs(values["FAMILY_NAME"]["filled"], True)
+            self.assertIs(values["EMAIL"]["filled"], False)
+
     def test_mcp_rejects_oversized_frame_and_processes_next_bounded_message(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "private-path-marker" / "vault.json"
@@ -4726,6 +4867,37 @@ class VaultTests(unittest.TestCase):
                 actor="test",
             )
 
+    def test_consent_grant_is_bound_to_issuing_vault(self) -> None:
+        for via_request in (False, True):
+            with self.subTest(via_request=via_request), tempfile.TemporaryDirectory() as tmp:
+                issuing_path = Path(tmp) / "issuing.json"
+                other_path = Path(tmp) / "other.json"
+                for path in (issuing_path, other_path):
+                    load_store(create=True, path=path)
+                scope = {"action": "get", "key": "EMAIL", "purpose": "test_dummy", "actor": "test"}
+                if via_request:
+                    request = create_consent_request(vault_path=issuing_path, **scope)
+                    grant = resolve_consent_request(
+                        vault_path=issuing_path, request_id=request["id"], approve=True, actor="test"
+                    )["grant"]
+                else:
+                    grant = issue_consent(vault_path=issuing_path, **scope)
+
+                state_text = consent_path(issuing_path).read_text(encoding="utf-8")
+                stored = json.loads(state_text)["grants"][0]
+                self.assertRegex(stored.get("vault_binding", ""), r"\Asha256:[0-9a-f]{64}\Z")
+                self.assertNotIn(str(issuing_path), state_text)
+                self.assertNotIn("vault_binding", grant)
+                with self.assertRaisesRegex(ConsentError, "consent token vault mismatch"):
+                    prepare_consent_consumption(vault_path=other_path, consent_id=grant["id"], **scope)
+                self.assertEqual(consent_path(issuing_path).read_text(encoding="utf-8"), state_text)
+                consumed, operation = prepare_consent_consumption(
+                    vault_path=issuing_path, consent_id=grant["id"], **scope
+                )
+                operation.delivered()
+                self.assertTrue(consumed["used_at"])
+                self.assertNotIn("vault_binding", consumed)
+
     def test_consent_purpose_rejects_empty_and_format_controls_before_mutation(self) -> None:
         cases = ["   ", "review\u202eapproved", "review\u200bapproved"]
         for purpose in cases:
@@ -4839,7 +5011,7 @@ class VaultTests(unittest.TestCase):
             consent_path(path).chmod(0o600)
 
             self.assertEqual(list_consents(path)[0]["purpose"], "[redacted]")
-            with self.assertRaisesRegex(ConsentError, "consent purpose binding is invalid"):
+            with self.assertRaisesRegex(ConsentError, "consent token has no vault binding; approve again"):
                 validate_and_consume_consent(
                     vault_path=path,
                     consent_id="c_legacy",
